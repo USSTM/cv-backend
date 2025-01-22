@@ -1,0 +1,9 @@
+package: api
+generate:
+  chi-server: true
+  models: true
+  embedded-spec: true
+output: api.gen.go
+output-options:
+  include-tags: []
+  include-operation-ids: []
