@@ -1,0 +1,135 @@
+openapi: "3.0.0"
+info:
+  version: 0.0.1
+  title: Campus Vault API
+  description: Backend API for Campus Vault Frontend
+servers:
+  - url: http://localhost:8080
+    description: Local Server
+components:
+  schemas:
+    User:
+      type: object
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      required:
+        - code
+        - message
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@torontomu.ca"
+      required:
+        - email
+        -
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+
+    PingResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "pong"
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - message
+        - timestamp
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - BearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Login User
+      description: Authenticates a user, returns a bearer token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Bad Credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid email or password."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /ping:
+    get:
+      tags:
+        - Protected
+      summary: Protected ping endpoint
+      description: Simple protected endpoint to test authentication
+      operationId: pingProtected
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Successful ping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
