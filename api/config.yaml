@@ -1,10 +1,7 @@
-package: oas
+package: api
 generate:
   chi-server: true
   strict-server: true
   models: true
   embedded-spec: true
-output: ../api/oas/api.gen.go
-output-options:
-  include-tags: []
-  include-operation-ids: []
+output: generated/api/api.gen.go

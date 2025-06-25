@@ -79,6 +79,7 @@ This project leverages Go 1.24's new tools directive system for managing develop
 3. To run tools tracked in go.mod:
    ```bash
    go tool oapi-codegen [arguments]
+   go tool sqlc [arguments]
    ```
 
 4. To install all project tools to your GOBIN:
