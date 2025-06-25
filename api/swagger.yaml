@@ -8,8 +8,32 @@ servers:
     description: Local Server
 components:
   schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "123e4567-e89b-12d3-a456-426614174000"
+
     User:
       type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+      required:
+        - id
+        - email
+        - role
+
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - organization
+        - member
 
     Error:
       type: object
@@ -32,7 +56,6 @@ components:
           example: "user@torontomu.ca"
       required:
         - email
-        -
     LoginResponse:
       type: object
       properties:
@@ -48,6 +71,7 @@ components:
         timestamp:
           type: string
           format: date-time
+          example: "2023-01-01T00:00:00Z"
       required:
         - message
         - timestamp
