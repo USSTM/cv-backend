@@ -36,10 +36,10 @@ Campus Vault is an inventory management system developed for the Undergraduate S
 
 2. Create an environment file:
    ```bash
-   cp sample.env .env
+   cp .env.sample .env
    ```
    
-3. Modify the `.env` file with your specific configuration values
+3. Modify the `.env` file with your specific configuration values (including database credentials and goose migration settings)
 
 ### Running the Application
 
@@ -48,15 +48,46 @@ Campus Vault is an inventory management system developed for the Undergraduate S
    docker-compose up -d
    ```
 
-2. Build and run the application:
+2. Run database migrations:
    ```bash
-   go build -buildvcs=true  # Includes VCS version information in binary
-   ./cv-backend
+   make migrate-up
    ```
 
-   The binary will include version information based on git tags and commits. A `+dirty` suffix will be added if there are uncommitted changes.
+3. Generate code and build:
+   ```bash
+   make build
+   ```
+
+4. Run the application:
+   ```bash
+   make run
+   ```
 
 ## Development
+
+### Code Generation
+
+- **API Code**: `make generate-api` - Generates Go code from OpenAPI specification
+- **Database Code**: `make generate-db` - Generates Go code from SQL queries using sqlc
+- **All Code**: `make generate` - Runs both API and database code generation
+
+### Database Migrations
+
+We use [goose](https://github.com/pressly/goose) for database migrations:
+
+- **Run migrations**: `make migrate-up` - Applies all pending migrations
+- **Rollback**: `make migrate-down` - Rolls back the last migration
+- **Status**: `make migrate-status` - Shows migration status
+- **Create new migration**: `make migrate-create name=migration_name` - Creates a new migration file
+- **Reset database**: `make db-reset` - Completely resets the database (removes volume and restarts)
+
+Migration files are stored in `db/migrations/` and follow the goose format with `-- +goose Up` and `-- +goose Down` sections.
+
+### Building and Running
+
+- **Build**: `make build` - Builds the application
+- **Run**: `make run` - Builds and runs the application
+- **Clean**: `make clean` - Removes build artifacts
 
 ### API Development
 
@@ -80,6 +111,7 @@ This project leverages Go 1.24's new tools directive system for managing develop
    ```bash
    go tool oapi-codegen [arguments]
    go tool sqlc [arguments]
+   go tool goose [arguments]
    ```
 
 4. To install all project tools to your GOBIN:
@@ -91,6 +123,33 @@ This project leverages Go 1.24's new tools directive system for managing develop
    ```bash
    go get tool
    ```
+
+## Project Structure
+
+```
+├── api/                    # OpenAPI specifications
+├── cmd/                    # Application entry points
+├── db/
+│   ├── migrations/        # Database migration files (goose)
+│   └── queries/           # SQL queries for sqlc
+├── generated/             # Generated code (API and DB)
+├── internal/              # Internal application code
+├── docker-compose.yml     # Database setup
+└── Makefile              # Build automation
+```
+
+## Database Schema
+
+The database schema is managed through migrations in `db/migrations/`:
+
+- `initial_schema.sql` - Creates all tables, enums, and constraints
+- `seed_roles_permissions.sql` - Seeds default roles and permissions
+
+The system includes:
+- **User management**: Users, roles, permissions with scope-based access control
+- **Inventory management**: Items with different types and approval workflows
+- **Booking system**: Time slots, availability, and scheduling
+- **Request/approval workflow**: For high-value items requiring approval
 
 ## Contributing
 
