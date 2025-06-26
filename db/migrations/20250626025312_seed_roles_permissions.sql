@@ -25,13 +25,13 @@ INSERT INTO permissions (name, description) VALUES
 
 -- Assign permissions to roles
 -- Global admin gets all permissions
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p WHERE r.name = 'global_admin';
+INSERT INTO role_permissions (role_name, permission_name)
+SELECT 'global_admin', name FROM permissions;
 
 -- Approver gets approval and scheduling permissions
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p 
-WHERE r.name = 'approver' AND p.name IN (
+INSERT INTO role_permissions (role_name, permission_name)
+SELECT 'approver', name FROM permissions 
+WHERE name IN (
     'approve_all_requests',
     'view_all_data',
     'manage_time_slots',
@@ -43,9 +43,9 @@ WHERE r.name = 'approver' AND p.name IN (
 );
 
 -- Group admin gets group management permissions (NO approval rights)
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p 
-WHERE r.name = 'group_admin' AND p.name IN (
+INSERT INTO role_permissions (role_name, permission_name)
+SELECT 'group_admin', name FROM permissions 
+WHERE name IN (
     'manage_group_users',
     'view_group_data',
     'manage_group_bookings',
@@ -56,9 +56,9 @@ WHERE r.name = 'group_admin' AND p.name IN (
 );
 
 -- Member gets basic permissions
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p 
-WHERE r.name = 'member' AND p.name IN (
+INSERT INTO role_permissions (role_name, permission_name)
+SELECT 'member', name FROM permissions 
+WHERE name IN (
     'view_items',
     'manage_cart',
     'request_items',
