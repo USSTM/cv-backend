@@ -43,7 +43,7 @@ func (s Server) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("User found: %s with role: %s", user.Email, user.Role)
+	log.Printf("User found: %s", user.Email)
 	resp := api.LoginResponse{
 		Token: &s.token,
 	}
@@ -58,8 +58,8 @@ func (s Server) PingProtected(w http.ResponseWriter, r *http.Request) {
 
 	if authHeader == "" || bearer[1] != s.token {
 		resp := api.Error{
-			401,
-			"Unauthorized!",
+			Code:    401,
+			Message: "Unauthorized!",
 		}
 		w.WriteHeader(401)
 		_ = json.NewEncoder(w).Encode(resp)

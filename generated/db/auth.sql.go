@@ -12,60 +12,52 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, password_hash, role) 
-VALUES ($1, $2, $3) 
-RETURNING id, email, role
+INSERT INTO users (email, password_hash) 
+VALUES ($1, $2) 
+RETURNING id, email
 `
 
 type CreateUserParams struct {
-	Email        string      `json:"email"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-	Role         UserRole    `json:"role"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
 }
 
 type CreateUserRow struct {
 	ID    pgtype.UUID `json:"id"`
 	Email string      `json:"email"`
-	Role  UserRole    `json:"role"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash, arg.Role)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash)
 	var i CreateUserRow
-	err := row.Scan(&i.ID, &i.Email, &i.Role)
+	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, role FROM users WHERE email = $1
+SELECT id, email, password_hash FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.PasswordHash,
-		&i.Role,
-	)
+	err := row.Scan(&i.ID, &i.Email, &i.PasswordHash)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, role FROM users WHERE id = $1
+SELECT id, email FROM users WHERE id = $1
 `
 
 type GetUserByIDRow struct {
 	ID    pgtype.UUID `json:"id"`
 	Email string      `json:"email"`
-	Role  UserRole    `json:"role"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i GetUserByIDRow
-	err := row.Scan(&i.ID, &i.Email, &i.Role)
+	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
 
@@ -75,7 +67,7 @@ UPDATE users SET password_hash = $2 WHERE id = $1
 
 type UpdateUserPasswordParams struct {
 	ID           pgtype.UUID `json:"id"`
-	PasswordHash pgtype.Text `json:"password_hash"`
+	PasswordHash string      `json:"password_hash"`
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {

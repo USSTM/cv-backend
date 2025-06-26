@@ -20,7 +20,7 @@ func New(cfg *config.DatabaseConfig) (*Database, error) {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	// Test the connection
+	// Activate and test the connection
 	if err := pool.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
