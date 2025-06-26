@@ -27,29 +27,27 @@ CREATE TABLE users (
 
 -- Roles table
 CREATE TABLE roles (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) PRIMARY KEY,
     description TEXT
 );
 
 -- Permissions table
 CREATE TABLE permissions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) PRIMARY KEY,
     description TEXT
 );
 
 -- Role permissions junction table
 CREATE TABLE role_permissions (
-    role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id UUID REFERENCES permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
+    role_name VARCHAR(255) REFERENCES roles(name) ON DELETE CASCADE,
+    permission_name VARCHAR(255) REFERENCES permissions(name) ON DELETE CASCADE,
+    PRIMARY KEY (role_name, permission_name)
 );
 
 -- User roles table
 CREATE TABLE user_roles (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+    role_name VARCHAR(255) REFERENCES roles(name) ON DELETE CASCADE,
     scope scope_type NOT NULL,
     scope_id UUID REFERENCES groups(id) ON DELETE CASCADE,
 
@@ -58,7 +56,7 @@ CREATE TABLE user_roles (
         (scope = 'group' AND scope_id IS NOT NULL)
     ),
 
-    UNIQUE (user_id, role_id, scope, scope_id)
+    UNIQUE (user_id, role_name, scope, scope_id)
 );
 
 -- Signup codes table
@@ -66,7 +64,7 @@ CREATE TABLE signup_codes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(32) UNIQUE NOT NULL,
     email VARCHAR(255) NOT NULL,
-    role_id INTEGER NOT NULL REFERENCES roles(id),
+    role_name VARCHAR(255) NOT NULL REFERENCES roles(name),
     scope scope_type NOT NULL,
     scope_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

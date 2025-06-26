@@ -75,11 +75,15 @@ func main() {
 
 	// If role is specified, assign it
 	if roleName != "" {
-		// Get role ID
-		var roleID int
-		err = tx.QueryRow(ctx, "SELECT id FROM roles WHERE name = $1", roleName).Scan(&roleID)
+		// Verify role exists
+		var exists bool
+		err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM roles WHERE name = $1)", roleName).Scan(&exists)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to find role '%s': %v\n", roleName, err)
+			fmt.Fprintf(os.Stderr, "Failed to check role '%s': %v\n", roleName, err)
+			os.Exit(1)
+		}
+		if !exists {
+			fmt.Fprintf(os.Stderr, "Role '%s' does not exist\n", roleName)
 			os.Exit(1)
 		}
 
@@ -103,11 +107,11 @@ func main() {
 		var args []interface{}
 		
 		if scope == "global" {
-			query = "INSERT INTO user_roles (user_id, role_id, scope, scope_id) VALUES ($1, $2, $3, NULL)"
-			args = []interface{}{userID, roleID, scope}
+			query = "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, NULL)"
+			args = []interface{}{userID, roleName, scope}
 		} else {
-			query = "INSERT INTO user_roles (user_id, role_id, scope, scope_id) VALUES ($1, $2, $3, $4)"
-			args = []interface{}{userID, roleID, scope, groupID}
+			query = "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4)"
+			args = []interface{}{userID, roleName, scope, groupID}
 		}
 
 		_, err = tx.Exec(ctx, query, args...)
