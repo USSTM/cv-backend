@@ -56,90 +56,6 @@ func (ns NullCondition) Value() (driver.Value, error) {
 	return string(ns.Condition), nil
 }
 
-type ConditionType string
-
-const (
-	ConditionTypeFile  ConditionType = "file"
-	ConditionTypeImage ConditionType = "image"
-)
-
-func (e *ConditionType) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = ConditionType(s)
-	case string:
-		*e = ConditionType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for ConditionType: %T", src)
-	}
-	return nil
-}
-
-type NullConditionType struct {
-	ConditionType ConditionType `json:"condition_type"`
-	Valid         bool          `json:"valid"` // Valid is true if ConditionType is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullConditionType) Scan(value interface{}) error {
-	if value == nil {
-		ns.ConditionType, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.ConditionType.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullConditionType) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.ConditionType), nil
-}
-
-type GroupRole string
-
-const (
-	GroupRoleManage GroupRole = "manage"
-	GroupRoleMember GroupRole = "member"
-)
-
-func (e *GroupRole) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = GroupRole(s)
-	case string:
-		*e = GroupRole(s)
-	default:
-		return fmt.Errorf("unsupported scan type for GroupRole: %T", src)
-	}
-	return nil
-}
-
-type NullGroupRole struct {
-	GroupRole GroupRole `json:"group_role"`
-	Valid     bool      `json:"valid"` // Valid is true if GroupRole is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullGroupRole) Scan(value interface{}) error {
-	if value == nil {
-		ns.GroupRole, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.GroupRole.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullGroupRole) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.GroupRole), nil
-}
-
 type ItemType string
 
 const (
@@ -226,105 +142,46 @@ func (ns NullRequestStatus) Value() (driver.Value, error) {
 	return string(ns.RequestStatus), nil
 }
 
-type UserAction string
+type ScopeType string
 
 const (
-	UserActionBorrow   UserAction = "borrow"
-	UserActionReturn   UserAction = "return"
-	UserActionRequest  UserAction = "request"
-	UserActionRejected UserAction = "rejected"
-	UserActionApproved UserAction = "approved"
+	ScopeTypeGlobal ScopeType = "global"
+	ScopeTypeGroup  ScopeType = "group"
 )
 
-func (e *UserAction) Scan(src interface{}) error {
+func (e *ScopeType) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = UserAction(s)
+		*e = ScopeType(s)
 	case string:
-		*e = UserAction(s)
+		*e = ScopeType(s)
 	default:
-		return fmt.Errorf("unsupported scan type for UserAction: %T", src)
+		return fmt.Errorf("unsupported scan type for ScopeType: %T", src)
 	}
 	return nil
 }
 
-type NullUserAction struct {
-	UserAction UserAction `json:"user_action"`
-	Valid      bool       `json:"valid"` // Valid is true if UserAction is not NULL
+type NullScopeType struct {
+	ScopeType ScopeType `json:"scope_type"`
+	Valid     bool      `json:"valid"` // Valid is true if ScopeType is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullUserAction) Scan(value interface{}) error {
+func (ns *NullScopeType) Scan(value interface{}) error {
 	if value == nil {
-		ns.UserAction, ns.Valid = "", false
+		ns.ScopeType, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.UserAction.Scan(value)
+	return ns.ScopeType.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullUserAction) Value() (driver.Value, error) {
+func (ns NullScopeType) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.UserAction), nil
-}
-
-type UserRole string
-
-const (
-	UserRoleAdmin        UserRole = "admin"
-	UserRoleOrganization UserRole = "organization"
-	UserRoleMember       UserRole = "member"
-)
-
-func (e *UserRole) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = UserRole(s)
-	case string:
-		*e = UserRole(s)
-	default:
-		return fmt.Errorf("unsupported scan type for UserRole: %T", src)
-	}
-	return nil
-}
-
-type NullUserRole struct {
-	UserRole UserRole `json:"user_role"`
-	Valid    bool     `json:"valid"` // Valid is true if UserRole is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullUserRole) Scan(value interface{}) error {
-	if value == nil {
-		ns.UserRole, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.UserRole.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullUserRole) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.UserRole), nil
-}
-
-type AuditLog struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
+	return string(ns.ScopeType), nil
 }
 
 type Booking struct {
@@ -341,17 +198,19 @@ type Booking struct {
 	Status         RequestStatus    `json:"status"`
 }
 
-type Borrowed struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
+type Borrowing struct {
+	ID                 pgtype.UUID      `json:"id"`
+	UserID             pgtype.UUID      `json:"user_id"`
+	GroupID            pgtype.UUID      `json:"group_id"`
+	ItemID             pgtype.UUID      `json:"item_id"`
+	Quantity           int32            `json:"quantity"`
+	BorrowedAt         pgtype.Timestamp `json:"borrowed_at"`
+	DueDate            pgtype.Timestamp `json:"due_date"`
+	ReturnedAt         pgtype.Timestamp `json:"returned_at"`
+	BeforeCondition    Condition        `json:"before_condition"`
+	BeforeConditionUrl string           `json:"before_condition_url"`
+	AfterCondition     NullCondition    `json:"after_condition"`
+	AfterConditionUrl  pgtype.Text      `json:"after_condition_url"`
 }
 
 type Cart struct {
@@ -362,19 +221,10 @@ type Cart struct {
 	Quantity  int32            `json:"quantity"`
 }
 
-type HighItemRequest struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
-	ItemName    string           `json:"item_name"`
-	Type        ItemType         `json:"type"`
+type Group struct {
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
 type Item struct {
@@ -386,59 +236,46 @@ type Item struct {
 	Urls        []string    `json:"urls"`
 }
 
-type ItemCondition struct {
-	ID             pgtype.UUID      `json:"id"`
-	Before         Condition        `json:"before"`
-	After          NullCondition    `json:"after"`
-	BeforeImageUrl string           `json:"before_image_url"`
-	AfterImageUrl  pgtype.Text      `json:"after_image_url"`
-	Type           ConditionType    `json:"type"`
-	AuditLogID     pgtype.UUID      `json:"audit_log_id"`
-	RecordedAt     pgtype.Timestamp `json:"recorded_at"`
+type Permission struct {
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
-type Rejected struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
+type Request struct {
+	ID          pgtype.UUID       `json:"id"`
+	UserID      pgtype.UUID       `json:"user_id"`
+	GroupID     pgtype.UUID       `json:"group_id"`
+	ItemID      pgtype.UUID       `json:"item_id"`
+	Quantity    int32             `json:"quantity"`
+	Status      NullRequestStatus `json:"status"`
+	RequestedAt pgtype.Timestamp  `json:"requested_at"`
+	ReviewedBy  pgtype.UUID       `json:"reviewed_by"`
+	ReviewedAt  pgtype.Timestamp  `json:"reviewed_at"`
 }
 
-type Requested struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
+type Role struct {
+	ID          int32       `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
-type Returned struct {
-	ID          pgtype.UUID      `json:"id"`
-	ItemID      pgtype.UUID      `json:"item_id"`
-	UserID      pgtype.UUID      `json:"user_id"`
-	GroupID     pgtype.UUID      `json:"group_id"`
-	Status      UserAction       `json:"status"`
-	Date        pgtype.Timestamp `json:"date"`
-	DateTo      pgtype.Timestamp `json:"date_to"`
-	ConditionID pgtype.UUID      `json:"condition_id"`
-	ApproverID  pgtype.UUID      `json:"approver_id"`
-	Notes       pgtype.Text      `json:"notes"`
+type RolePermission struct {
+	RoleID       int32       `json:"role_id"`
+	PermissionID pgtype.UUID `json:"permission_id"`
 }
 
-type StudentGroup struct {
-	ID   pgtype.UUID `json:"id"`
-	Name string      `json:"name"`
+type SignupCode struct {
+	ID        pgtype.UUID      `json:"id"`
+	Code      string           `json:"code"`
+	Email     string           `json:"email"`
+	RoleID    int32            `json:"role_id"`
+	Scope     ScopeType        `json:"scope"`
+	ScopeID   pgtype.UUID      `json:"scope_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UsedAt    pgtype.Timestamp `json:"used_at"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+	CreatedBy pgtype.UUID      `json:"created_by"`
 }
 
 type TimeSlot struct {
@@ -450,8 +287,7 @@ type TimeSlot struct {
 type User struct {
 	ID           pgtype.UUID `json:"id"`
 	Email        string      `json:"email"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-	Role         UserRole    `json:"role"`
+	PasswordHash string      `json:"password_hash"`
 }
 
 type UserAvailability struct {
@@ -462,8 +298,9 @@ type UserAvailability struct {
 	Date       pgtype.Date `json:"date"`
 }
 
-type UserGroup struct {
+type UserRole struct {
 	UserID  pgtype.UUID `json:"user_id"`
-	GroupID pgtype.UUID `json:"group_id"`
-	Role    GroupRole   `json:"role"`
+	RoleID  pgtype.Int4 `json:"role_id"`
+	Scope   ScopeType   `json:"scope"`
+	ScopeID pgtype.UUID `json:"scope_id"`
 }
