@@ -65,6 +65,8 @@ Campus Vault is an inventory management system developed for the Undergraduate S
 
 ## Development
 
+For detailed development guides, see the `docs/` folder.
+
 ### Code Generation
 
 - **API Code**: `make generate-api` - Generates Go code from OpenAPI specification

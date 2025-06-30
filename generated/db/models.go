@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -185,12 +186,12 @@ func (ns NullScopeType) Value() (driver.Value, error) {
 }
 
 type Booking struct {
-	ID             pgtype.UUID      `json:"id"`
-	RequesterID    pgtype.UUID      `json:"requester_id"`
-	ManagerID      pgtype.UUID      `json:"manager_id"`
-	ItemID         pgtype.UUID      `json:"item_id"`
-	AvailabilityID pgtype.UUID      `json:"availability_id"`
-	ConfirmedBy    pgtype.UUID      `json:"confirmed_by"`
+	ID             uuid.UUID        `json:"id"`
+	RequesterID    *uuid.UUID       `json:"requester_id"`
+	ManagerID      *uuid.UUID       `json:"manager_id"`
+	ItemID         *uuid.UUID       `json:"item_id"`
+	AvailabilityID *uuid.UUID       `json:"availability_id"`
+	ConfirmedBy    *uuid.UUID       `json:"confirmed_by"`
 	PickUpDate     pgtype.Timestamp `json:"pick_up_date"`
 	PickUpLocation string           `json:"pick_up_location"`
 	ReturnDate     pgtype.Timestamp `json:"return_date"`
@@ -199,10 +200,10 @@ type Booking struct {
 }
 
 type Borrowing struct {
-	ID                 pgtype.UUID      `json:"id"`
-	UserID             pgtype.UUID      `json:"user_id"`
-	GroupID            pgtype.UUID      `json:"group_id"`
-	ItemID             pgtype.UUID      `json:"item_id"`
+	ID                 uuid.UUID        `json:"id"`
+	UserID             *uuid.UUID       `json:"user_id"`
+	GroupID            *uuid.UUID       `json:"group_id"`
+	ItemID             *uuid.UUID       `json:"item_id"`
 	Quantity           int32            `json:"quantity"`
 	BorrowedAt         pgtype.Timestamp `json:"borrowed_at"`
 	DueDate            pgtype.Timestamp `json:"due_date"`
@@ -214,21 +215,21 @@ type Borrowing struct {
 }
 
 type Cart struct {
-	GroupID   pgtype.UUID      `json:"group_id"`
-	UserID    pgtype.UUID      `json:"user_id"`
-	ItemID    pgtype.UUID      `json:"item_id"`
+	GroupID   uuid.UUID        `json:"group_id"`
+	UserID    uuid.UUID        `json:"user_id"`
+	ItemID    uuid.UUID        `json:"item_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	Quantity  int32            `json:"quantity"`
 }
 
 type Group struct {
-	ID          pgtype.UUID `json:"id"`
+	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
 }
 
 type Item struct {
-	ID          pgtype.UUID `json:"id"`
+	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
 	Type        ItemType    `json:"type"`
@@ -237,70 +238,68 @@ type Item struct {
 }
 
 type Permission struct {
-	ID          pgtype.UUID `json:"id"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
 }
 
 type Request struct {
-	ID          pgtype.UUID       `json:"id"`
-	UserID      pgtype.UUID       `json:"user_id"`
-	GroupID     pgtype.UUID       `json:"group_id"`
-	ItemID      pgtype.UUID       `json:"item_id"`
+	ID          uuid.UUID         `json:"id"`
+	UserID      *uuid.UUID        `json:"user_id"`
+	GroupID     *uuid.UUID        `json:"group_id"`
+	ItemID      *uuid.UUID        `json:"item_id"`
 	Quantity    int32             `json:"quantity"`
 	Status      NullRequestStatus `json:"status"`
 	RequestedAt pgtype.Timestamp  `json:"requested_at"`
-	ReviewedBy  pgtype.UUID       `json:"reviewed_by"`
+	ReviewedBy  *uuid.UUID        `json:"reviewed_by"`
 	ReviewedAt  pgtype.Timestamp  `json:"reviewed_at"`
 }
 
 type Role struct {
-	ID          int32       `json:"id"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
 }
 
 type RolePermission struct {
-	RoleID       int32       `json:"role_id"`
-	PermissionID pgtype.UUID `json:"permission_id"`
+	RoleName       string `json:"role_name"`
+	PermissionName string `json:"permission_name"`
 }
 
 type SignupCode struct {
-	ID        pgtype.UUID      `json:"id"`
+	ID        uuid.UUID        `json:"id"`
 	Code      string           `json:"code"`
 	Email     string           `json:"email"`
-	RoleID    int32            `json:"role_id"`
+	RoleName  string           `json:"role_name"`
 	Scope     ScopeType        `json:"scope"`
-	ScopeID   pgtype.UUID      `json:"scope_id"`
+	ScopeID   *uuid.UUID       `json:"scope_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	UsedAt    pgtype.Timestamp `json:"used_at"`
 	ExpiresAt pgtype.Timestamp `json:"expires_at"`
-	CreatedBy pgtype.UUID      `json:"created_by"`
+	CreatedBy uuid.UUID        `json:"created_by"`
 }
 
 type TimeSlot struct {
-	ID        pgtype.UUID      `json:"id"`
+	ID        uuid.UUID        `json:"id"`
 	StartTime pgtype.Timestamp `json:"start_time"`
 	EndTime   pgtype.Timestamp `json:"end_time"`
 }
 
 type User struct {
-	ID           pgtype.UUID `json:"id"`
-	Email        string      `json:"email"`
-	PasswordHash string      `json:"password_hash"`
+	ID           uuid.UUID `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
 }
 
 type UserAvailability struct {
-	ID         pgtype.UUID `json:"id"`
-	UserID     pgtype.UUID `json:"user_id"`
-	GroupID    pgtype.UUID `json:"group_id"`
-	TimeSlotID pgtype.UUID `json:"time_slot_id"`
+	ID         uuid.UUID   `json:"id"`
+	UserID     *uuid.UUID  `json:"user_id"`
+	GroupID    *uuid.UUID  `json:"group_id"`
+	TimeSlotID *uuid.UUID  `json:"time_slot_id"`
 	Date       pgtype.Date `json:"date"`
 }
 
 type UserRole struct {
-	UserID  pgtype.UUID `json:"user_id"`
-	RoleID  pgtype.Int4 `json:"role_id"`
-	Scope   ScopeType   `json:"scope"`
-	ScopeID pgtype.UUID `json:"scope_id"`
+	UserID   *uuid.UUID  `json:"user_id"`
+	RoleName pgtype.Text `json:"role_name"`
+	Scope    ScopeType   `json:"scope"`
+	ScopeID  *uuid.UUID  `json:"scope_id"`
 }

@@ -8,8 +8,31 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const checkUserPermission = `-- name: CheckUserPermission :one
+SELECT COUNT(*) > 0 as has_permission
+FROM permissions p
+JOIN role_permissions rp ON p.name = rp.permission_name
+JOIN user_roles ur ON rp.role_name = ur.role_name
+WHERE ur.user_id = $1 AND p.name = $2
+  AND (ur.scope = 'global' OR (ur.scope = 'group' AND ur.scope_id = $3))
+`
+
+type CheckUserPermissionParams struct {
+	UserID  *uuid.UUID `json:"user_id"`
+	Name    string     `json:"name"`
+	ScopeID *uuid.UUID `json:"scope_id"`
+}
+
+func (q *Queries) CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkUserPermission, arg.UserID, arg.Name, arg.ScopeID)
+	var has_permission bool
+	err := row.Scan(&has_permission)
+	return has_permission, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash) 
@@ -23,8 +46,8 @@ type CreateUserParams struct {
 }
 
 type CreateUserRow struct {
-	ID    pgtype.UUID `json:"id"`
-	Email string      `json:"email"`
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -50,15 +73,103 @@ SELECT id, email FROM users WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID    pgtype.UUID `json:"id"`
-	Email string      `json:"email"`
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
 }
 
-func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i GetUserByIDRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
+}
+
+const getUserPermissions = `-- name: GetUserPermissions :many
+SELECT DISTINCT p.name, p.description, ur.scope, ur.scope_id
+FROM permissions p
+JOIN role_permissions rp ON p.name = rp.permission_name
+JOIN user_roles ur ON rp.role_name = ur.role_name
+WHERE ur.user_id = $1
+`
+
+type GetUserPermissionsRow struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Scope       ScopeType   `json:"scope"`
+	ScopeID     *uuid.UUID  `json:"scope_id"`
+}
+
+func (q *Queries) GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error) {
+	rows, err := q.db.Query(ctx, getUserPermissions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUserPermissionsRow{}
+	for rows.Next() {
+		var i GetUserPermissionsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Description,
+			&i.Scope,
+			&i.ScopeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserRoles = `-- name: GetUserRoles :many
+SELECT ur.role_name, r.description, ur.scope, ur.scope_id
+FROM user_roles ur
+JOIN roles r ON ur.role_name = r.name
+WHERE ur.user_id = $1
+`
+
+type GetUserRolesRow struct {
+	RoleName    pgtype.Text `json:"role_name"`
+	Description pgtype.Text `json:"description"`
+	Scope       ScopeType   `json:"scope"`
+	ScopeID     *uuid.UUID  `json:"scope_id"`
+}
+
+func (q *Queries) GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error) {
+	rows, err := q.db.Query(ctx, getUserRoles, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUserRolesRow{}
+	for rows.Next() {
+		var i GetUserRolesRow
+		if err := rows.Scan(
+			&i.RoleName,
+			&i.Description,
+			&i.Scope,
+			&i.ScopeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markSignupCodeUsed = `-- name: MarkSignupCodeUsed :exec
+UPDATE signup_codes SET used_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) MarkSignupCodeUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markSignupCodeUsed, id)
+	return err
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
@@ -66,11 +177,41 @@ UPDATE users SET password_hash = $2 WHERE id = $1
 `
 
 type UpdateUserPasswordParams struct {
-	ID           pgtype.UUID `json:"id"`
-	PasswordHash string      `json:"password_hash"`
+	ID           uuid.UUID `json:"id"`
+	PasswordHash string    `json:"password_hash"`
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
 	return err
+}
+
+const validateSignupCode = `-- name: ValidateSignupCode :one
+SELECT sc.id, sc.email, sc.role_name, sc.scope, sc.scope_id, sc.expires_at
+FROM signup_codes sc
+WHERE sc.code = $1 AND sc.used_at IS NULL
+  AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
+`
+
+type ValidateSignupCodeRow struct {
+	ID        uuid.UUID        `json:"id"`
+	Email     string           `json:"email"`
+	RoleName  string           `json:"role_name"`
+	Scope     ScopeType        `json:"scope"`
+	ScopeID   *uuid.UUID       `json:"scope_id"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+}
+
+func (q *Queries) ValidateSignupCode(ctx context.Context, code string) (ValidateSignupCodeRow, error) {
+	row := q.db.QueryRow(ctx, validateSignupCode, code)
+	var i ValidateSignupCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.RoleName,
+		&i.Scope,
+		&i.ScopeID,
+		&i.ExpiresAt,
+	)
+	return i, err
 }

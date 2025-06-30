@@ -32,8 +32,16 @@ components:
       type: string
       enum:
         - admin
-        - organization
+        - approver
+        - group_admin
         - member
+
+    ItemType:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
 
     Error:
       type: object
@@ -80,6 +88,26 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    OAuth2:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: ""
+          scopes:
+            manage_items: "Create, update, and delete items globally"
+            manage_groups: "Create, update, and delete groups"
+            manage_users: "Create, update, and delete users globally"
+            manage_group_users: "Add/remove users from specific group"
+            approve_all_requests: "Approve/deny requests across all groups"
+            view_group_data: "View requests/borrowings within specific group"
+            view_all_data: "View requests/borrowings across all groups"
+            manage_time_slots: "Create and manage available time slots"
+            manage_all_bookings: "Manage booking schedules globally"
+            manage_group_bookings: "Manage booking schedules for specific group"
+            view_items: "View item catalog"
+            manage_cart: "Add/remove items from cart"
+            request_items: "Submit requests for borrowing items"
+            view_own_data: "View own requests and borrowings"
 security:
   - BearerAuth: []
 paths:
@@ -132,6 +160,7 @@ paths:
       operationId: pingProtected
       security:
         - BearerAuth: []
+        - OAuth2: [view_own_data]
       responses:
         "200":
           description: Successful ping
@@ -157,4 +186,91 @@ paths:
               example:
                 code: 500
                 message: "An unexpected error occurred."
+
+  /items:
+    get:
+      tags:
+        - Items
+      summary: Get all items
+      description: Retrieve all items from the catalog
+      operationId: getItems
+      security:
+        - BearerAuth: []
+        - OAuth2: [view_items]
+      responses:
+        "200":
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      $ref: "#/components/schemas/UUID"
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    type:
+                      $ref: "#/components/schemas/ItemType"
+                    stock:
+                      type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Get all users (admin only)
+      description: Retrieve all users - requires admin permissions
+      operationId: getUsers
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_users]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 

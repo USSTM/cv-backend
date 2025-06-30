@@ -24,6 +24,22 @@ import (
 
 const (
 	BearerAuthScopes = "BearerAuth.Scopes"
+	OAuth2Scopes     = "OAuth2.Scopes"
+)
+
+// Defines values for ItemType.
+const (
+	High   ItemType = "high"
+	Low    ItemType = "low"
+	Medium ItemType = "medium"
+)
+
+// Defines values for UserRole.
+const (
+	Admin      UserRole = "admin"
+	Approver   UserRole = "approver"
+	GroupAdmin UserRole = "group_admin"
+	Member     UserRole = "member"
 )
 
 // Error defines model for Error.
@@ -31,6 +47,9 @@ type Error struct {
 	Code    int32  `json:"code"`
 	Message string `json:"message"`
 }
+
+// ItemType defines model for ItemType.
+type ItemType string
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
@@ -48,14 +67,33 @@ type PingResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// UUID defines model for UUID.
+type UUID = openapi_types.UUID
+
+// User defines model for User.
+type User struct {
+	Email openapi_types.Email `json:"email"`
+	Id    UUID                `json:"id"`
+	Role  UserRole            `json:"role"`
+}
+
+// UserRole defines model for UserRole.
+type UserRole string
+
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get all users (admin only)
+	// (GET /admin/users)
+	GetUsers(w http.ResponseWriter, r *http.Request)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
+	// Get all items
+	// (GET /items)
+	GetItems(w http.ResponseWriter, r *http.Request)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
@@ -65,9 +103,21 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// Get all users (admin only)
+// (GET /admin/users)
+func (_ Unimplemented) GetUsers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Login User
 // (POST /auth/login)
 func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all items
+// (GET /items)
+func (_ Unimplemented) GetItems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -86,11 +136,55 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// GetUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_users"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // LoginUser operation middleware
 func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LoginUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetItems operation middleware
+func (siw *ServerInterfaceWrapper) GetItems(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItems(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -106,6 +200,8 @@ func (siw *ServerInterfaceWrapper) PingProtected(w http.ResponseWriter, r *http.
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
 
 	r = r.WithContext(ctx)
 
@@ -234,13 +330,62 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/users", wrapper.GetUsers)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/items", wrapper.GetItems)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
 	})
 
 	return r
+}
+
+type GetUsersRequestObject struct {
+}
+
+type GetUsersResponseObject interface {
+	VisitGetUsersResponse(w http.ResponseWriter) error
+}
+
+type GetUsers200JSONResponse []User
+
+func (response GetUsers200JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsers401JSONResponse Error
+
+func (response GetUsers401JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsers403JSONResponse Error
+
+func (response GetUsers403JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsers500JSONResponse Error
+
+func (response GetUsers500JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type LoginUserRequestObject struct {
@@ -272,6 +417,55 @@ func (response LoginUser400JSONResponse) VisitLoginUserResponse(w http.ResponseW
 type LoginUser500JSONResponse Error
 
 func (response LoginUser500JSONResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsRequestObject struct {
+}
+
+type GetItemsResponseObject interface {
+	VisitGetItemsResponse(w http.ResponseWriter) error
+}
+
+type GetItems200JSONResponse []struct {
+	Description *string   `json:"description,omitempty"`
+	Id          *UUID     `json:"id,omitempty"`
+	Name        *string   `json:"name,omitempty"`
+	Stock       *int      `json:"stock,omitempty"`
+	Type        *ItemType `json:"type,omitempty"`
+}
+
+func (response GetItems200JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItems401JSONResponse Error
+
+func (response GetItems401JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItems403JSONResponse Error
+
+func (response GetItems403JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItems500JSONResponse Error
+
+func (response GetItems500JSONResponse) VisitGetItemsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -314,9 +508,15 @@ func (response PingProtected500JSONResponse) VisitPingProtectedResponse(w http.R
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get all users (admin only)
+	// (GET /admin/users)
+	GetUsers(ctx context.Context, request GetUsersRequestObject) (GetUsersResponseObject, error)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
+	// Get all items
+	// (GET /items)
+	GetItems(ctx context.Context, request GetItemsRequestObject) (GetItemsResponseObject, error)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
@@ -351,6 +551,30 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
+// GetUsers operation middleware
+func (sh *strictHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	var request GetUsersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsers(ctx, request.(GetUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUsersResponseObject); ok {
+		if err := validResponse.VisitGetUsersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // LoginUser operation middleware
 func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	var request LoginUserRequestObject
@@ -375,6 +599,30 @@ func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LoginUserResponseObject); ok {
 		if err := validResponse.VisitLoginUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetItems operation middleware
+func (sh *strictHandler) GetItems(w http.ResponseWriter, r *http.Request) {
+	var request GetItemsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItems(ctx, request.(GetItemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemsResponseObject); ok {
+		if err := validResponse.VisitGetItemsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -409,20 +657,31 @@ func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/9yV32/bNhDH/xXitkfFkpMUKPS0pFgBD8VgLO0GLPADK51tthKPPR6zZoH+94Gkf0hz",
-	"1gZF9lIgQEiT/PJ7x8+dHqCh3pFFKx7qB/DNFnudhj8zE8eBY3LIYjD93FCL8f+auNcCNRgrF+dQgNw7",
-	"zFPcIMNQQI/e603avVv0wsZuYBgKYPwUDGML9W3WPO5fHcTo/QdsJGq9oY2xv+GngF5OTWGvTZcGn3Xv",
-	"ung0eOSfhJisUB9mjYbi6DnvL75iK+/6ghvvyHo8tSP0Ee3jYZ9ILY3d/LfSKIXH0BzZzan5AsT06EX3",
-	"brr9vDq/OKvmZ9X8bVXV6e/PcTJaLXgWz341IXs346tO0zMU4LEJbOT+JuKUI7lGzchXQbZx9j7NXu8t",
-	"/PLHWygyfFEprx7tbEUcDFHY2DXF8y36ho0TQxZquNbNR7Stulou1JpYvdK9C179rkMn6nVEAG2bXEvK",
-	"yGT9armAAu6QfRarZtVsHtNJDq12Bmq4mFWzCgpwWrYpmFIH2ZZdpCC9GWUop65irGjFNFrQK60ikYVi",
-	"lMA2znOUKsOSrmMdjy5aqDNh73zKAmfsr6m9zxUY40kXaue6qG/Ilh882WMJx9GPjGuo4YfyWOPlrsDL",
-	"ST0N04cWDph+yFSmiM+r6rnv3jGfLp9m7iY0DXq/Dp3KOR4KuHySgQP1+0Z1WVWjRgQLe6c706pU2opY",
-	"Oe39X8TtLN7xNPu5MT5i+1q36hVjGx9ddz4qvvg21y+mrq+sChY/O2wEW4XxfkVNE5jxWYwvrCBb3akb",
-	"5Dtktd94LGSob1cF+ND3mu/3eKodn6I3PraHEfBRdxUFShcbSf0AG3ykRG5MjFs5JtnFZltHxooSUoJe",
-	"lJ5q/rtMYvdc7k/D/8jspE1/GVm3a8eX1fzbiJ2P334ElNrTS6x+JVFLpjvTYvsMBLyzMdHE5u8s9x1x",
-	"O/303K6GCcgHeNKzHfgbUX3EazU8RTpZ8Wl16vYNNQerUEDgbvdpq8uyi2tb8lK/rF5WMKyGfwIAAP//",
-	"n9d1GZoJAAA=",
+	"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",
+	"AAAA//8nY2DGTBUAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

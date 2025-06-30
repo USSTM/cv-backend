@@ -84,7 +84,7 @@ CREATE TABLE items (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     type item_type NOT NULL,
-    stock INT NOT NULL DEFAULT 0,
+    stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
     urls TEXT[]
 );
 
