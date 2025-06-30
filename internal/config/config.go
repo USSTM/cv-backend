@@ -3,11 +3,13 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 type Config struct {
 	Database DatabaseConfig
 	Server   ServerConfig
+	JWT      JWTConfig
 }
 
 type DatabaseConfig struct {
@@ -23,6 +25,12 @@ type ServerConfig struct {
 	Port string
 }
 
+type JWTConfig struct {
+	SigningKey string
+	Issuer     string
+	Expiry     time.Duration
+}
+
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
@@ -35,6 +43,11 @@ func Load() *Config {
 		},
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
+		},
+		JWT: JWTConfig{
+			SigningKey: getEnv("JWT_SIGNING_KEY", "default-signing-key-change-in-production"),
+			Issuer:     getEnv("JWT_ISSUER", "campus-vault"),
+			Expiry:     getEnvDuration("JWT_EXPIRY", 24*time.Hour),
 		},
 	}
 }
@@ -49,6 +62,15 @@ func (c *DatabaseConfig) ConnectionString() string {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if duration, err := time.ParseDuration(value); err == nil {
+			return duration
+		}
 	}
 	return defaultValue
 }

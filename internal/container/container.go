@@ -4,14 +4,17 @@ import (
 	"log"
 
 	"github.com/USSTM/cv-backend/internal/api"
+	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
 )
 
 type Container struct {
-	Config   *config.Config
-	Database *database.Database
-	Server   *api.Server
+	Config        *config.Config
+	Database      *database.Database
+	JWTService    *auth.JWTService
+	Authenticator *auth.Authenticator
+	Server        *api.Server
 }
 
 func New() (*Container, error) {
@@ -22,14 +25,23 @@ func New() (*Container, error) {
 		return nil, err
 	}
 
-	server := api.NewServer(db)
+	jwtService, err := auth.NewJWTService([]byte(cfg.JWT.SigningKey), cfg.JWT.Issuer, cfg.JWT.Expiry)
+	if err != nil {
+		return nil, err
+	}
+
+	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
+
+	server := api.NewServer(db, jwtService, authenticator)
 
 	log.Printf("Connected to database: %s:%s", cfg.Database.Host, cfg.Database.Port)
 
 	return &Container{
-		Config:   cfg,
-		Database: db,
-		Server:   server,
+		Config:        cfg,
+		Database:      db,
+		JWTService:    jwtService,
+		Authenticator: authenticator,
+		Server:        server,
 	}, nil
 }
 
