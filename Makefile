@@ -35,6 +35,15 @@ migrate-down:
 migrate-status:
 	export $$(cat .env | xargs) && go tool goose -dir db/migrations status
 
+migrate-up-grep:
+	export $$(grep -v '^#' .env | xargs) && go tool goose -dir db/migrations up
+
+migrate-down-grep:
+	export $$(grep -v '^#' .env | xargs) && go tool goose -dir db/migrations down
+
+migrate-status-grep:
+	export $$(grep -v '^#' .env | xargs) && go tool goose -dir db/migrations status
+
 migrate-create:
 	go tool goose -dir db/migrations create $(name) sql
 
