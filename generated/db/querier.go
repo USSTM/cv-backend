@@ -12,14 +12,19 @@ import (
 
 type Querier interface {
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
+	CreateItem(ctx context.Context, arg CreateItemParams) (CreateItemRow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteItem(ctx context.Context, id uuid.UUID) error
 	GetAllItems(ctx context.Context) ([]GetAllItemsRow, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
+	GetItemByID(ctx context.Context, id uuid.UUID) (GetItemByIDRow, error)
+	GetItemsByType(ctx context.Context, type_ ItemType) ([]GetItemsByTypeRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	MarkSignupCodeUsed(ctx context.Context, id uuid.UUID) error
+	UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateItemRow, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	ValidateSignupCode(ctx context.Context, code string) (ValidateSignupCodeRow, error)
 }

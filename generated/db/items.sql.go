@@ -12,6 +12,54 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createItem = `-- name: CreateItem :one
+INSERT INTO items (name, description, type, stock)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, description, type, stock
+`
+
+type CreateItemParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+}
+
+type CreateItemRow struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+}
+
+func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (CreateItemRow, error) {
+	row := q.db.QueryRow(ctx, createItem,
+		arg.Name,
+		arg.Description,
+		arg.Type,
+		arg.Stock,
+	)
+	var i CreateItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+	)
+	return i, err
+}
+
+const deleteItem = `-- name: DeleteItem :exec
+DELETE FROM items WHERE id = $1
+`
+
+func (q *Queries) DeleteItem(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteItem, id)
+	return err
+}
+
 const getAllItems = `-- name: GetAllItems :many
 SELECT id, name, description, type, stock from items
 `
@@ -50,25 +98,59 @@ func (q *Queries) GetAllItems(ctx context.Context) ([]GetAllItemsRow, error) {
 	return items, nil
 }
 
-const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, email from users
+const getItemByID = `-- name: GetItemByID :one
+SELECT id, name, description, type, stock FROM items WHERE id = $1
 `
 
-type GetAllUsersRow struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
+type GetItemByIDRow struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
 }
 
-func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
-	rows, err := q.db.Query(ctx, getAllUsers)
+func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (GetItemByIDRow, error) {
+	row := q.db.QueryRow(ctx, getItemByID, id)
+	var i GetItemByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+	)
+	return i, err
+}
+
+const getItemsByType = `-- name: GetItemsByType :many
+SELECT id, name, description, type, stock FROM items WHERE type = $1
+`
+
+type GetItemsByTypeRow struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+}
+
+func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]GetItemsByTypeRow, error) {
+	rows, err := q.db.Query(ctx, getItemsByType, type_)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetAllUsersRow{}
+	items := []GetItemsByTypeRow{}
 	for rows.Next() {
-		var i GetAllUsersRow
-		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+		var i GetItemsByTypeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Type,
+			&i.Stock,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -77,4 +159,46 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateItem = `-- name: UpdateItem :one
+UPDATE items
+SET name = $2, description = $3, type = $4, stock = $5
+WHERE id = $1
+RETURNING id, name, description, type, stock
+`
+
+type UpdateItemParams struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+}
+
+type UpdateItemRow struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+}
+
+func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateItemRow, error) {
+	row := q.db.QueryRow(ctx, updateItem,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.Type,
+		arg.Stock,
+	)
+	var i UpdateItemRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+	)
+	return i, err
 }
