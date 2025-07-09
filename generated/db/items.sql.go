@@ -202,3 +202,17 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateI
 	)
 	return i, err
 }
+
+const updateItemStock = `-- name: UpdateItemStock :exec
+UPDATE items SET stock = $2 WHERE id = $1
+`
+
+type UpdateItemStockParams struct {
+	ID    uuid.UUID `json:"id"`
+	Stock int32     `json:"stock"`
+}
+
+func (q *Queries) UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error {
+	_, err := q.db.Exec(ctx, updateItemStock, arg.ID, arg.Stock)
+	return err
+}

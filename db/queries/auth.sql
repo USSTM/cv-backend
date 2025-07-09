@@ -33,11 +33,19 @@ JOIN user_roles ur ON rp.role_name = ur.role_name
 WHERE ur.user_id = $1 AND p.name = $2
   AND (ur.scope = 'global' OR (ur.scope = 'group' AND ur.scope_id = $3));
 
--- name: ValidateSignupCode :one
-SELECT sc.id, sc.email, sc.role_name, sc.scope, sc.scope_id, sc.expires_at
-FROM signup_codes sc
-WHERE sc.code = $1 AND sc.used_at IS NULL
-  AND (sc.expires_at IS NULL OR sc.expires_at > NOW());
 
--- name: MarkSignupCodeUsed :exec
-UPDATE signup_codes SET used_at = NOW() WHERE id = $1;
+-- name: CreateRole :exec
+INSERT INTO roles (name, description) VALUES ($1, $2);
+
+-- name: CreatePermission :exec
+INSERT INTO permissions (name, description) VALUES ($1, $2);
+
+-- name: CreateRolePermission :exec
+INSERT INTO role_permissions (role_name, permission_name) VALUES ($1, $2);
+
+-- name: CreateUserRole :exec
+INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4);
+
+-- name: CreateGroup :one
+INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id, name, description;
+
