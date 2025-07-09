@@ -18,6 +18,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -80,8 +81,30 @@ type User struct {
 // UserRole defines model for UserRole.
 type UserRole string
 
+// CreateItemJSONBody defines parameters for CreateItem.
+type CreateItemJSONBody struct {
+	Description *string  `json:"description,omitempty"`
+	Name        string   `json:"name"`
+	Stock       int      `json:"stock"`
+	Type        ItemType `json:"type"`
+}
+
+// UpdateItemJSONBody defines parameters for UpdateItem.
+type UpdateItemJSONBody struct {
+	Description *string  `json:"description,omitempty"`
+	Name        string   `json:"name"`
+	Stock       int      `json:"stock"`
+	Type        ItemType `json:"type"`
+}
+
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
+
+// CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
+type CreateItemJSONRequestBody CreateItemJSONBody
+
+// UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
+type UpdateItemJSONRequestBody UpdateItemJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -94,6 +117,21 @@ type ServerInterface interface {
 	// Get all items
 	// (GET /items)
 	GetItems(w http.ResponseWriter, r *http.Request)
+	// Create an item
+	// (POST /items)
+	CreateItem(w http.ResponseWriter, r *http.Request)
+	// Get items by type
+	// (GET /items/type/{type})
+	GetItemsByType(w http.ResponseWriter, r *http.Request, pType ItemType)
+	// Delete item
+	// (DELETE /items/{id})
+	DeleteItem(w http.ResponseWriter, r *http.Request, id UUID)
+	// Get item by ID
+	// (GET /items/{id})
+	GetItemById(w http.ResponseWriter, r *http.Request, id UUID)
+	// Update item
+	// (PUT /items/{id})
+	UpdateItem(w http.ResponseWriter, r *http.Request, id UUID)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
@@ -118,6 +156,36 @@ func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
 // Get all items
 // (GET /items)
 func (_ Unimplemented) GetItems(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create an item
+// (POST /items)
+func (_ Unimplemented) CreateItem(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get items by type
+// (GET /items/type/{type})
+func (_ Unimplemented) GetItemsByType(w http.ResponseWriter, r *http.Request, pType ItemType) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete item
+// (DELETE /items/{id})
+func (_ Unimplemented) DeleteItem(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get item by ID
+// (GET /items/{id})
+func (_ Unimplemented) GetItemById(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update item
+// (PUT /items/{id})
+func (_ Unimplemented) UpdateItem(w http.ResponseWriter, r *http.Request, id UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -185,6 +253,160 @@ func (siw *ServerInterfaceWrapper) GetItems(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateItem operation middleware
+func (siw *ServerInterfaceWrapper) CreateItem(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateItem(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetItemsByType operation middleware
+func (siw *ServerInterfaceWrapper) GetItemsByType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "type" -------------
+	var pType ItemType
+
+	err = runtime.BindStyledParameterWithOptions("simple", "type", chi.URLParam(r, "type"), &pType, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "type", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItemsByType(w, r, pType)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteItem operation middleware
+func (siw *ServerInterfaceWrapper) DeleteItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteItem(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetItemById operation middleware
+func (siw *ServerInterfaceWrapper) GetItemById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItemById(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateItem operation middleware
+func (siw *ServerInterfaceWrapper) UpdateItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateItem(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -339,6 +561,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/items", wrapper.GetItems)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/items", wrapper.CreateItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/items/type/{type}", wrapper.GetItemsByType)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/items/{id}", wrapper.DeleteItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/items/{id}", wrapper.GetItemById)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/items/{id}", wrapper.UpdateItem)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
 	})
 
@@ -472,6 +709,286 @@ func (response GetItems500JSONResponse) VisitGetItemsResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateItemRequestObject struct {
+	Body *CreateItemJSONRequestBody
+}
+
+type CreateItemResponseObject interface {
+	VisitCreateItemResponse(w http.ResponseWriter) error
+}
+
+type CreateItem201JSONResponse struct {
+	Description *string   `json:"description,omitempty"`
+	Id          *UUID     `json:"id,omitempty"`
+	Name        *string   `json:"name,omitempty"`
+	Stock       *int      `json:"stock,omitempty"`
+	Type        *ItemType `json:"type,omitempty"`
+}
+
+func (response CreateItem201JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateItem401JSONResponse Error
+
+func (response CreateItem401JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateItem403JSONResponse Error
+
+func (response CreateItem403JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateItem500JSONResponse Error
+
+func (response CreateItem500JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsByTypeRequestObject struct {
+	Type ItemType `json:"type"`
+}
+
+type GetItemsByTypeResponseObject interface {
+	VisitGetItemsByTypeResponse(w http.ResponseWriter) error
+}
+
+type GetItemsByType200JSONResponse []struct {
+	Description *string   `json:"description,omitempty"`
+	Id          *UUID     `json:"id,omitempty"`
+	Name        *string   `json:"name,omitempty"`
+	Stock       *int      `json:"stock,omitempty"`
+	Type        *ItemType `json:"type,omitempty"`
+}
+
+func (response GetItemsByType200JSONResponse) VisitGetItemsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsByType401JSONResponse Error
+
+func (response GetItemsByType401JSONResponse) VisitGetItemsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsByType403JSONResponse Error
+
+func (response GetItemsByType403JSONResponse) VisitGetItemsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsByType404JSONResponse Error
+
+func (response GetItemsByType404JSONResponse) VisitGetItemsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemsByType500JSONResponse Error
+
+func (response GetItemsByType500JSONResponse) VisitGetItemsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItemRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type DeleteItemResponseObject interface {
+	VisitDeleteItemResponse(w http.ResponseWriter) error
+}
+
+type DeleteItem204Response struct {
+}
+
+func (response DeleteItem204Response) VisitDeleteItemResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteItem401JSONResponse Error
+
+func (response DeleteItem401JSONResponse) VisitDeleteItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItem403JSONResponse Error
+
+func (response DeleteItem403JSONResponse) VisitDeleteItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItem404JSONResponse Error
+
+func (response DeleteItem404JSONResponse) VisitDeleteItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItem500JSONResponse Error
+
+func (response DeleteItem500JSONResponse) VisitDeleteItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemByIdRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type GetItemByIdResponseObject interface {
+	VisitGetItemByIdResponse(w http.ResponseWriter) error
+}
+
+type GetItemById200JSONResponse struct {
+	Description *string   `json:"description,omitempty"`
+	Id          *UUID     `json:"id,omitempty"`
+	Name        *string   `json:"name,omitempty"`
+	Stock       *int      `json:"stock,omitempty"`
+	Type        *ItemType `json:"type,omitempty"`
+}
+
+func (response GetItemById200JSONResponse) VisitGetItemByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemById401JSONResponse Error
+
+func (response GetItemById401JSONResponse) VisitGetItemByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemById403JSONResponse Error
+
+func (response GetItemById403JSONResponse) VisitGetItemByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemById404JSONResponse Error
+
+func (response GetItemById404JSONResponse) VisitGetItemByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemById500JSONResponse Error
+
+func (response GetItemById500JSONResponse) VisitGetItemByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateItemRequestObject struct {
+	Id   UUID `json:"id"`
+	Body *UpdateItemJSONRequestBody
+}
+
+type UpdateItemResponseObject interface {
+	VisitUpdateItemResponse(w http.ResponseWriter) error
+}
+
+type UpdateItem200JSONResponse struct {
+	Description *string   `json:"description,omitempty"`
+	Id          *UUID     `json:"id,omitempty"`
+	Name        *string   `json:"name,omitempty"`
+	Stock       *int      `json:"stock,omitempty"`
+	Type        *ItemType `json:"type,omitempty"`
+}
+
+func (response UpdateItem200JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateItem401JSONResponse Error
+
+func (response UpdateItem401JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateItem403JSONResponse Error
+
+func (response UpdateItem403JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateItem404JSONResponse Error
+
+func (response UpdateItem404JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateItem500JSONResponse Error
+
+func (response UpdateItem500JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type PingProtectedRequestObject struct {
 }
 
@@ -517,6 +1034,21 @@ type StrictServerInterface interface {
 	// Get all items
 	// (GET /items)
 	GetItems(ctx context.Context, request GetItemsRequestObject) (GetItemsResponseObject, error)
+	// Create an item
+	// (POST /items)
+	CreateItem(ctx context.Context, request CreateItemRequestObject) (CreateItemResponseObject, error)
+	// Get items by type
+	// (GET /items/type/{type})
+	GetItemsByType(ctx context.Context, request GetItemsByTypeRequestObject) (GetItemsByTypeResponseObject, error)
+	// Delete item
+	// (DELETE /items/{id})
+	DeleteItem(ctx context.Context, request DeleteItemRequestObject) (DeleteItemResponseObject, error)
+	// Get item by ID
+	// (GET /items/{id})
+	GetItemById(ctx context.Context, request GetItemByIdRequestObject) (GetItemByIdResponseObject, error)
+	// Update item
+	// (PUT /items/{id})
+	UpdateItem(ctx context.Context, request UpdateItemRequestObject) (UpdateItemResponseObject, error)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
@@ -630,6 +1162,148 @@ func (sh *strictHandler) GetItems(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CreateItem operation middleware
+func (sh *strictHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
+	var request CreateItemRequestObject
+
+	var body CreateItemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateItem(ctx, request.(CreateItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateItemResponseObject); ok {
+		if err := validResponse.VisitCreateItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetItemsByType operation middleware
+func (sh *strictHandler) GetItemsByType(w http.ResponseWriter, r *http.Request, pType ItemType) {
+	var request GetItemsByTypeRequestObject
+
+	request.Type = pType
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItemsByType(ctx, request.(GetItemsByTypeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItemsByType")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemsByTypeResponseObject); ok {
+		if err := validResponse.VisitGetItemsByTypeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteItem operation middleware
+func (sh *strictHandler) DeleteItem(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request DeleteItemRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteItem(ctx, request.(DeleteItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteItemResponseObject); ok {
+		if err := validResponse.VisitDeleteItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetItemById operation middleware
+func (sh *strictHandler) GetItemById(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request GetItemByIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItemById(ctx, request.(GetItemByIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItemById")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemByIdResponseObject); ok {
+		if err := validResponse.VisitGetItemByIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateItem operation middleware
+func (sh *strictHandler) UpdateItem(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request UpdateItemRequestObject
+
+	request.Id = id
+
+	var body UpdateItemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateItem(ctx, request.(UpdateItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateItemResponseObject); ok {
+		if err := validResponse.VisitUpdateItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PingProtected operation middleware
 func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 	var request PingProtectedRequestObject
@@ -657,31 +1331,36 @@ func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AAAA//8nY2DGTBUAAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

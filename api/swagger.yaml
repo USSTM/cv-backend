@@ -195,8 +195,8 @@ paths:
       description: Retrieve all items from the catalog
       operationId: getItems
       security:
-        - BearerAuth: []
-        - OAuth2: [view_items]
+        - BearerAuth: [ ]
+        - OAuth2: [ view_items ]
       responses:
         "200":
           description: List of items
@@ -225,6 +225,311 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - Items
+      summary: Create an item
+      description: Add a new item to the catalog
+      operationId: createItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ manage_items ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                type:
+                  $ref: "#/components/schemas/ItemType"
+                stock:
+                  type: integer
+              required:
+                - name
+                - type
+                - stock
+      responses:
+        "201":
+          description: Item created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/UUID"
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  type:
+                    $ref: "#/components/schemas/ItemType"
+                  stock:
+                    type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /items/type/{type}:
+    get:
+      tags:
+        - Items
+      summary: Get items by type
+      description: Retrieve items filtered by type
+      operationId: getItemsByType
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_items ]
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ItemType"
+      responses:
+        "200":
+          description: List of items by type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      $ref: "#/components/schemas/UUID"
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    type:
+                      $ref: "#/components/schemas/ItemType"
+                    stock:
+                      type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /items/{id}:
+    get:
+      tags:
+        - Items
+      summary: Get item by ID
+      description: Retrieve a single item by its ID
+      operationId: getItemById
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_items ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: Item details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/UUID"
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  type:
+                    $ref: "#/components/schemas/ItemType"
+                  stock:
+                    type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Items
+      summary: Update item
+      description: Update an existing item
+      operationId: updateItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ manage_items ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                type:
+                  $ref: "#/components/schemas/ItemType"
+                stock:
+                  type: integer
+              required:
+                - name
+                - type
+                - stock
+      responses:
+        "200":
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    $ref: "#/components/schemas/UUID"
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  type:
+                    $ref: "#/components/schemas/ItemType"
+                  stock:
+                    type: integer
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Items
+      summary: Delete item
+      description: Delete an item by its ID
+      operationId: deleteItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ manage_items ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Item deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
