@@ -1,17 +1,12 @@
 package api
 
-import (
-	"github.com/USSTM/cv-backend/internal/auth"
-	"github.com/USSTM/cv-backend/internal/database"
-)
-
 type Server struct {
-	db            *database.Database
-	jwtService    *auth.JWTService
-	authenticator *auth.Authenticator
+	db            DatabaseService
+	jwtService    JWTService
+	authenticator AuthenticatorService
 }
 
-func NewServer(db *database.Database, jwtService *auth.JWTService, authenticator *auth.Authenticator) *Server {
+func NewServer(db DatabaseService, jwtService JWTService, authenticator AuthenticatorService) *Server {
 	return &Server{
 		db:            db,
 		jwtService:    jwtService,

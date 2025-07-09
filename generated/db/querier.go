@@ -12,8 +12,13 @@ import (
 
 type Querier interface {
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
+	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (CreateItemRow, error)
+	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
+	CreateRole(ctx context.Context, arg CreateRoleParams) error
+	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 	GetAllItems(ctx context.Context) ([]GetAllItemsRow, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
@@ -23,10 +28,9 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
-	MarkSignupCodeUsed(ctx context.Context, id uuid.UUID) error
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateItemRow, error)
+	UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
-	ValidateSignupCode(ctx context.Context, code string) (ValidateSignupCodeRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

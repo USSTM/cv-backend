@@ -20,3 +20,6 @@ RETURNING id, name, description, type, stock;
 
 -- name: DeleteItem :exec
 DELETE FROM items WHERE id = $1;
+
+-- name: UpdateItemStock :exec
+UPDATE items SET stock = $2 WHERE id = $1;

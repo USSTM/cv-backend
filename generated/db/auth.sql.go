@@ -34,6 +34,64 @@ func (q *Queries) CheckUserPermission(ctx context.Context, arg CheckUserPermissi
 	return has_permission, err
 }
 
+const createGroup = `-- name: CreateGroup :one
+INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id, name, description
+`
+
+type CreateGroupParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
+	row := q.db.QueryRow(ctx, createGroup, arg.Name, arg.Description)
+	var i Group
+	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	return i, err
+}
+
+const createPermission = `-- name: CreatePermission :exec
+INSERT INTO permissions (name, description) VALUES ($1, $2)
+`
+
+type CreatePermissionParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) CreatePermission(ctx context.Context, arg CreatePermissionParams) error {
+	_, err := q.db.Exec(ctx, createPermission, arg.Name, arg.Description)
+	return err
+}
+
+const createRole = `-- name: CreateRole :exec
+INSERT INTO roles (name, description) VALUES ($1, $2)
+`
+
+type CreateRoleParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) error {
+	_, err := q.db.Exec(ctx, createRole, arg.Name, arg.Description)
+	return err
+}
+
+const createRolePermission = `-- name: CreateRolePermission :exec
+INSERT INTO role_permissions (role_name, permission_name) VALUES ($1, $2)
+`
+
+type CreateRolePermissionParams struct {
+	RoleName       string `json:"role_name"`
+	PermissionName string `json:"permission_name"`
+}
+
+func (q *Queries) CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error {
+	_, err := q.db.Exec(ctx, createRolePermission, arg.RoleName, arg.PermissionName)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash) 
 VALUES ($1, $2) 
@@ -55,6 +113,27 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	var i CreateUserRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
+}
+
+const createUserRole = `-- name: CreateUserRole :exec
+INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4)
+`
+
+type CreateUserRoleParams struct {
+	UserID   *uuid.UUID  `json:"user_id"`
+	RoleName pgtype.Text `json:"role_name"`
+	Scope    ScopeType   `json:"scope"`
+	ScopeID  *uuid.UUID  `json:"scope_id"`
+}
+
+func (q *Queries) CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error {
+	_, err := q.db.Exec(ctx, createUserRole,
+		arg.UserID,
+		arg.RoleName,
+		arg.Scope,
+		arg.ScopeID,
+	)
+	return err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -163,15 +242,6 @@ func (q *Queries) GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUse
 	return items, nil
 }
 
-const markSignupCodeUsed = `-- name: MarkSignupCodeUsed :exec
-UPDATE signup_codes SET used_at = NOW() WHERE id = $1
-`
-
-func (q *Queries) MarkSignupCodeUsed(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markSignupCodeUsed, id)
-	return err
-}
-
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = $2 WHERE id = $1
 `
@@ -184,34 +254,4 @@ type UpdateUserPasswordParams struct {
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
 	return err
-}
-
-const validateSignupCode = `-- name: ValidateSignupCode :one
-SELECT sc.id, sc.email, sc.role_name, sc.scope, sc.scope_id, sc.expires_at
-FROM signup_codes sc
-WHERE sc.code = $1 AND sc.used_at IS NULL
-  AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
-`
-
-type ValidateSignupCodeRow struct {
-	ID        uuid.UUID        `json:"id"`
-	Email     string           `json:"email"`
-	RoleName  string           `json:"role_name"`
-	Scope     ScopeType        `json:"scope"`
-	ScopeID   *uuid.UUID       `json:"scope_id"`
-	ExpiresAt pgtype.Timestamp `json:"expires_at"`
-}
-
-func (q *Queries) ValidateSignupCode(ctx context.Context, code string) (ValidateSignupCodeRow, error) {
-	row := q.db.QueryRow(ctx, validateSignupCode, code)
-	var i ValidateSignupCodeRow
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.RoleName,
-		&i.Scope,
-		&i.ScopeID,
-		&i.ExpiresAt,
-	)
-	return i, err
 }

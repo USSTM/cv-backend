@@ -1,4 +1,4 @@
-.PHONY: generate-api generate-db generate build run clean migrate-up migrate-down migrate-status migrate-create db-reset
+.PHONY: generate-api generate-db generate build run clean migrate-up migrate-down migrate-status migrate-create db-reset test test-unit test-integration test-colima test-verbose
 
 # Generate API boilerplate from OpenAPI spec
 generate-api:
@@ -43,3 +43,25 @@ db-reset:
 	docker-compose down
 	docker volume rm cv-backend_pgdata || true
 	docker-compose up -d
+
+# Test commands
+# Run all tests
+test: test-unit test-integration
+
+# Run unit tests only (no testcontainers)
+test-unit:
+	go test -short ./...
+
+# Run integration tests (standard Docker)
+test-integration:
+	go test ./...
+
+# Run integration tests with Colima setup
+test-colima:
+	export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" && \
+	export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/var/run/docker.sock" && \
+	go test ./...
+
+# Run tests with verbose output
+test-verbose:
+	go test -v ./...
