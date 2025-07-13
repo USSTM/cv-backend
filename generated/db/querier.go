@@ -13,22 +13,24 @@ import (
 type Querier interface {
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
-	CreateItem(ctx context.Context, arg CreateItemParams) (CreateItemRow, error)
+	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
+	CreateSignUpCode(ctx context.Context, arg CreateSignUpCodeParams) (SignupCode, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
-	GetAllItems(ctx context.Context) ([]GetAllItemsRow, error)
+	GetAllItems(ctx context.Context) ([]Item, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
-	GetItemByID(ctx context.Context, id uuid.UUID) (GetItemByIDRow, error)
-	GetItemsByType(ctx context.Context, type_ ItemType) ([]GetItemsByTypeRow, error)
+	GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error)
+	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
+	GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
-	UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateItemRow, error)
+	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }

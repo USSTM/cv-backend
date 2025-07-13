@@ -43,6 +43,12 @@ const (
 	Member     UserRole = "member"
 )
 
+// Defines values for InviteUserJSONBodyScope.
+const (
+	Global InviteUserJSONBodyScope = "global"
+	Group  InviteUserJSONBodyScope = "group"
+)
+
 // Error defines model for Error.
 type Error struct {
 	Code    int32  `json:"code"`
@@ -81,6 +87,17 @@ type User struct {
 // UserRole defines model for UserRole.
 type UserRole string
 
+// InviteUserJSONBody defines parameters for InviteUser.
+type InviteUserJSONBody struct {
+	Email    openapi_types.Email     `json:"email"`
+	RoleName string                  `json:"role_name"`
+	Scope    InviteUserJSONBodyScope `json:"scope"`
+	ScopeId  *UUID                   `json:"scope_id,omitempty"`
+}
+
+// InviteUserJSONBodyScope defines parameters for InviteUser.
+type InviteUserJSONBodyScope string
+
 // CreateItemJSONBody defines parameters for CreateItem.
 type CreateItemJSONBody struct {
 	Description *string  `json:"description,omitempty"`
@@ -97,6 +114,9 @@ type UpdateItemJSONBody struct {
 	Type        ItemType `json:"type"`
 }
 
+// InviteUserJSONRequestBody defines body for InviteUser for application/json ContentType.
+type InviteUserJSONRequestBody InviteUserJSONBody
+
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
 
@@ -108,6 +128,9 @@ type UpdateItemJSONRequestBody UpdateItemJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Invite user (admin only)
+	// (POST /admin/invite)
+	InviteUser(w http.ResponseWriter, r *http.Request)
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(w http.ResponseWriter, r *http.Request)
@@ -140,6 +163,12 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// Invite user (admin only)
+// (POST /admin/invite)
+func (_ Unimplemented) InviteUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Get all users (admin only)
 // (GET /admin/users)
@@ -203,6 +232,28 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// InviteUser operation middleware
+func (siw *ServerInterfaceWrapper) InviteUser(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_users"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InviteUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetUsers operation middleware
 func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -552,6 +603,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/invite", wrapper.InviteUser)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/users", wrapper.GetUsers)
 	})
 	r.Group(func(r chi.Router) {
@@ -580,6 +634,70 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 
 	return r
+}
+
+type InviteUserRequestObject struct {
+	Body *InviteUserJSONRequestBody
+}
+
+type InviteUserResponseObject interface {
+	VisitInviteUserResponse(w http.ResponseWriter) error
+}
+
+type InviteUser201JSONResponse struct {
+	Code *string `json:"code,omitempty"`
+}
+
+func (response InviteUser201JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteUser400JSONResponse Error
+
+func (response InviteUser400JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteUser401JSONResponse Error
+
+func (response InviteUser401JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteUser403JSONResponse Error
+
+func (response InviteUser403JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteUser404JSONResponse Error
+
+func (response InviteUser404JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InviteUser500JSONResponse Error
+
+func (response InviteUser500JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type GetUsersRequestObject struct {
@@ -728,15 +846,6 @@ type CreateItem201JSONResponse struct {
 func (response CreateItem201JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateItem400JSONResponse Error
-
-func (response CreateItem400JSONResponse) VisitCreateItemResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -962,15 +1071,6 @@ func (response UpdateItem200JSONResponse) VisitUpdateItemResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UpdateItem400JSONResponse Error
-
-func (response UpdateItem400JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type UpdateItem401JSONResponse Error
 
 func (response UpdateItem401JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
@@ -1043,6 +1143,9 @@ func (response PingProtected500JSONResponse) VisitPingProtectedResponse(w http.R
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Invite user (admin only)
+	// (POST /admin/invite)
+	InviteUser(ctx context.Context, request InviteUserRequestObject) (InviteUserResponseObject, error)
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(ctx context.Context, request GetUsersRequestObject) (GetUsersResponseObject, error)
@@ -1099,6 +1202,37 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// InviteUser operation middleware
+func (sh *strictHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
+	var request InviteUserRequestObject
+
+	var body InviteUserJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InviteUser(ctx, request.(InviteUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InviteUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InviteUserResponseObject); ok {
+		if err := validResponse.VisitInviteUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetUsers operation middleware
@@ -1349,36 +1483,38 @@ func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+xa/2/buBX/VwhuP2yAHMuO2+v805J2HTzctqBpbsACI6DFZ5sXitSRlF3P8P8+PFKS",
-	"pVixnSa5rT0DRWNL7zvf+7xH0mua6DTTCpSzdLimNplDyvzHvxijDX7IjM7AOAH+caI54N+pNilzdEiF",
-	"cud9GlG3yiB8hRkYuoloCtaymacuXlpnhJrRzSaiBn7JhQFOh7dB5pZ+XAnTk58hcShr5CD97B+uKag8",
-	"RTapl56LizylEZ2L2bzGW+qK6I96JtQn+CUH63YdgpQJ6T98YWkmkTW3YP7stNHK6TQ/SxiNtv4G+uiA",
-	"S4GqzZPCGptpZWHXHKfvQbWHbEfUlVCzxyXVwr91LdNqRlti5EQK1rE0a5L34/55J+514t7nOB76f/+u",
-	"B4MzBx3kPRiQ0pq6qrbw3NyMPjRt6PXPYfDm7Q8dePenSafX5+cdNnjztjPov33bG/R+GMRxXLcpzwVv",
-	"c/HGgtmz/IcWOKKCI93vDUzpkP6uu62cblE2XW88Oq4lHKS1YD4h3cNIeetLI7yk1jiV7LWCYDwVikaU",
-	"ZZnRCzA0ojOj8+yufJFCOgHTUiSbiFpIciPc6hrtC7G5BGbAXORujt8m/tvHMkx/+9dnGgXAQEnh7TZs",
-	"c+cytPOfyN73AZZ66cWKNJMiES4Ajs6CssLoOyblnQnFaumQXoTHXQ5qRcrnhCVGW0uYlMR7aNE5ptgs",
-	"8E+0vhdqhvx/909J8YSgvTyXYMlM6gmTcrXlTJhBxy447xpI9QKIcJBaMjU6Jf5lRRrCeoyaqTbEZpCI",
-	"qUiCrQ+lINrYpl7/KOjdy4ts7w0wBxHJM+7/MsUJBwkOdkLj3dnPEjzejQ0W7Z2V2m35PVt4TdiCCckm",
-	"EggSkkBYMZce7tEbPK7pLZa6svk6n6TCbTMA4zrRxuglxjtQRXQhYOkzgDPH6JD+JGBZ8XQr+vYE8sxh",
-	"TQ6xL4WbC7W7OF5EabLnxi8kYY5JPSsJ9FI1NOilqqW24lvHLN3UkZ/5WvKPhJpqLBsONjEic0IrOqSX",
-	"LLkHxcnF1chH6D1Ls9ySn1guHfmIDQ2UB0fhPLY23l9cjdBCMDYIi8/isx7WsM5AsUzQIT0/i88QbDPm",
-	"5r5qux5ausUKr+kM3K5Vn8AZAQvw4Q4r3SEF5FniJZAMTCosasalQIRmyD3idEj/Cu7GK8C0CO3OK+vH",
-	"cRhJ0C1XgIgUiefs/my12s40HnjCwhzGZbqNOTOGrULIm079KKwjehr8QYZB3HuSNfuMCMNXi9YbhTmg",
-	"jfgP8KD0/PWVftRmIjgHRTpEKJtPpyIRoFxj0TYRffPE9fgqY0bKgVFMkmswCzCkJNx2MDq8bfau2/Em",
-	"Wled6LYJS+PNOKI2T1NmViHXamn6h5CcWsnVH7FsGIL9Lb3w/XSMSru4Hl2JQ50fLrRtKQDUDMphJDDh",
-	"vfCIGHC5Ufg9NE8SZr+H2e8HRp+VFSpear56sUg3xuNNcxpxJofNM6vuCN3FCNuy2td5koC101ySEGOf",
-	"88cYUA2Q5Z5lEMe1PQkdqQWTghM/aRFtSMasXWrDz1DHM5P0knHy3gDHRWfyCcWxY/WbptUXiuQKvmSQ",
-	"OOAEUD/RSZIbAy9i+FHV1SgYv4SkyM+qQLYJj3JDpVTwe7hJ1AYvN4da/9xpDKOi879MY2juDRoGrp+z",
-	"IVAshVYR1unkvvamtn12xXZ3n/xqW9y6Pzy2hQX3Ty3sG2phtUHzkQZWjsRlSY4K4uixHsU5YUSVI6vT",
-	"eysvjPIo8xld6WnV9qvUUH0j7hUWMkotu1vxYxpm7xXD8v8NQi3J7zdEPn348d38BfpxMeJ4AAitX6gs",
-	"dyfc+wZH91bkq44lPIK1QF81hHQxS7tr/H9zeCAphhEhHRjgZLIiBSS0DyOXq8/hdcYMS8H5nfHtmuIG",
-	"wW+caVmKJbQ04ePYGa5WduPT/PPs+ada1xMeeGMGr2/MP7QjU50r/v1MXs1U2gdBa8E3ocgkONiFnw/h",
-	"YLRAMxQpnCWjDzu4EwiLUeww5vjrha9DnFDNLWgz2DXft/ngGz+V1Kmkvrapf9jeS7RuZg6cJRAr1EzC",
-	"oRoqevflasT/Z0UUnzYJD9HDMSFPBxMn9HhmQ8bC90XfchaSt8DHjb+fxNYLX4R15QXjDmoEul+7857O",
-	"Wl7wcuI3AKPhtv101nKC8m96ECxAec/RToYl9thpzrVIMwkkM9oVd2eKZ1oo50+6MVdZ887qIdhfCTW7",
-	"KrnpK96JNn7Vt/9KNCtA5biaarkR7dXvFmsXlqS8HdWGYCZdGb0QPNTSC5fmd3QvesScUv3050F2V5nl",
-	"17RKzlqmb3NvvDmkF0V7O8Ms8uDUSyeVHzSiuZHFz/WG3a7Ed3Nt3fBd/C6mm/HmvwEAAP//ptfilCIs",
+	"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",
 	"AAA=",
 }
 

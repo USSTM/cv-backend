@@ -591,3 +591,77 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /admin/invite:
+    post:
+      tags:
+        - Admin
+      summary: Invite user (admin only)
+      description: Invite a new user to the system - requires global or group admin permissions
+      operationId: inviteUser
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ manage_users ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "president@usstm.ca"
+                role_name:
+                  type: string
+                  example: "group_admin"
+                scope:
+                  type: string
+                  enum: [ global, group ]
+                  example: "group"
+                scope_id:
+                  $ref: "#/components/schemas/UUID"
+              required:
+                - email
+                - role_name
+                - scope
+      responses:
+        "201":
+          description: Invitation code created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
