@@ -9,10 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // TestServer provides a test server setup for API testing
@@ -128,64 +126,10 @@ func (ts *TestServer) AuthenticatedRequest(t *testing.T, req Request, token stri
 	return ts.MakeRequest(t, req)
 }
 
-// TestUser represents a test user for authentication
-type TestUser struct {
-	ID          uuid.UUID
-	Email       string
-	Permissions []string
-	Roles       []string
-}
-
-// NewTestUser creates a test user with default values
-func NewTestUser() *TestUser {
-	return &TestUser{
-		ID:          uuid.New(),
-		Email:       "test@example.com",
-		Permissions: []string{"view_own_data"},
-		Roles:       []string{"member"}, // Use the actual role from the migration
-	}
-}
-
-// WithPermissions adds permissions to the test user
-func (u *TestUser) WithPermissions(permissions ...string) *TestUser {
-	u.Permissions = append(u.Permissions, permissions...)
-	return u
-}
-
-// WithRoles adds roles to the test user
-func (u *TestUser) WithRoles(roles ...string) *TestUser {
-	u.Roles = append(u.Roles, roles...)
-	return u
-}
-
-// ToAuthenticatedUser converts TestUser to auth.AuthenticatedUser
-func (u *TestUser) ToAuthenticatedUser() *auth.AuthenticatedUser {
-	permissions := make([]db.GetUserPermissionsRow, len(u.Permissions))
-	for i, perm := range u.Permissions {
-		permissions[i] = db.GetUserPermissionsRow{
-			Name: perm,
-		}
-	}
-
-	roles := make([]db.GetUserRolesRow, len(u.Roles))
-	for i, role := range u.Roles {
-		roles[i] = db.GetUserRolesRow{
-			RoleName: pgtype.Text{String: role, Valid: true},
-		}
-	}
-
-	return &auth.AuthenticatedUser{
-		ID:          u.ID,
-		Email:       u.Email,
-		Permissions: permissions,
-		Roles:       roles,
-	}
-}
-
 // ContextWithUser adds a test user to the context
 func ContextWithUser(ctx context.Context, user *TestUser) context.Context {
 	ctx = context.WithValue(ctx, auth.UserIDKey, user.ID)
-	ctx = context.WithValue(ctx, auth.UserClaimsKey, user.ToAuthenticatedUser())
+	ctx = context.WithValue(ctx, auth.UserClaimsKey, user.ToAuthenticatedUser(ctx, nil))
 	return ctx
 }
 

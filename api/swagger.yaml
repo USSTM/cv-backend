@@ -282,6 +282,12 @@ paths:
                     $ref: "#/components/schemas/ItemType"
                   stock:
                     type: integer
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           description: Unauthorized
           content:
@@ -473,6 +479,12 @@ paths:
                     $ref: "#/components/schemas/ItemType"
                   stock:
                     type: integer
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           description: Unauthorized
           content:

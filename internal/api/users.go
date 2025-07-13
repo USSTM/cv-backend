@@ -1,56 +1,50 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"log"
-	"net/http"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/auth"
-	openapi_types "github.com/oapi-codegen/runtime/types"
+	types "github.com/oapi-codegen/runtime/types"
 )
 
-func (s Server) GetUsers(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
+func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject) (api.GetUsersResponseObject, error) {
 	// Check permission
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		resp := api.Error{Code: 401, Message: "Unauthorized"}
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetUsers401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_users", nil)
 	if err != nil {
 		log.Printf("Error checking manage_users permission: %v", err)
-		resp := api.Error{Code: 500, Message: "Internal server error"}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetUsers500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
 	if !hasPermission {
-		resp := api.Error{Code: 403, Message: "Insufficient permissions"}
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetUsers403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
 
 	users, err := s.db.Queries().GetAllUsers(ctx)
 	if err != nil {
 		log.Printf("Failed to get users: %v", err)
-		resp := api.Error{
+		return api.GetUsers500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
-		}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	// Convert database users to API response format
-	var response []api.User
+	var response api.GetUsers200JSONResponse
 	for _, user := range users {
 		userUUID := user.ID
 
@@ -75,12 +69,11 @@ func (s Server) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 		userResponse := api.User{
 			Id:    userUUID,
-			Email: openapi_types.Email(user.Email),
+			Email: types.Email(user.Email),
 			Role:  role,
 		}
 		response = append(response, userResponse)
 	}
 
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(response)
+	return response, nil
 }
