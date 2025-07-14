@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/USSTM/cv-backend/internal/container"
 	genapi "github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/internal/container"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
@@ -23,13 +23,13 @@ func main() {
 	defer c.Cleanup()
 
 	r := chi.NewMux()
-	
+
 	// Get the embedded OpenAPI spec
 	spec, err := genapi.GetSwagger()
 	if err != nil {
 		log.Fatalf("Failed to load OpenAPI spec: %v", err)
 	}
-	
+
 	// Add authentication middleware
 	validator := middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
 		Options: openapi3filter.Options{
@@ -37,8 +37,10 @@ func main() {
 		},
 	})
 	r.Use(validator)
-	
-	genapi.HandlerFromMux(c.Server, r)
+
+	// Wrap server with strict handler
+	strictHandler := genapi.NewStrictHandler(c.Server, nil)
+	genapi.HandlerFromMux(strictHandler, r)
 
 	addr := fmt.Sprintf("0.0.0.0:%s", c.Config.Server.Port)
 	s := &http.Server{
