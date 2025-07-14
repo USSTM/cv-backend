@@ -1,254 +1,351 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/jackc/pgx/v5/pgtype"
 	"log"
-	"net/http"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/auth"
 )
 
-func (s Server) GetItems(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Check permission
+func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		resp := api.Error{Code: 401, Message: "Unauthorized"}
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetItems401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
 	if err != nil {
 		log.Printf("Error checking view_items permission: %v", err)
-		resp := api.Error{Code: 500, Message: "Internal server error"}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetItems500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
 	if !hasPermission {
-		resp := api.Error{Code: 403, Message: "Insufficient permissions"}
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.GetItems403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
 
 	items, err := s.db.Queries().GetAllItems(ctx)
 	if err != nil {
 		log.Printf("Failed to get items: %v", err)
-		resp := api.Error{
+		return api.GetItems500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
-		}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	// Convert database items to API response format
-	var response []any
+	var response api.GetItems200JSONResponse
 	for _, item := range items {
-		itemResponse := map[string]any{
-			"id":          item.ID.String(),
-			"name":        item.Name,
-			"description": item.Description.String,
-			"type":        string(item.Type),
-			"stock":       item.Stock,
+		id := item.ID
+		name := item.Name
+		description := item.Description.String
+		itemType := api.ItemType(item.Type)
+		stock := int(item.Stock)
+
+		itemResponse := struct {
+			Description *string       `json:"description,omitempty"`
+			Id          *api.UUID     `json:"id,omitempty"`
+			Name        *string       `json:"name,omitempty"`
+			Stock       *int          `json:"stock,omitempty"`
+			Type        *api.ItemType `json:"type,omitempty"`
+		}{
+			Id:          &id,
+			Name:        &name,
+			Description: &description,
+			Type:        &itemType,
+			Stock:       &stock,
 		}
 		response = append(response, itemResponse)
 	}
 
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(response)
+	return response, nil
 }
 
-func (s Server) GetItemsByType(w http.ResponseWriter, r *http.Request, itemType api.ItemType) {
-	ctx := r.Context()
+func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRequestObject) (api.GetItemsByTypeResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.GetItemsByType401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
+
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
-	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
+	if err != nil {
+		log.Printf("Error checking view_items permission: %v", err)
+		return api.GetItemsByType500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
-	items, err := s.db.Queries().GetItemsByType(ctx, db.ItemType(itemType))
+	if !hasPermission {
+		return api.GetItemsByType403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
+	}
+
+	items, err := s.db.Queries().GetItemsByType(ctx, db.ItemType(request.Type))
 	if err != nil {
 		log.Printf("Failed to get items by type: %v", err)
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 500, Message: "An unexpected error occurred."})
-		return
+		return api.GetItemsByType500JSONResponse{
+			Code:    500,
+			Message: "An unexpected error occurred.",
+		}, nil
 	}
-	var response []any
+
+	// Convert database items to API response format
+	var response api.GetItemsByType200JSONResponse
 	for _, item := range items {
-		response = append(response, map[string]any{
-			"id":          item.ID.String(),
-			"name":        item.Name,
-			"description": item.Description.String,
-			"type":        string(item.Type),
-			"stock":       item.Stock,
-		})
+		id := item.ID
+		name := item.Name
+		description := item.Description.String
+		itemType := api.ItemType(item.Type)
+		stock := int(item.Stock)
+
+		itemResponse := struct {
+			Description *string       `json:"description,omitempty"`
+			Id          *api.UUID     `json:"id,omitempty"`
+			Name        *string       `json:"name,omitempty"`
+			Stock       *int          `json:"stock,omitempty"`
+			Type        *api.ItemType `json:"type,omitempty"`
+		}{
+			Id:          &id,
+			Name:        &name,
+			Description: &description,
+			Type:        &itemType,
+			Stock:       &stock,
+		}
+		response = append(response, itemResponse)
 	}
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(response)
+
+	return response, nil
 }
 
-func (s Server) GetItemById(w http.ResponseWriter, r *http.Request, id api.UUID) {
-	ctx := r.Context()
+func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestObject) (api.GetItemByIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.GetItemById401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
+
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
-	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
-	}
-	item, err := s.db.Queries().GetItemByID(ctx, id)
 	if err != nil {
-		w.WriteHeader(404)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 404, Message: "Item not found"})
-		return
+		log.Printf("Error checking view_items permission: %v", err)
+		return api.GetItemById500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
-	response := map[string]any{
-		"id":          item.ID.String(),
-		"name":        item.Name,
-		"description": item.Description.String,
-		"type":        string(item.Type),
-		"stock":       item.Stock,
+	if !hasPermission {
+		return api.GetItemById403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(response)
+
+	item, err := s.db.Queries().GetItemByID(ctx, request.Id)
+	if err != nil {
+		return api.GetItemById404JSONResponse{
+			Code:    404,
+			Message: "Item not found",
+		}, nil
+	}
+
+	id := item.ID
+	name := item.Name
+	description := item.Description.String
+	itemType := api.ItemType(item.Type)
+	stock := int(item.Stock)
+
+	return api.GetItemById200JSONResponse{
+		Id:          &id,
+		Name:        &name,
+		Description: &description,
+		Type:        &itemType,
+		Stock:       &stock,
+	}, nil
 }
 
-func (s Server) CreateItem(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObject) (api.CreateItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.CreateItem401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
+
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
-	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
+	if err != nil {
+		log.Printf("Error checking manage_items permission: %v", err)
+		return api.CreateItem500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Type        string `json:"type"`
-		Stock       int32  `json:"stock"`
+	if !hasPermission {
+		return api.CreateItem403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 400, Message: "Invalid request body"})
-		return
+
+	if request.Body == nil {
+		return api.CreateItem400JSONResponse{
+			Code:    400,
+			Message: "Request body is required",
+		}, nil
 	}
+
+	req := *request.Body
 	params := db.CreateItemParams{
 		Name:        req.Name,
-		Description: pgtype.Text{String: req.Description, Valid: req.Description != ""},
+		Description: pgtype.Text{String: "", Valid: false},
 		Type:        db.ItemType(req.Type),
-		Stock:       req.Stock,
+		Stock:       int32(req.Stock),
 	}
+
+	if req.Description != nil {
+		params.Description = pgtype.Text{String: *req.Description, Valid: true}
+	}
+
 	item, err := s.db.Queries().CreateItem(ctx, params)
 	if err != nil {
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 500, Message: "An unexpected error occurred."})
-		return
+		log.Printf("Failed to create item: %v", err)
+		return api.CreateItem500JSONResponse{
+			Code:    500,
+			Message: "An unexpected error occurred.",
+		}, nil
 	}
-	response := map[string]any{
-		"id":          item.ID.String(),
-		"name":        item.Name,
-		"description": item.Description.String,
-		"type":        string(item.Type),
-		"stock":       item.Stock,
-	}
-	w.WriteHeader(201)
-	_ = json.NewEncoder(w).Encode(response)
+
+	id := item.ID
+	name := item.Name
+	description := item.Description.String
+	itemType := api.ItemType(item.Type)
+	stock := int(item.Stock)
+
+	return api.CreateItem201JSONResponse{
+		Id:          &id,
+		Name:        &name,
+		Description: &description,
+		Type:        &itemType,
+		Stock:       &stock,
+	}, nil
 }
 
-func (s Server) UpdateItem(w http.ResponseWriter, r *http.Request, id api.UUID) {
-	ctx := r.Context()
+func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObject) (api.UpdateItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.UpdateItem401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
+
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
-	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
+	if err != nil {
+		log.Printf("Error checking manage_items permission: %v", err)
+		return api.UpdateItem500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Type        string `json:"type"`
-		Stock       int32  `json:"stock"`
+	if !hasPermission {
+		return api.UpdateItem403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 400, Message: "Invalid request body"})
-		return
+
+	if request.Body == nil {
+		return api.UpdateItem400JSONResponse{
+			Code:    400,
+			Message: "Request body is required",
+		}, nil
 	}
+
+	req := *request.Body
 	params := db.UpdateItemParams{
-		ID:          id,
+		ID:          request.Id,
 		Name:        req.Name,
-		Description: pgtype.Text{String: req.Description, Valid: req.Description != ""},
+		Description: pgtype.Text{String: "", Valid: false},
 		Type:        db.ItemType(req.Type),
-		Stock:       req.Stock,
+		Stock:       int32(req.Stock),
 	}
+
+	if req.Description != nil {
+		params.Description = pgtype.Text{String: *req.Description, Valid: true}
+	}
+
 	item, err := s.db.Queries().UpdateItem(ctx, params)
 	if err != nil {
-		w.WriteHeader(404)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 404, Message: "Item not found"})
-		return
+		log.Printf("Failed to update item: %v", err)
+		return api.UpdateItem404JSONResponse{
+			Code:    404,
+			Message: "Item not found",
+		}, nil
 	}
-	response := map[string]any{
-		"id":          item.ID.String(),
-		"name":        item.Name,
-		"description": item.Description.String,
-		"type":        string(item.Type),
-		"stock":       item.Stock,
-	}
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(response)
+
+	id := item.ID
+	name := item.Name
+	description := item.Description.String
+	itemType := api.ItemType(item.Type)
+	stock := int(item.Stock)
+
+	return api.UpdateItem200JSONResponse{
+		Id:          &id,
+		Name:        &name,
+		Description: &description,
+		Type:        &itemType,
+		Stock:       &stock,
+	}, nil
 }
 
-func (s Server) DeleteItem(w http.ResponseWriter, r *http.Request, id api.UUID) {
-	ctx := r.Context()
+func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObject) (api.DeleteItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.DeleteItem401JSONResponse{
+			Code:    401,
+			Message: "Unauthorized",
+		}, nil
 	}
+
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
-	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
-	}
-	err = s.db.Queries().DeleteItem(ctx, id)
 	if err != nil {
-		w.WriteHeader(404)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 404, Message: "Item not found"})
-		return
+		log.Printf("Error checking manage_items permission: %v", err)
+		return api.DeleteItem500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
-	w.WriteHeader(204)
+	if !hasPermission {
+		return api.DeleteItem403JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
+	}
+
+	err = s.db.Queries().DeleteItem(ctx, request.Id)
+	if err != nil {
+		log.Printf("Failed to delete item: %v", err)
+		return api.DeleteItem404JSONResponse{
+			Code:    404,
+			Message: "Item not found",
+		}, nil
+	}
+
+	return api.DeleteItem204Response{}, nil
 }

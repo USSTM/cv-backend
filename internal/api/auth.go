@@ -1,9 +1,8 @@
 package api
 
 import (
-	"encoding/json"
+	"context"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -11,37 +10,32 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s Server) LoginUser(w http.ResponseWriter, r *http.Request) {
-	var req api.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObject) (api.LoginUserResponseObject, error) {
+	if request.Body == nil {
+		return api.LoginUser400JSONResponse{
+			Code:    400,
+			Message: "Request body is required",
+		}, nil
 	}
 
-	ctx := r.Context()
+	req := *request.Body
 	user, err := s.db.Queries().GetUserByEmail(ctx, string(req.Email))
 	if err != nil {
 		log.Printf("User not found: %v", err)
-		resp := api.Error{
+		return api.LoginUser400JSONResponse{
 			Code:    400,
 			Message: "Invalid email or password.",
-		}
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	// TODO: Add password field to LoginRequest schema
 	// For now, validate against a hardcoded password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("password")); err != nil {
 		log.Printf("Invalid password: %v", err)
-		resp := api.Error{
+		return api.LoginUser400JSONResponse{
 			Code:    400,
 			Message: "Invalid email or password.",
-		}
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	userUUID := user.ID
@@ -49,57 +43,44 @@ func (s Server) LoginUser(w http.ResponseWriter, r *http.Request) {
 	token, err := s.jwtService.GenerateToken(ctx, userUUID)
 	if err != nil {
 		log.Printf("Failed to generate token: %v", err)
-		resp := api.Error{
+		return api.LoginUser500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
-		}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	log.Printf("User logged in: %s", user.Email)
-	resp := api.LoginResponse{
+	return api.LoginUser200JSONResponse{
 		Token: &token,
-	}
-
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(resp)
+	}, nil
 }
 
-func (s Server) PingProtected(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequestObject) (api.PingProtectedResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		resp := api.Error{
+		return api.PingProtected401JSONResponse{
 			Code:    401,
 			Message: "Unauthorized!",
-		}
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		}, nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
 	if err != nil {
 		log.Printf("Error checking view_own_data permission: %v", err)
-		resp := api.Error{Code: 500, Message: "Internal server error"}
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.PingProtected500JSONResponse{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
 	}
 	if !hasPermission {
-		resp := api.Error{Code: 403, Message: "Insufficient permissions"}
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(resp)
-		return
+		return api.PingProtected401JSONResponse{
+			Code:    403,
+			Message: "Insufficient permissions",
+		}, nil
 	}
 
-	resp := api.PingResponse{
+	return api.PingProtected200JSONResponse{
 		Message:   "PONG! Hello " + user.Email,
 		Timestamp: time.Now(),
-	}
-
-	w.WriteHeader(200)
-	_ = json.NewEncoder(w).Encode(resp)
+	}, nil
 }

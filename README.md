@@ -183,9 +183,16 @@ We welcome contributions from the USSTM and FOS community! Here's how to contrib
 
 ### Testing
 
-- Write unit tests for all new functionality
-- Ensure all existing tests pass before submitting a PR
-- Integration tests should be included for API endpoints
+This project uses comprehensive testing with real PostgreSQL databases via testcontainers:
+
+- **Unit tests**: `make test-unit` (fast, no Docker required)
+- **Integration tests**: `make test-integration` (standard Docker) or `make test-colima` (Colima setup)
+- **All tests**: `make test` (runs both unit and integration tests)
+- Write tests for all new functionality
+- Use `testutil.TestDatabase` for database integration tests
+- Test handlers directly using StrictServerInterface pattern
+
+See [Testing Guide](docs/testing.md) for detailed examples and patterns.
 
 ### Pull Requests
 

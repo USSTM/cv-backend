@@ -1,14 +1,16 @@
 package api
 
 import (
+	"context"
 	"errors"
-	"net/http"
 	"testing"
 
 	"github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer_LoginUser(t *testing.T) {
@@ -28,88 +30,166 @@ func TestServer_LoginUser(t *testing.T) {
 	server := NewServer(testDB, mockJWT, mockAuth)
 
 	t.Run("successful login", func(t *testing.T) {
-		// Create test user in database
-		testUser := testutil.NewTestUser()
-		testDB.CreateTestUser(t, testUser)
+		// Create test user in database using builder
+		testUser := testDB.NewUser(t).
+			WithEmail("test@example.com").
+			AsMember().
+			Create()
 
 		// Set up mock expectations
 		mockJWT.ExpectGenerateToken(testUser.ID, "test-token", nil)
 
-		// Create request body
-		loginReq := api.LoginRequest{
-			Email: types.Email(testUser.Email),
+		// Create request using StrictServerInterface pattern
+		request := api.LoginUserRequestObject{
+			Body: &api.LoginUserJSONRequestBody{
+				Email: types.Email(testUser.Email),
+			},
 		}
 
-		// Create HTTP request
-		req := testutil.Request{
-			Method: "POST",
-			Path:   "/login",
-			Body:   loginReq,
-		}
-
-		// Create test server and make request
-		ts := testutil.NewTestServer(t, http.HandlerFunc(server.LoginUser))
-		resp := ts.MakeRequest(t, req)
+		// Call handler directly
+		response, err := server.LoginUser(context.Background(), request)
 
 		// Assert response
-		assert.Equal(t, http.StatusOK, resp.Code)
-		assert.NotNil(t, resp.Body["token"])
-		assert.Equal(t, "test-token", resp.Body["token"])
+		require.NoError(t, err)
+		require.IsType(t, api.LoginUser200JSONResponse{}, response)
+
+		loginResp := response.(api.LoginUser200JSONResponse)
+		assert.NotNil(t, loginResp.Token)
+		assert.Equal(t, "test-token", *loginResp.Token)
 
 		// Verify mock was called
 		mockJWT.AssertExpectations(t)
 	})
 
 	t.Run("user not found", func(t *testing.T) {
-		// Make request with non-existent user
-		loginReq := api.LoginRequest{
-			Email: types.Email("nonexistent@example.com"),
+		// Create request with non-existent user
+		request := api.LoginUserRequestObject{
+			Body: &api.LoginUserJSONRequestBody{
+				Email: types.Email("nonexistent@example.com"),
+			},
 		}
 
-		req := testutil.Request{
-			Method: "POST",
-			Path:   "/login",
-			Body:   loginReq,
-		}
-
-		ts := testutil.NewTestServer(t, http.HandlerFunc(server.LoginUser))
-		resp := ts.MakeRequest(t, req)
+		// Call handler directly
+		response, err := server.LoginUser(context.Background(), request)
 
 		// Assert error response
-		assert.Equal(t, http.StatusBadRequest, resp.Code)
-		assert.Equal(t, "Invalid email or password.", resp.Body["message"])
+		require.NoError(t, err)
+		require.IsType(t, api.LoginUser400JSONResponse{}, response)
+
+		errorResp := response.(api.LoginUser400JSONResponse)
+		assert.Equal(t, int32(400), errorResp.Code)
+		assert.Equal(t, "Invalid email or password.", errorResp.Message)
 	})
 
 	t.Run("jwt generation failure", func(t *testing.T) {
 		// Create test user with unique email
-		testUser := testutil.NewTestUser()
-		testUser.Email = "failure@example.com"
-		testDB.CreateTestUser(t, testUser)
+		testUser := testDB.NewUser(t).
+			WithEmail("failure@example.com").
+			AsMember().
+			Create()
 
 		// Set up mock to return error
 		mockJWT.ExpectGenerateToken(testUser.ID, "", errors.New("jwt generation failed"))
 
-		// Make request
-		loginReq := api.LoginRequest{
-			Email: types.Email(testUser.Email),
+		// Create request
+		request := api.LoginUserRequestObject{
+			Body: &api.LoginUserJSONRequestBody{
+				Email: types.Email(testUser.Email),
+			},
 		}
 
-		req := testutil.Request{
-			Method: "POST",
-			Path:   "/login",
-			Body:   loginReq,
-		}
-
-		ts := testutil.NewTestServer(t, http.HandlerFunc(server.LoginUser))
-		resp := ts.MakeRequest(t, req)
+		// Call handler directly
+		response, err := server.LoginUser(context.Background(), request)
 
 		// Assert error response
-		assert.Equal(t, http.StatusInternalServerError, resp.Code)
-		assert.Equal(t, "An unexpected error occurred.", resp.Body["message"])
+		require.NoError(t, err)
+		require.IsType(t, api.LoginUser500JSONResponse{}, response)
+
+		errorResp := response.(api.LoginUser500JSONResponse)
+		assert.Equal(t, int32(500), errorResp.Code)
+		assert.Equal(t, "An unexpected error occurred.", errorResp.Message)
 
 		// Verify mock was called
 		mockJWT.AssertExpectations(t)
 	})
 }
 
-// TODO: Add tests for PingProtected endpoint
+func TestServer_PingProtected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	testDB := testutil.NewTestDatabase(t)
+	testDB.RunMigrations(t)
+
+	mockJWT := &testutil.MockJWTService{}
+	mockAuth := &testutil.MockAuthenticator{}
+
+	server := NewServer(testDB, mockJWT, mockAuth)
+
+	t.Run("successful ping with authenticated user", func(t *testing.T) {
+		testUser := testDB.NewUser(t).
+			WithEmail("test@example.com").
+			AsMember().
+			Create()
+
+		// Mock permission check
+		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+
+		// Create context with authenticated user
+		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
+			ID:    testUser.ID,
+			Email: testUser.Email,
+		})
+
+		// Call handler directly
+		response, err := server.PingProtected(ctx, api.PingProtectedRequestObject{})
+
+		// Assert response
+		require.NoError(t, err)
+		require.IsType(t, api.PingProtected200JSONResponse{}, response)
+
+		pingResp := response.(api.PingProtected200JSONResponse)
+		assert.Contains(t, pingResp.Message, "PONG! Hello")
+		assert.Contains(t, pingResp.Message, testUser.Email)
+		assert.NotZero(t, pingResp.Timestamp)
+	})
+
+	t.Run("unauthorized user", func(t *testing.T) {
+		// Context without authenticated user
+		ctx := context.Background()
+
+		response, err := server.PingProtected(ctx, api.PingProtectedRequestObject{})
+
+		require.NoError(t, err)
+		require.IsType(t, api.PingProtected401JSONResponse{}, response)
+
+		errorResp := response.(api.PingProtected401JSONResponse)
+		assert.Equal(t, int32(401), errorResp.Code)
+		assert.Equal(t, "Unauthorized!", errorResp.Message)
+	})
+
+	t.Run("insufficient permissions", func(t *testing.T) {
+		testUser := testDB.NewUser(t).
+			WithEmail("test2@example.com").
+			AsMember().
+			Create()
+
+		// Mock permission check to return false
+		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, false, nil)
+
+		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
+			ID:    testUser.ID,
+			Email: testUser.Email,
+		})
+
+		response, err := server.PingProtected(ctx, api.PingProtectedRequestObject{})
+
+		require.NoError(t, err)
+		require.IsType(t, api.PingProtected401JSONResponse{}, response)
+
+		errorResp := response.(api.PingProtected401JSONResponse)
+		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+	})
+}
