@@ -2,16 +2,14 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/USSTM/cv-backend/generated/db"
-	"github.com/google/uuid"
+	"crypto/rand"
 	"log"
-	"net/http"
 	"strings"
 
-	"crypto/rand"
 	"github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/google/uuid"
 	types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -84,90 +82,73 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 	return response, nil
 }
 
-
-func (s Server) InviteUser(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObject) (api.InviteUserResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		w.WriteHeader(401)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 401, Message: "Unauthorized"})
-		return
+		return api.InviteUser401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", nil)
 	if err != nil || !hasPermission {
-		w.WriteHeader(403)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 403, Message: "Insufficient permissions"})
-		return
+		return api.InviteUser403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
 	}
 
-	var req struct {
-		Email    openapi_types.Email `json:"email"`
-		RoleName string              `json:"role_name"`
-		Scope    string              `json:"scope"`
-		ScopeID  uuid.UUID           `json:"scope_id,omitempty"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 400, Message: "Invalid request body"})
-		return
+	if request.Body == nil {
+		return api.InviteUser400JSONResponse{Code: 400, Message: "Request body is required"}, nil
 	}
 
-	if req.Scope == "global" && req.ScopeID != uuid.Nil {
-		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 400, Message: "Scope ID must be empty for global scope"})
-		return
+	req := request.Body
+	scopeStr := string(req.Scope)
+	
+	var scopeID uuid.UUID
+	if req.ScopeId != nil {
+		scopeID = uuid.UUID(*req.ScopeId)
 	}
 
-	if req.Scope == "group" {
-		if req.ScopeID == uuid.Nil {
-			w.WriteHeader(400)
-			_ = json.NewEncoder(w).Encode(api.Error{Code: 400, Message: "Scope ID must be provided for group scope"})
-			return
+	if scopeStr == "global" && scopeID != uuid.Nil {
+		return api.InviteUser400JSONResponse{Code: 400, Message: "Scope ID must be empty for global scope"}, nil
+	}
+
+	if scopeStr == "group" {
+		if scopeID == uuid.Nil {
+			return api.InviteUser400JSONResponse{Code: 400, Message: "Scope ID must be provided for group scope"}, nil
 		}
 
 		// check if the group exists with error handling, if it does exist, then do nothing
-		_, err := s.db.Queries().GetGroupByID(ctx, req.ScopeID)
+		_, err := s.db.Queries().GetGroupByID(ctx, scopeID)
 		if err != nil {
-			w.WriteHeader(404)
-			_ = json.NewEncoder(w).Encode(api.Error{Code: 404, Message: "Group not found"})
-			return
+			return api.InviteUser404JSONResponse{Code: 404, Message: "Group not found"}, nil
 		}
 	}
 
 	// generates a random code for the sign-up link (just a random string of 32 characters)
 	code, err := generateRandomCode(32)
 	if err != nil {
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 500, Message: "Failed to generate sign-up code"})
-		return
+		return api.InviteUser500JSONResponse{Code: 500, Message: "Failed to generate sign-up code"}, nil
 	}
 
 	// this makes it so that if the scopeID is uuid.Nil, it will be nil in the database (instead of 0000000-0000-0000-0000-000000000000)
-	var scopeID *uuid.UUID
-	if req.ScopeID != uuid.Nil {
-		scopeID = &req.ScopeID
+	var scopeIDPtr *uuid.UUID
+	if scopeID != uuid.Nil {
+		scopeIDPtr = &scopeID
 	} else {
-		scopeID = nil
+		scopeIDPtr = nil
 	}
 
 	params := db.CreateSignUpCodeParams{
 		Code:      code,
 		Email:     string(req.Email),
 		RoleName:  req.RoleName,
-		Scope:     db.ScopeType(req.Scope),
-		ScopeID:   scopeID,
+		Scope:     db.ScopeType(scopeStr),
+		ScopeID:   scopeIDPtr,
 		CreatedBy: user.ID,
 	}
 
 	signupCode, err := s.db.Queries().CreateSignUpCode(ctx, params)
 	if err != nil {
-		w.WriteHeader(500)
-		_ = json.NewEncoder(w).Encode(api.Error{Code: 500, Message: "An unexpected error occurred."})
-		return
+		return api.InviteUser500JSONResponse{Code: 500, Message: "An unexpected error occurred."}, nil
 	}
 
-	w.WriteHeader(201)
-	_ = json.NewEncoder(w).Encode(map[string]string{"code": signupCode.Code})
+	return api.InviteUser201JSONResponse{Code: &signupCode.Code}, nil
 }
 
 func generateRandomCode(length int) (string, error) {
