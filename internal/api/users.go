@@ -87,7 +87,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 	if !ok {
 		return api.InviteUser401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", request.Body.ScopeId)
 	if err != nil || !hasPermission {
 		return api.InviteUser403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
 	}
@@ -98,7 +98,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 
 	req := request.Body
 	scopeStr := string(req.Scope)
-	
+
 	var scopeID uuid.UUID
 	if req.ScopeId != nil {
 		scopeID = uuid.UUID(*req.ScopeId)

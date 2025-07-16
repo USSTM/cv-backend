@@ -18,7 +18,7 @@ SET name = $2, description = $3, type = $4, stock = $5, urls = $6
 WHERE id = $1
 RETURNING id, name, description, type, stock, urls;
 
--- name: DeleteItem :exec
+-- name: DeleteItem :execrows
 DELETE FROM items WHERE id = $1;
 
 -- name: UpdateItemStock :exec

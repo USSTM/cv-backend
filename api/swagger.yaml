@@ -217,6 +217,11 @@ paths:
                       $ref: "#/components/schemas/ItemType"
                     stock:
                       type: integer
+                    urls:
+                        type: array
+                        items:
+                            type: string
+                            format: uri
         "401":
           description: Unauthorized
           content:
@@ -260,6 +265,11 @@ paths:
                   $ref: "#/components/schemas/ItemType"
                 stock:
                   type: integer
+                urls:
+                    type: array
+                    items:
+                        type: string
+                        format: uri
               required:
                 - name
                 - type
@@ -282,6 +292,11 @@ paths:
                     $ref: "#/components/schemas/ItemType"
                   stock:
                     type: integer
+                  urls:
+                    type: array
+                    items:
+                      type: string
+                      format: uri
         "400":
           description: Bad Request - invalid input
           content:
@@ -343,6 +358,11 @@ paths:
                       $ref: "#/components/schemas/ItemType"
                     stock:
                       type: integer
+                    urls:
+                      type: array
+                      items:
+                        type: string
+                        format: uri
         "401":
           description: Unauthorized
           content:
@@ -402,6 +422,11 @@ paths:
                     $ref: "#/components/schemas/ItemType"
                   stock:
                     type: integer
+                  urls:
+                    type: array
+                    items:
+                      type: string
+                      format: uri
         "401":
           description: Unauthorized
           content:
@@ -457,6 +482,11 @@ paths:
                   $ref: "#/components/schemas/ItemType"
                 stock:
                   type: integer
+                urls:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
               required:
                 - name
                 - type
@@ -479,6 +509,11 @@ paths:
                     $ref: "#/components/schemas/ItemType"
                   stock:
                     type: integer
+                  urls:
+                    type: array
+                    items:
+                      type: string
+                      format: uri
         "400":
           description: Bad Request - invalid input
           content:

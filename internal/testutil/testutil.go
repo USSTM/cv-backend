@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/USSTM/cv-backend/generated/db"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -127,9 +128,9 @@ func (ts *TestServer) AuthenticatedRequest(t *testing.T, req Request, token stri
 }
 
 // ContextWithUser adds a test user to the context
-func ContextWithUser(ctx context.Context, user *TestUser) context.Context {
+func ContextWithUser(ctx context.Context, user *TestUser, queries *db.Queries) context.Context {
 	ctx = context.WithValue(ctx, auth.UserIDKey, user.ID)
-	ctx = context.WithValue(ctx, auth.UserClaimsKey, user.ToAuthenticatedUser(ctx, nil))
+	ctx = context.WithValue(ctx, auth.UserClaimsKey, user.ToAuthenticatedUser(ctx, queries))
 	return ctx
 }
 

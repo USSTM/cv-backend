@@ -51,6 +51,7 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		description := item.Description.String
 		itemType := api.ItemType(item.Type)
 		stock := int(item.Stock)
+		urls := item.Urls
 
 		itemResponse := struct {
 			Description *string       `json:"description,omitempty"`
@@ -58,12 +59,14 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 			Name        *string       `json:"name,omitempty"`
 			Stock       *int          `json:"stock,omitempty"`
 			Type        *api.ItemType `json:"type,omitempty"`
+			Urls        *[]string     `json:"urls,omitempty"`
 		}{
 			Id:          &id,
 			Name:        &name,
 			Description: &description,
 			Type:        &itemType,
 			Stock:       &stock,
+			Urls:        &urls,
 		}
 		response = append(response, itemResponse)
 	}
@@ -112,6 +115,7 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 		description := item.Description.String
 		itemType := api.ItemType(item.Type)
 		stock := int(item.Stock)
+		urls := item.Urls
 
 		itemResponse := struct {
 			Description *string       `json:"description,omitempty"`
@@ -119,12 +123,14 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 			Name        *string       `json:"name,omitempty"`
 			Stock       *int          `json:"stock,omitempty"`
 			Type        *api.ItemType `json:"type,omitempty"`
+			Urls        *[]string     `json:"urls,omitempty"`
 		}{
 			Id:          &id,
 			Name:        &name,
 			Description: &description,
 			Type:        &itemType,
 			Stock:       &stock,
+			Urls:        &urls,
 		}
 		response = append(response, itemResponse)
 	}
@@ -169,6 +175,7 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 	description := item.Description.String
 	itemType := api.ItemType(item.Type)
 	stock := int(item.Stock)
+	urls := item.Urls
 
 	return api.GetItemById200JSONResponse{
 		Id:          &id,
@@ -176,6 +183,7 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 		Description: &description,
 		Type:        &itemType,
 		Stock:       &stock,
+		Urls:        &urls,
 	}, nil
 }
 
@@ -211,11 +219,20 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 	}
 
 	req := *request.Body
+
+	var urls []string
+	if req.Urls != nil {
+		urls = *req.Urls
+	} else {
+		urls = []string{}
+	}
+
 	params := db.CreateItemParams{
 		Name:        req.Name,
 		Description: pgtype.Text{String: "", Valid: false},
 		Type:        db.ItemType(req.Type),
 		Stock:       int32(req.Stock),
+		Urls:        urls,
 	}
 
 	if req.Description != nil {
@@ -243,6 +260,7 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 		Description: &description,
 		Type:        &itemType,
 		Stock:       &stock,
+		Urls:        &urls,
 	}, nil
 }
 
@@ -278,12 +296,21 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 	}
 
 	req := *request.Body
+
+	var urls []string
+	if req.Urls != nil {
+		urls = *req.Urls
+	} else {
+		urls = []string{}
+	}
+
 	params := db.UpdateItemParams{
 		ID:          request.Id,
 		Name:        req.Name,
 		Description: pgtype.Text{String: "", Valid: false},
 		Type:        db.ItemType(req.Type),
 		Stock:       int32(req.Stock),
+		Urls:        urls,
 	}
 
 	if req.Description != nil {
@@ -311,6 +338,7 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 		Description: &description,
 		Type:        &itemType,
 		Stock:       &stock,
+		Urls:        &urls,
 	}, nil
 }
 
