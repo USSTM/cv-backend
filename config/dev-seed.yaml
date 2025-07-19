@@ -1,0 +1,47 @@
+groups:
+  - name: chemistry-club
+    description: "Chemistry Students Club"
+  - name: physics-society
+    description: "Physics Society"
+  - name: biology-club
+    description: "Biology Students Club"
+
+items:
+  - name: "Test Arduino"
+    type: low
+    stock: 5
+    description: "Arduino for testing frontend"
+  - name: "Sample Microscope"
+    type: high
+    stock: 2
+    description: "Microscope for biology lab"
+  - name: "Chemistry Kit"
+    type: medium
+    stock: 10
+    description: "Basic chemistry lab kit"
+
+users:
+  - email: admin@test.com
+    password: password123
+  - email: member@test.com
+    password: password123
+  - email: approver@test.com
+    password: password123
+  - email: groupadmin@test.com
+    password: password123
+
+user_roles:
+  - user_email: admin@test.com
+    role_name: global_admin
+    scope: global
+  - user_email: approver@test.com
+    role_name: approver
+    scope: global
+  - user_email: groupadmin@test.com
+    role_name: group_admin
+    scope: group
+    group_name: chemistry-club
+  - user_email: member@test.com
+    role_name: member
+    scope: group
+    group_name: physics-society
