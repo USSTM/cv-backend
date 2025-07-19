@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type Config struct {
 	Database DatabaseConfig
 	Server   ServerConfig
 	JWT      JWTConfig
+	Logging  LoggingConfig
 }
 
 type DatabaseConfig struct {
@@ -31,6 +33,16 @@ type JWTConfig struct {
 	Expiry     time.Duration
 }
 
+type LoggingConfig struct {
+	Level      string
+	Format     string
+	Filename   string
+	MaxSize    int
+	MaxBackups int
+	MaxAge     int
+	Compress   bool
+}
+
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
@@ -48,6 +60,15 @@ func Load() *Config {
 			SigningKey: getEnv("JWT_SIGNING_KEY", "default-signing-key-change-in-production"),
 			Issuer:     getEnv("JWT_ISSUER", "campus-vault"),
 			Expiry:     getEnvDuration("JWT_EXPIRY", 24*time.Hour),
+		},
+		Logging: LoggingConfig{
+			Level:      getEnv("LOG_LEVEL", "info"),
+			Format:     getEnv("LOG_FORMAT", "json"),
+			Filename:   getEnv("LOG_FILENAME", "logs/app.log"),
+			MaxSize:    getEnvAs("LOG_MAX_SIZE", 100, strconv.Atoi),
+			MaxBackups: getEnvAs("LOG_MAX_BACKUPS", 3, strconv.Atoi),
+			MaxAge:     getEnvAs("LOG_MAX_AGE", 28, strconv.Atoi),
+			Compress:   getEnvAs("LOG_COMPRESS", true, strconv.ParseBool),
 		},
 	}
 }
@@ -70,6 +91,15 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
 		if duration, err := time.ParseDuration(value); err == nil {
 			return duration
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAs[T any](key string, defaultValue T, parser func(string) (T, error)) T {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := parser(value); err == nil {
+			return parsed
 		}
 	}
 	return defaultValue
