@@ -10,11 +10,7 @@ import (
 	"testing"
 )
 
-func TestServer_Items(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping items tests in short mode")
-	}
-
+func testItemServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := testutil.NewTestDatabase(t)
 	testDB.RunMigrations(t)
 	mockJWT := testutil.NewMockJWTService(t)
@@ -22,10 +18,55 @@ func TestServer_Items(t *testing.T) {
 
 	server := NewServer(testDB, mockJWT, mockAuth)
 
-	t.Run("successful view items", func(t *testing.T) {
+	return server, testDB, mockAuth
+}
+
+func TestServer_GetItems(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping view items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
+
+	t.Run("successful get items", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
-			WithEmail("view@items.ca").
+			WithEmail("get@items.ca").
 			AsGlobalAdmin().
+			Create()
+
+		testDB.NewItem(t).
+			WithName("Laptop").
+			WithDescription("Dell XPS 13").
+			WithType("high").
+			WithStock(10).
+			Create()
+
+		testDB.NewItem(t).
+			WithName("Projector").
+			WithDescription("Epson HD Projector").
+			WithType("medium").
+			WithStock(5).
+			Create()
+
+		testDB.NewItem(t).
+			WithName("HDMI Cable").
+			WithDescription("2m HDMI cable").
+			WithType("low").
+			WithStock(50).
+			Create()
+
+		testDB.NewItem(t).
+			WithName("Whiteboard").
+			WithDescription("Magnetic whiteboard").
+			WithType("medium").
+			WithStock(3).
+			Create()
+
+		testDB.NewItem(t).
+			WithName("Tablet").
+			WithDescription("iPad Air").
+			WithType("high").
+			WithStock(7).
 			Create()
 
 		mockAuth.ExpectCheckPermission(testUser.ID, "view_items", nil, true, nil)
@@ -38,11 +79,12 @@ func TestServer_Items(t *testing.T) {
 
 		itemsResp := response.(api.GetItems200JSONResponse)
 		assert.NotNil(t, itemsResp)
+		assert.Len(t, itemsResp, 5)
 	})
 
-	t.Run("successful view item by id", func(t *testing.T) {
+	t.Run("successful get item by id", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
-			WithEmail("view@itemsid.ca").
+			WithEmail("get@itemsid.ca").
 			AsMember().
 			Create()
 
@@ -65,17 +107,17 @@ func TestServer_Items(t *testing.T) {
 		require.IsType(t, api.GetItemById200JSONResponse{}, response)
 
 		itemResp := response.(api.GetItemById200JSONResponse)
-		assert.Equal(t, item.ID, *itemResp.Id)
-		assert.Equal(t, item.Name, *itemResp.Name)
+		assert.Equal(t, item.ID, itemResp.Id)
+		assert.Equal(t, item.Name, itemResp.Name)
 		assert.Equal(t, item.Description, *itemResp.Description)
-		assert.Equal(t, api.ItemType(item.Type), *itemResp.Type)
-		assert.Equal(t, item.Stock, *itemResp.Stock)
+		assert.Equal(t, api.ItemType(item.Type), itemResp.Type)
+		assert.Equal(t, item.Stock, itemResp.Stock)
 		assert.Equal(t, item.Urls, *itemResp.Urls)
 	})
 
-	t.Run("successful view items by type", func(t *testing.T) {
+	t.Run("successful get items by type", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
-			WithEmail("view@itemstype.ca").
+			WithEmail("get@itemstype.ca").
 			AsMember().
 			Create()
 
@@ -100,6 +142,14 @@ func TestServer_Items(t *testing.T) {
 		itemsResp := response.(api.GetItemsByType200JSONResponse)
 		assert.NotNil(t, itemsResp)
 	})
+}
+
+func TestServer_CreateItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping create items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
 
 	t.Run("successful create item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -126,12 +176,53 @@ func TestServer_Items(t *testing.T) {
 
 		itemResp := response.(api.CreateItem201JSONResponse)
 		assert.NotNil(t, itemResp.Id)
-		assert.Equal(t, "New Item", *itemResp.Name)
+		assert.Equal(t, "New Item", itemResp.Name)
 		assert.Equal(t, "This is a new item", *itemResp.Description)
-		assert.Equal(t, api.ItemType("low"), *itemResp.Type)
-		assert.Equal(t, 20, *itemResp.Stock)
+		assert.Equal(t, api.ItemType("low"), itemResp.Type)
+		assert.Equal(t, 20, itemResp.Stock)
 		assert.Equal(t, []string{"http://example.com/newitem"}, *itemResp.Urls)
 	})
+
+	t.Run("successful create item without urls", func(t *testing.T) {
+		testUser := testDB.NewUser(t).
+			WithEmail("create@itemsNoUrls.ca").
+			AsGlobalAdmin().
+			Create()
+
+		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
+
+		desc := "This is a new item"
+
+		response, err := server.CreateItem(ctx, api.CreateItemRequestObject{
+			Body: &api.CreateItemJSONRequestBody{
+				Name:        "New Item",
+				Description: &desc,
+				Type:        "low",
+				Stock:       20,
+				Urls:        nil,
+			},
+		})
+		require.NoError(t, err)
+		require.IsType(t, api.CreateItem201JSONResponse{}, response)
+
+		itemResp := response.(api.CreateItem201JSONResponse)
+
+		assert.NotNil(t, itemResp.Id)
+		assert.Equal(t, "New Item", itemResp.Name)
+		assert.Equal(t, "This is a new item", *itemResp.Description)
+		assert.Equal(t, api.ItemType("low"), itemResp.Type)
+		assert.Equal(t, 20, itemResp.Stock)
+		assert.Equal(t, []string{}, *itemResp.Urls)
+	})
+}
+
+func TestServer_UpdateItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping update items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
 
 	t.Run("successful update item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -168,12 +259,65 @@ func TestServer_Items(t *testing.T) {
 
 		itemResp := response.(api.UpdateItem200JSONResponse)
 		assert.NotNil(t, itemResp.Id)
-		assert.Equal(t, "Updated Item", *itemResp.Name)
+		assert.Equal(t, "Updated Item", itemResp.Name)
 		assert.Equal(t, "Updated item description", *itemResp.Description)
-		assert.Equal(t, api.ItemType("high"), *itemResp.Type)
-		assert.Equal(t, 25, *itemResp.Stock)
+		assert.Equal(t, api.ItemType("high"), itemResp.Type)
+		assert.Equal(t, 25, itemResp.Stock)
 		assert.Equal(t, []string{"http://example.com/updateditem"}, *itemResp.Urls)
 	})
+}
+
+func TestServer_PatchItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping patch items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
+
+	t.Run("successful patch item", func(t *testing.T) {
+		testUser := testDB.NewUser(t).
+			WithEmail("patch@items.ca").
+			AsGlobalAdmin().
+			Create()
+
+		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
+
+		item := testDB.NewItem(t).
+			WithName("An Item").
+			WithDescription("This item description will be patched").
+			WithType("medium").
+			WithStock(15).
+			WithUrls([]string{"http://example.com/patchitem"}).
+			Create()
+
+		newDesc := "Patched item description"
+		response, err := server.PatchItem(ctx, api.PatchItemRequestObject{
+			Id: item.ID,
+			Body: &api.PatchItemJSONRequestBody{
+				Description: &newDesc,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.PatchItem200JSONResponse{}, response)
+		itemResp := response.(api.PatchItem200JSONResponse)
+		assert.NotNil(t, itemResp.Id)
+		assert.Equal(t, item.ID, itemResp.Id)
+		assert.Equal(t, "An Item", itemResp.Name)
+		assert.Equal(t, "Patched item description", *itemResp.Description)
+		assert.Equal(t, api.ItemType("medium"), itemResp.Type)
+		assert.Equal(t, 15, itemResp.Stock)
+		assert.Equal(t, []string{"http://example.com/patchitem"}, *itemResp.Urls)
+	})
+}
+
+func TestServer_DeleteItem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping delete items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
 
 	t.Run("successful delete item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -199,6 +343,14 @@ func TestServer_Items(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, api.DeleteItem204Response{}, response)
 	})
+}
+
+func TestServer_ErrorItems(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping error items tests in short mode")
+	}
+
+	server, testDB, mockAuth := testItemServer(t)
 
 	t.Run("trying to find item that doesn't exist", func(t *testing.T) {
 		testUser := testDB.NewUser(t).

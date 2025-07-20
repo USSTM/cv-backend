@@ -30,8 +30,8 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
+	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
-	UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 

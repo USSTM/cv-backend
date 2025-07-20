@@ -28,6 +28,89 @@ components:
         - email
         - role
 
+    GetItemByTypeResponse:
+      type: array
+      items:
+          $ref: "#/components/schemas/ItemResponse"
+
+    ItemResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: "#/components/schemas/ItemType"
+        stock:
+          type: integer
+        urls:
+          type: array
+          items:
+              type: string
+              format: uri
+      required:
+        - id
+        - name
+        - type
+        - stock
+
+    ItemPostRequest:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          example: "Laptop"
+        description:
+          type: string
+          example: "Dell XPS 13"
+        type:
+          $ref: "#/components/schemas/ItemType"
+        stock:
+          type: integer
+          example: 5
+        urls:
+          type: array
+          items:
+              type: string
+              format: uri
+      required:
+        - id
+        - name
+        - type
+        - stock
+
+    InviteUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "president@usstm.ca"
+        role_name:
+          type: string
+          example: "group_admin"
+        scope:
+          type: string
+          enum: [ global, group ]
+          example: "group"
+        scope_id:
+          $ref: "#/components/schemas/UUID"
+      required:
+        - email
+        - role_name
+        - scope
+
+    InviteUserResponse:
+      type: object
+      properties:
+        code:
+          type: string
+
     UserRole:
       type: string
       enum:
@@ -203,43 +286,34 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      $ref: "#/components/schemas/UUID"
-                    name:
-                      type: string
-                    description:
-                      type: string
-                    type:
-                      $ref: "#/components/schemas/ItemType"
-                    stock:
-                      type: integer
-                    urls:
-                        type: array
-                        items:
-                            type: string
-                            format: uri
+                $ref: "#/components/schemas/GetItemByTypeResponse"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to view items."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
     post:
       tags:
@@ -255,72 +329,69 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                description:
-                  type: string
-                type:
-                  $ref: "#/components/schemas/ItemType"
-                stock:
-                  type: integer
-                urls:
-                    type: array
-                    items:
-                        type: string
-                        format: uri
-              required:
-                - name
-                - type
-                - stock
+              $ref: "#/components/schemas/ItemPostRequest"
+            examples:
+              withUrls:
+                summary: Example item
+                value:
+                  name: "Laptop"
+                  description: "Dell XPS 13"
+                  type: "high"
+                  stock: 5
+                  urls:
+                    - "http://example.com/laptop1.jpg"
+                    - "http://example.com/laptop2.jpg"
+              withoutUrls:
+                summary: Example item without URLs
+                value:
+                  name: "Laptop"
+                  description: "Dell XPS 13"
+                  type: "high"
+                  stock: 5
+
       responses:
         "201":
           description: Item created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    $ref: "#/components/schemas/UUID"
-                  name:
-                    type: string
-                  description:
-                    type: string
-                  type:
-                    $ref: "#/components/schemas/ItemType"
-                  stock:
-                    type: integer
-                  urls:
-                    type: array
-                    items:
-                      type: string
-                      format: uri
+                $ref: "#/components/schemas/ItemPostRequest"
         "400":
           description: Bad Request - invalid input
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to create items."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
   /items/type/{type}:
     get:
@@ -338,55 +409,51 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/ItemType"
+          example:
+            type: "high"
       responses:
         "200":
           description: List of items by type
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      $ref: "#/components/schemas/UUID"
-                    name:
-                      type: string
-                    description:
-                      type: string
-                    type:
-                      $ref: "#/components/schemas/ItemType"
-                    stock:
-                      type: integer
-                    urls:
-                      type: array
-                      items:
-                        type: string
-                        format: uri
+                $ref: "#/components/schemas/GetItemByTypeResponse"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to view items of this type."
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "No items found for this type."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
   /items/{id}:
     get:
@@ -404,53 +471,152 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/UUID"
+          example:
+            id: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         "200":
           description: Item details
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    $ref: "#/components/schemas/UUID"
-                  name:
-                    type: string
-                  description:
-                    type: string
-                  type:
-                    $ref: "#/components/schemas/ItemType"
-                  stock:
-                    type: integer
-                  urls:
-                    type: array
-                    items:
-                      type: string
-                      format: uri
+                $ref: "#/components/schemas/ItemResponse"
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                name: "Laptop"
+                description: "Dell XPS 13"
+                type: "high"
+                stock: 5
+                urls:
+                  - "http://example.com/laptop1.jpg"
+                  - "http://example.com/laptop2.jpg"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to view this item."
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "Item not found."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+    patch:
+      tags:
+        - Items
+      summary: Partially update item
+      description: Update any subset of item fields
+      operationId: patchItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ manage_items ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemResponse"
+            examples:
+              patchDescription:
+                summary: Patch item description
+                value:
+                    description: "Updated description for the item"
+              patchStock:
+                summary: Patch item stock
+                value:
+                    stock: 10
+      responses:
+        "200":
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemResponse"
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                name: "Laptop"
+                description: "Dell XPS 13 Updated"
+                type: "high"
+                stock: 10
+                urls:
+                  - "http://example.com/laptop1.jpg"
+                  - "http://example.com/laptop2.jpg"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to update this item."
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "Item not found."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
     put:
       tags:
@@ -472,78 +638,87 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                description:
-                  type: string
-                type:
-                  $ref: "#/components/schemas/ItemType"
-                stock:
-                  type: integer
-                urls:
-                  type: array
-                  items:
-                    type: string
-                    format: uri
-              required:
-                - name
-                - type
-                - stock
+              $ref: "#/components/schemas/ItemPostRequest"
+            examples:
+              updateItemWithoutUrls:
+                summary: Update item without URLs
+                value:
+                  name: "Laptop"
+                  description: "Dell XPS 13 Updated"
+                  type: "high"
+                  stock: 10
+              updateItemWithUrls:
+                summary: Update item with URLs
+                value:
+                  name: "Laptop"
+                  description: "Dell XPS 13 Updated with URLs"
+                  type: "high"
+                  stock: 10
+                  urls:
+                    - "http://example.com/laptop1.jpg"
+                    - "http://example.com/laptop2.jpg"
+            
       responses:
         "200":
           description: Item updated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    $ref: "#/components/schemas/UUID"
-                  name:
-                    type: string
-                  description:
-                    type: string
-                  type:
-                    $ref: "#/components/schemas/ItemType"
-                  stock:
-                    type: integer
-                  urls:
-                    type: array
-                    items:
-                      type: string
-                      format: uri
+                $ref: "#/components/schemas/ItemPostRequest"
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                name: "Laptop"
+                description: "Dell XPS 13 Updated"
+                type: "high"
+                stock: 10
+                urls:
+                  - "http://example.com/laptop1.jpg"
+                  - "http://example.com/laptop2.jpg"
         "400":
           description: Bad Request - invalid input
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to update this item."
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "Item not found."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
     delete:
       tags:
@@ -560,6 +735,8 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/UUID"
+          example:
+            id: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         "204":
           description: Item deleted
@@ -569,24 +746,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to delete this item."
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "Item not found."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
 
   /admin/users:
     get:
@@ -641,62 +830,72 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: "president@usstm.ca"
-                role_name:
-                  type: string
-                  example: "group_admin"
-                scope:
-                  type: string
-                  enum: [ global, group ]
-                  example: "group"
-                scope_id:
-                  $ref: "#/components/schemas/UUID"
-              required:
-                - email
-                - role_name
-                - scope
+              $ref: "#/components/schemas/InviteUserRequest"
+            examples:
+              addGlobalAdmin:
+                summary: Invite global admin
+                value:
+                  email: "global@global.ca"
+                  role_name: "global_admin"
+                  scope: "global"
+              addGroupAdmin:
+                summary: Invite group admin
+                value:
+                  email: "vp.operations@usstm.ca"
+                  role_name: "group_admin"
+                  scope: "group"
+                  scope_id: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         "201":
           description: Invitation code created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  code:
-                    type: string
+                $ref: "#/components/schemas/InviteUserResponse"
+              example:
+                code: "JTEIMashVdutQ88SIXpKNeZgVYCX7H73"
         "400":
           description: Bad request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to invite users."
         "404":
           description: Not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "Scope not found."
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."

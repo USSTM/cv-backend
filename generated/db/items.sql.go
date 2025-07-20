@@ -135,6 +135,47 @@ func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, e
 	return items, nil
 }
 
+const patchItem = `-- name: PatchItem :one
+UPDATE items
+SET name = COALESCE($1, name),
+    description = COALESCE($2, description),
+    type = COALESCE($3, type),
+    stock = COALESCE($4, stock),
+    urls = COALESCE($5, urls)
+WHERE id = $6
+RETURNING id, name, description, type, stock, urls
+`
+
+type PatchItemParams struct {
+	Name        pgtype.Text  `json:"name"`
+	Description pgtype.Text  `json:"description"`
+	Type        NullItemType `json:"type"`
+	Stock       pgtype.Int4  `json:"stock"`
+	Urls        []string     `json:"urls"`
+	ID          uuid.UUID    `json:"id"`
+}
+
+func (q *Queries) PatchItem(ctx context.Context, arg PatchItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, patchItem,
+		arg.Name,
+		arg.Description,
+		arg.Type,
+		arg.Stock,
+		arg.Urls,
+		arg.ID,
+	)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+		&i.Urls,
+	)
+	return i, err
+}
+
 const updateItem = `-- name: UpdateItem :one
 UPDATE items
 SET name = $2, description = $3, type = $4, stock = $5, urls = $6
@@ -170,18 +211,4 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, e
 		&i.Urls,
 	)
 	return i, err
-}
-
-const updateItemStock = `-- name: UpdateItemStock :exec
-UPDATE items SET stock = $2 WHERE id = $1
-`
-
-type UpdateItemStockParams struct {
-	ID    uuid.UUID `json:"id"`
-	Stock int32     `json:"stock"`
-}
-
-func (q *Queries) UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error {
-	_, err := q.db.Exec(ctx, updateItemStock, arg.ID, arg.Stock)
-	return err
 }

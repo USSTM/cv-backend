@@ -18,8 +18,15 @@ SET name = $2, description = $3, type = $4, stock = $5, urls = $6
 WHERE id = $1
 RETURNING id, name, description, type, stock, urls;
 
--- name: DeleteItem :execrows
+-- name: DeleteItem :exec
 DELETE FROM items WHERE id = $1;
 
--- name: UpdateItemStock :exec
-UPDATE items SET stock = $2 WHERE id = $1;
+-- name: PatchItem :one
+UPDATE items
+SET name = COALESCE(sqlc.narg('name'), name),
+    description = COALESCE(sqlc.narg('description'), description),
+    type = COALESCE(sqlc.narg('type'), type),
+    stock = COALESCE(sqlc.narg('stock'), stock),
+    urls = COALESCE(sqlc.narg('urls'), urls)
+WHERE id = sqlc.arg('id')
+RETURNING id, name, description, type, stock, urls;

@@ -2,12 +2,11 @@ package api
 
 import (
 	"context"
+	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/jackc/pgx/v5/pgtype"
 	"log"
-
-	"github.com/USSTM/cv-backend/generated/api"
-	"github.com/USSTM/cv-backend/internal/auth"
 )
 
 func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
@@ -53,19 +52,12 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		stock := int(item.Stock)
 		urls := item.Urls
 
-		itemResponse := struct {
-			Description *string       `json:"description,omitempty"`
-			Id          *api.UUID     `json:"id,omitempty"`
-			Name        *string       `json:"name,omitempty"`
-			Stock       *int          `json:"stock,omitempty"`
-			Type        *api.ItemType `json:"type,omitempty"`
-			Urls        *[]string     `json:"urls,omitempty"`
-		}{
-			Id:          &id,
-			Name:        &name,
+		itemResponse := api.ItemResponse{
+			Id:          id,
+			Name:        name,
 			Description: &description,
-			Type:        &itemType,
-			Stock:       &stock,
+			Type:        itemType,
+			Stock:       stock,
 			Urls:        &urls,
 		}
 		response = append(response, itemResponse)
@@ -117,19 +109,12 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 		stock := int(item.Stock)
 		urls := item.Urls
 
-		itemResponse := struct {
-			Description *string       `json:"description,omitempty"`
-			Id          *api.UUID     `json:"id,omitempty"`
-			Name        *string       `json:"name,omitempty"`
-			Stock       *int          `json:"stock,omitempty"`
-			Type        *api.ItemType `json:"type,omitempty"`
-			Urls        *[]string     `json:"urls,omitempty"`
-		}{
-			Id:          &id,
-			Name:        &name,
+		itemResponse := api.ItemResponse{
+			Id:          id,
+			Name:        name,
 			Description: &description,
-			Type:        &itemType,
-			Stock:       &stock,
+			Type:        itemType,
+			Stock:       stock,
 			Urls:        &urls,
 		}
 		response = append(response, itemResponse)
@@ -178,11 +163,11 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 	urls := item.Urls
 
 	return api.GetItemById200JSONResponse{
-		Id:          &id,
-		Name:        &name,
+		Id:          id,
+		Name:        name,
 		Description: &description,
-		Type:        &itemType,
-		Stock:       &stock,
+		Type:        itemType,
+		Stock:       stock,
 		Urls:        &urls,
 	}, nil
 }
@@ -255,11 +240,11 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 	stock := int(item.Stock)
 
 	return api.CreateItem201JSONResponse{
-		Id:          &id,
-		Name:        &name,
+		Id:          id,
+		Name:        name,
 		Description: &description,
-		Type:        &itemType,
-		Stock:       &stock,
+		Type:        itemType,
+		Stock:       stock,
 		Urls:        &urls,
 	}, nil
 }
@@ -333,11 +318,79 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 	stock := int(item.Stock)
 
 	return api.UpdateItem200JSONResponse{
-		Id:          &id,
-		Name:        &name,
+		Id:          id,
+		Name:        name,
 		Description: &description,
-		Type:        &itemType,
-		Stock:       &stock,
+		Type:        itemType,
+		Stock:       stock,
+		Urls:        &urls,
+	}, nil
+}
+
+func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObject) (api.PatchItemResponseObject, error) {
+	user, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return api.PatchItem401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+	}
+
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
+	if err != nil {
+		log.Printf("Error checking manage_items permission: %v", err)
+		return api.PatchItem500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+	}
+	if !hasPermission {
+		return api.PatchItem403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+	}
+
+	if request.Body == nil {
+		return api.PatchItem400JSONResponse{Code: 400, Message: "Request body is required"}, nil
+	}
+
+	req := *request.Body
+
+	params := db.PatchItemParams{
+		ID: request.Id,
+	}
+
+	if req.Name != "" {
+		params.Name = pgtype.Text{String: req.Name, Valid: true}
+	}
+
+	if req.Description != nil {
+		params.Description = pgtype.Text{String: *req.Description, Valid: true}
+	}
+
+	if req.Type != "" {
+		params.Type = db.NullItemType{ItemType: db.ItemType(req.Type), Valid: true}
+	}
+
+	if req.Stock != 0 {
+		params.Stock = pgtype.Int4{Int32: int32(req.Stock), Valid: true}
+	}
+
+	if req.Urls != nil {
+		params.Urls = *req.Urls
+	}
+
+	item, err := s.db.Queries().PatchItem(ctx, params)
+
+	if err != nil {
+		return api.PatchItem404JSONResponse{Code: 404, Message: "Item not found"}, nil
+	}
+
+	id := item.ID
+	name := item.Name
+	description := item.Description.String
+	itemType := api.ItemType(item.Type)
+	stock := int(item.Stock)
+	urls := item.Urls
+
+	return api.PatchItem200JSONResponse{
+		Id:          id,
+		Name:        name,
+		Description: &description,
+		Type:        itemType,
+		Stock:       stock,
 		Urls:        &urls,
 	}, nil
 }
