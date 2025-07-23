@@ -3,7 +3,7 @@ SELECT id, name, description, type, stock, urls from items;
 
 -- name: CreateItem :one
 INSERT INTO items (name, description, type, stock, urls)
-VALUES ($1, $2, $3, $4, $5)
+VALUES ($1, $2, $3, $4, sqlc.narg('urls'))
 RETURNING id, name, description, type, stock, urls;
 
 -- name: GetItemsByType :many
