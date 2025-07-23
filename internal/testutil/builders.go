@@ -2,15 +2,39 @@ package testutil
 
 import (
 	"context"
-	"testing"
-
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	"strings"
+	"testing"
+	"time"
 )
+
+// TestItem represents a test item
+type TestItem struct {
+	ID          uuid.UUID
+	Name        string
+	Description string
+	Type        string
+	Stock       int
+	Urls        []string
+}
+
+// TestSignUpCode represents a test sign-up code
+type TestSignUpCode struct {
+	ID        uuid.UUID
+	Code      string
+	RoleName  string
+	Scope     string
+	ScopeID   uuid.UUID
+	CreatedAt time.Time
+	UsedAt    time.Time
+	ExpiresAt time.Time
+	CreatedBy uuid.UUID
+}
 
 // TestGroup represents a test group
 type TestGroup struct {
@@ -230,6 +254,7 @@ type ItemBuilder struct {
 	description string
 	itemType    string
 	stock       int
+	urls        []string
 	testDB      *TestDatabase
 	t           *testing.T
 }
@@ -241,6 +266,7 @@ func (tdb *TestDatabase) NewItem(t *testing.T) *ItemBuilder {
 		description: "Test item description",
 		itemType:    "low", // Default to low priority
 		stock:       10,
+		urls:        []string{},
 		testDB:      tdb,
 		t:           t,
 	}
@@ -260,7 +286,7 @@ func (ib *ItemBuilder) WithDescription(desc string) *ItemBuilder {
 
 // WithType sets the item type (low, medium, high)
 func (ib *ItemBuilder) WithType(itemType string) *ItemBuilder {
-	ib.itemType = itemType
+	ib.itemType = strings.ToLower(itemType)
 	return ib
 }
 
@@ -270,8 +296,14 @@ func (ib *ItemBuilder) WithStock(stock int) *ItemBuilder {
 	return ib
 }
 
-// Create creates the item in the database and returns the ID
-func (ib *ItemBuilder) Create() uuid.UUID {
+// WithUrls sets the item URLs
+func (ib *ItemBuilder) WithUrls(urls []string) *ItemBuilder {
+	ib.urls = urls
+	return ib
+}
+
+// Create creates the item in the database and returns the TestItem
+func (ib *ItemBuilder) Create() *TestItem {
 	ctx := context.Background()
 
 	item, err := ib.testDB.Queries().CreateItem(ctx, db.CreateItemParams{
@@ -279,8 +311,16 @@ func (ib *ItemBuilder) Create() uuid.UUID {
 		Description: pgtype.Text{String: ib.description, Valid: ib.description != ""},
 		Type:        db.ItemType(ib.itemType),
 		Stock:       int32(ib.stock),
+		Urls:        ib.urls,
 	})
 	require.NoError(ib.t, err, "Failed to create item")
 
-	return item.ID
+	return &TestItem{
+		ID:          item.ID,
+		Name:        item.Name,
+		Description: item.Description.String,
+		Type:        string(item.Type),
+		Stock:       int(item.Stock),
+		Urls:        item.Urls,
+	}
 }
