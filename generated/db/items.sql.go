@@ -13,9 +13,9 @@ import (
 )
 
 const createItem = `-- name: CreateItem :one
-INSERT INTO items (name, description, type, stock)
-VALUES ($1, $2, $3, $4)
-RETURNING id, name, description, type, stock
+INSERT INTO items (name, description, type, stock, urls)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, name, description, type, stock, urls
 `
 
 type CreateItemParams struct {
@@ -23,30 +23,25 @@ type CreateItemParams struct {
 	Description pgtype.Text `json:"description"`
 	Type        ItemType    `json:"type"`
 	Stock       int32       `json:"stock"`
+	Urls        []string    `json:"urls"`
 }
 
-type CreateItemRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Type        ItemType    `json:"type"`
-	Stock       int32       `json:"stock"`
-}
-
-func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (CreateItemRow, error) {
+func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, error) {
 	row := q.db.QueryRow(ctx, createItem,
 		arg.Name,
 		arg.Description,
 		arg.Type,
 		arg.Stock,
+		arg.Urls,
 	)
-	var i CreateItemRow
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Description,
 		&i.Type,
 		&i.Stock,
+		&i.Urls,
 	)
 	return i, err
 }
@@ -61,32 +56,25 @@ func (q *Queries) DeleteItem(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllItems = `-- name: GetAllItems :many
-SELECT id, name, description, type, stock from items
+SELECT id, name, description, type, stock, urls from items
 `
 
-type GetAllItemsRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Type        ItemType    `json:"type"`
-	Stock       int32       `json:"stock"`
-}
-
-func (q *Queries) GetAllItems(ctx context.Context) ([]GetAllItemsRow, error) {
+func (q *Queries) GetAllItems(ctx context.Context) ([]Item, error) {
 	rows, err := q.db.Query(ctx, getAllItems)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetAllItemsRow{}
+	items := []Item{}
 	for rows.Next() {
-		var i GetAllItemsRow
+		var i Item
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
 			&i.Description,
 			&i.Type,
 			&i.Stock,
+			&i.Urls,
 		); err != nil {
 			return nil, err
 		}
@@ -99,57 +87,43 @@ func (q *Queries) GetAllItems(ctx context.Context) ([]GetAllItemsRow, error) {
 }
 
 const getItemByID = `-- name: GetItemByID :one
-SELECT id, name, description, type, stock FROM items WHERE id = $1
+SELECT id, name, description, type, stock, urls FROM items WHERE id = $1
 `
 
-type GetItemByIDRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Type        ItemType    `json:"type"`
-	Stock       int32       `json:"stock"`
-}
-
-func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (GetItemByIDRow, error) {
+func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemByID, id)
-	var i GetItemByIDRow
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Description,
 		&i.Type,
 		&i.Stock,
+		&i.Urls,
 	)
 	return i, err
 }
 
 const getItemsByType = `-- name: GetItemsByType :many
-SELECT id, name, description, type, stock FROM items WHERE type = $1
+SELECT id, name, description, type, stock, urls FROM items WHERE type = $1
 `
 
-type GetItemsByTypeRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Type        ItemType    `json:"type"`
-	Stock       int32       `json:"stock"`
-}
-
-func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]GetItemsByTypeRow, error) {
+func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error) {
 	rows, err := q.db.Query(ctx, getItemsByType, type_)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetItemsByTypeRow{}
+	items := []Item{}
 	for rows.Next() {
-		var i GetItemsByTypeRow
+		var i Item
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
 			&i.Description,
 			&i.Type,
 			&i.Stock,
+			&i.Urls,
 		); err != nil {
 			return nil, err
 		}
@@ -161,11 +135,52 @@ func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]GetItem
 	return items, nil
 }
 
+const patchItem = `-- name: PatchItem :one
+UPDATE items
+SET name = COALESCE($1, name),
+    description = COALESCE($2, description),
+    type = COALESCE($3, type),
+    stock = COALESCE($4, stock),
+    urls = COALESCE($5, urls)
+WHERE id = $6
+RETURNING id, name, description, type, stock, urls
+`
+
+type PatchItemParams struct {
+	Name        pgtype.Text  `json:"name"`
+	Description pgtype.Text  `json:"description"`
+	Type        NullItemType `json:"type"`
+	Stock       pgtype.Int4  `json:"stock"`
+	Urls        []string     `json:"urls"`
+	ID          uuid.UUID    `json:"id"`
+}
+
+func (q *Queries) PatchItem(ctx context.Context, arg PatchItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, patchItem,
+		arg.Name,
+		arg.Description,
+		arg.Type,
+		arg.Stock,
+		arg.Urls,
+		arg.ID,
+	)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+		&i.Urls,
+	)
+	return i, err
+}
+
 const updateItem = `-- name: UpdateItem :one
 UPDATE items
-SET name = $2, description = $3, type = $4, stock = $5
+SET name = $2, description = $3, type = $4, stock = $5, urls = $6
 WHERE id = $1
-RETURNING id, name, description, type, stock
+RETURNING id, name, description, type, stock, urls
 `
 
 type UpdateItemParams struct {
@@ -174,45 +189,26 @@ type UpdateItemParams struct {
 	Description pgtype.Text `json:"description"`
 	Type        ItemType    `json:"type"`
 	Stock       int32       `json:"stock"`
+	Urls        []string    `json:"urls"`
 }
 
-type UpdateItemRow struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	Type        ItemType    `json:"type"`
-	Stock       int32       `json:"stock"`
-}
-
-func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (UpdateItemRow, error) {
+func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error) {
 	row := q.db.QueryRow(ctx, updateItem,
 		arg.ID,
 		arg.Name,
 		arg.Description,
 		arg.Type,
 		arg.Stock,
+		arg.Urls,
 	)
-	var i UpdateItemRow
+	var i Item
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Description,
 		&i.Type,
 		&i.Stock,
+		&i.Urls,
 	)
 	return i, err
-}
-
-const updateItemStock = `-- name: UpdateItemStock :exec
-UPDATE items SET stock = $2 WHERE id = $1
-`
-
-type UpdateItemStockParams struct {
-	ID    uuid.UUID `json:"id"`
-	Stock int32     `json:"stock"`
-}
-
-func (q *Queries) UpdateItemStock(ctx context.Context, arg UpdateItemStockParams) error {
-	_, err := q.db.Exec(ctx, updateItemStock, arg.ID, arg.Stock)
-	return err
 }

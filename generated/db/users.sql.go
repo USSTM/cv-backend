@@ -11,6 +11,46 @@ import (
 	"github.com/google/uuid"
 )
 
+const createSignUpCode = `-- name: CreateSignUpCode :one
+INSERT INTO signup_codes (id, code, email, role_name, scope, scope_id, created_at, used_at, expires_at, created_by)
+VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NULL, NOW() + INTERVAL '7 days', $6)
+    RETURNING id, code, email, role_name, scope, scope_id, created_at, used_at, expires_at, created_by
+`
+
+type CreateSignUpCodeParams struct {
+	Code      string     `json:"code"`
+	Email     string     `json:"email"`
+	RoleName  string     `json:"role_name"`
+	Scope     ScopeType  `json:"scope"`
+	ScopeID   *uuid.UUID `json:"scope_id"`
+	CreatedBy uuid.UUID  `json:"created_by"`
+}
+
+func (q *Queries) CreateSignUpCode(ctx context.Context, arg CreateSignUpCodeParams) (SignupCode, error) {
+	row := q.db.QueryRow(ctx, createSignUpCode,
+		arg.Code,
+		arg.Email,
+		arg.RoleName,
+		arg.Scope,
+		arg.ScopeID,
+		arg.CreatedBy,
+	)
+	var i SignupCode
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Email,
+		&i.RoleName,
+		&i.Scope,
+		&i.ScopeID,
+		&i.CreatedAt,
+		&i.UsedAt,
+		&i.ExpiresAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
 const getAllUsers = `-- name: GetAllUsers :many
 SELECT id, email from users
 `
