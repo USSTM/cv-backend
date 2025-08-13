@@ -58,6 +58,15 @@ type Error struct {
 // GetItemByTypeResponse defines model for GetItemByTypeResponse.
 type GetItemByTypeResponse = []ItemResponse
 
+// GroupUser defines model for GroupUser.
+type GroupUser struct {
+	Email    openapi_types.Email `json:"email"`
+	Id       UUID                `json:"id"`
+	RoleName string              `json:"role_name"`
+	Scope    string              `json:"scope"`
+	ScopeId  *UUID               `json:"scope_id,omitempty"`
+}
+
 // InviteUserRequest defines model for InviteUserRequest.
 type InviteUserRequest struct {
 	Email    openapi_types.Email    `json:"email"`
@@ -149,6 +158,9 @@ type ServerInterface interface {
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(w http.ResponseWriter, r *http.Request)
+	// Get users by group
+	// (GET /admin/users/group/{groupId})
+	GetUsersByGroup(w http.ResponseWriter, r *http.Request, groupId UUID)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
@@ -176,6 +188,12 @@ type ServerInterface interface {
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
+	// Get user by email
+	// (GET /users/email/{email})
+	GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email)
+	// Get user by ID
+	// (GET /users/{userId})
+	GetUserById(w http.ResponseWriter, r *http.Request, userId UUID)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -191,6 +209,12 @@ func (_ Unimplemented) InviteUser(w http.ResponseWriter, r *http.Request) {
 // Get all users (admin only)
 // (GET /admin/users)
 func (_ Unimplemented) GetUsers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get users by group
+// (GET /admin/users/group/{groupId})
+func (_ Unimplemented) GetUsersByGroup(w http.ResponseWriter, r *http.Request, groupId UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -248,6 +272,18 @@ func (_ Unimplemented) PingProtected(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get user by email
+// (GET /users/email/{email})
+func (_ Unimplemented) GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get user by ID
+// (GET /users/{userId})
+func (_ Unimplemented) GetUserById(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler            ServerInterface
@@ -264,7 +300,7 @@ func (siw *ServerInterfaceWrapper) InviteUser(w http.ResponseWriter, r *http.Req
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
-	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_users"})
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_group_users"})
 
 	r = r.WithContext(ctx)
 
@@ -292,6 +328,39 @@ func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUsersByGroup operation middleware
+func (siw *ServerInterfaceWrapper) GetUsersByGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_group_users"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsersByGroup(w, r, groupId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -546,6 +615,72 @@ func (siw *ServerInterfaceWrapper) PingProtected(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetUserByEmail operation middleware
+func (siw *ServerInterfaceWrapper) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "email" -------------
+	var email openapi_types.Email
+
+	err = runtime.BindStyledParameterWithOptions("simple", "email", chi.URLParam(r, "email"), &email, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "email", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_users"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserByEmail(w, r, email)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUserById operation middleware
+func (siw *ServerInterfaceWrapper) GetUserById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserById(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -666,6 +801,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/users", wrapper.GetUsers)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/users/group/{groupId}", wrapper.GetUsersByGroup)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
 	})
 	r.Group(func(r chi.Router) {
@@ -691,6 +829,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/users/email/{email}", wrapper.GetUserByEmail)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/users/{userId}", wrapper.GetUserById)
 	})
 
 	return r
@@ -795,6 +939,59 @@ func (response GetUsers403JSONResponse) VisitGetUsersResponse(w http.ResponseWri
 type GetUsers500JSONResponse Error
 
 func (response GetUsers500JSONResponse) VisitGetUsersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersByGroupRequestObject struct {
+	GroupId UUID `json:"groupId"`
+}
+
+type GetUsersByGroupResponseObject interface {
+	VisitGetUsersByGroupResponse(w http.ResponseWriter) error
+}
+
+type GetUsersByGroup200JSONResponse []GroupUser
+
+func (response GetUsersByGroup200JSONResponse) VisitGetUsersByGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersByGroup401JSONResponse Error
+
+func (response GetUsersByGroup401JSONResponse) VisitGetUsersByGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersByGroup403JSONResponse Error
+
+func (response GetUsersByGroup403JSONResponse) VisitGetUsersByGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersByGroup404JSONResponse Error
+
+func (response GetUsersByGroup404JSONResponse) VisitGetUsersByGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsersByGroup500JSONResponse Error
+
+func (response GetUsersByGroup500JSONResponse) VisitGetUsersByGroupResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -1250,6 +1447,112 @@ func (response PingProtected500JSONResponse) VisitPingProtectedResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUserByEmailRequestObject struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+type GetUserByEmailResponseObject interface {
+	VisitGetUserByEmailResponse(w http.ResponseWriter) error
+}
+
+type GetUserByEmail200JSONResponse User
+
+func (response GetUserByEmail200JSONResponse) VisitGetUserByEmailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserByEmail401JSONResponse Error
+
+func (response GetUserByEmail401JSONResponse) VisitGetUserByEmailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserByEmail403JSONResponse Error
+
+func (response GetUserByEmail403JSONResponse) VisitGetUserByEmailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserByEmail404JSONResponse Error
+
+func (response GetUserByEmail404JSONResponse) VisitGetUserByEmailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserByEmail500JSONResponse Error
+
+func (response GetUserByEmail500JSONResponse) VisitGetUserByEmailResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserByIdRequestObject struct {
+	UserId UUID `json:"userId"`
+}
+
+type GetUserByIdResponseObject interface {
+	VisitGetUserByIdResponse(w http.ResponseWriter) error
+}
+
+type GetUserById200JSONResponse User
+
+func (response GetUserById200JSONResponse) VisitGetUserByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserById401JSONResponse Error
+
+func (response GetUserById401JSONResponse) VisitGetUserByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserById403JSONResponse Error
+
+func (response GetUserById403JSONResponse) VisitGetUserByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserById404JSONResponse Error
+
+func (response GetUserById404JSONResponse) VisitGetUserByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserById500JSONResponse Error
+
+func (response GetUserById500JSONResponse) VisitGetUserByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Invite user (admin only)
@@ -1258,6 +1561,9 @@ type StrictServerInterface interface {
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(ctx context.Context, request GetUsersRequestObject) (GetUsersResponseObject, error)
+	// Get users by group
+	// (GET /admin/users/group/{groupId})
+	GetUsersByGroup(ctx context.Context, request GetUsersByGroupRequestObject) (GetUsersByGroupResponseObject, error)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
@@ -1285,6 +1591,12 @@ type StrictServerInterface interface {
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
+	// Get user by email
+	// (GET /users/email/{email})
+	GetUserByEmail(ctx context.Context, request GetUserByEmailRequestObject) (GetUserByEmailResponseObject, error)
+	// Get user by ID
+	// (GET /users/{userId})
+	GetUserById(ctx context.Context, request GetUserByIdRequestObject) (GetUserByIdResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -1364,6 +1676,32 @@ func (sh *strictHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetUsersResponseObject); ok {
 		if err := validResponse.VisitGetUsersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUsersByGroup operation middleware
+func (sh *strictHandler) GetUsersByGroup(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	var request GetUsersByGroupRequestObject
+
+	request.GroupId = groupId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsersByGroup(ctx, request.(GetUsersByGroupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsersByGroup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUsersByGroupResponseObject); ok {
+		if err := validResponse.VisitGetUsersByGroupResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1625,51 +1963,111 @@ func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetUserByEmail operation middleware
+func (sh *strictHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email) {
+	var request GetUserByEmailRequestObject
+
+	request.Email = email
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserByEmail(ctx, request.(GetUserByEmailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserByEmail")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserByEmailResponseObject); ok {
+		if err := validResponse.VisitGetUserByEmailResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUserById operation middleware
+func (sh *strictHandler) GetUserById(w http.ResponseWriter, r *http.Request, userId UUID) {
+	var request GetUserByIdRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserById(ctx, request.(GetUserByIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserById")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserByIdResponseObject); ok {
+		if err := validResponse.VisitGetUserByIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

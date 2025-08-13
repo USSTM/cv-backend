@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSignUpCode = `-- name: CreateSignUpCode :one
@@ -70,6 +71,47 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	for rows.Next() {
 		var i GetAllUsersRow
 		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUsersByGroup = `-- name: GetUsersByGroup :many
+SELECT u.id, u.email, ur.role_name, ur.scope, ur.scope_id
+FROM users u
+JOIN user_roles ur on u.id = ur.user_id
+WHERE ur.scope = 'group' AND ur.scope_id = $1
+`
+
+type GetUsersByGroupRow struct {
+	ID       uuid.UUID   `json:"id"`
+	Email    string      `json:"email"`
+	RoleName pgtype.Text `json:"role_name"`
+	Scope    ScopeType   `json:"scope"`
+	ScopeID  *uuid.UUID  `json:"scope_id"`
+}
+
+func (q *Queries) GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error) {
+	rows, err := q.db.Query(ctx, getUsersByGroup, scopeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUsersByGroupRow{}
+	for rows.Next() {
+		var i GetUsersByGroupRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.RoleName,
+			&i.Scope,
+			&i.ScopeID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
