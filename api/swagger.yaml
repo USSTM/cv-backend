@@ -28,6 +28,26 @@ components:
         - email
         - role
 
+    GroupUser:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        email:
+          type: string
+          format: email
+        role_name:
+          type: string
+        scope:
+          type: string
+        scope_id:
+          $ref: "#/components/schemas/UUID"
+      required:
+        - id
+        - email
+        - role_name
+        - scope
+
     GetItemByTypeResponse:
       type: array
       items:
@@ -796,24 +816,259 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+              example:
+                - id: "123e4567-e89b-12d3-a456-426614174000"
+                  email: "admin@test.com"
+                  role: "admin"
+                - id: "456e7890-e89b-12d3-a456-426614174001"
+                  email: "member@test.com"
+                  role: "member"
+                - id: "789e1234-e89b-12d3-a456-426614174002"
+                  email: "groupadmin@test.com"
+                  role: "group_admin"
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Unauthorized"
         "403":
           description: Forbidden - insufficient permissions
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "Insufficient permissions"
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /admin/users/group/{groupId}:
+    get:
+      tags:
+        - Admin
+      summary: Get users by group
+      description: Retrieve all users in a specific group - requires group admin permissions
+      operationId: getUsersByGroup
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_group_users]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+          description: The ID of the group
+          example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "200":
+          description: List of users in the group
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupUser"
+              example:
+                - id: "456e7890-e89b-12d3-a456-426614174001"
+                  email: "member@test.com"
+                  role_name: "member"
+                  scope: "group"
+                  scope_id: "123e4567-e89b-12d3-a456-426614174000"
+                - id: "789e1234-e89b-12d3-a456-426614174002"
+                  email: "groupadmin@test.com"
+                  role_name: "group_admin"
+                  scope: "group"
+                  scope_id: "123e4567-e89b-12d3-a456-426614174000"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Unauthorized"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "Insufficient permissions"
+        "404":
+          description: Group not found or no users in group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                groupNotFound:
+                  summary: Group does not exist
+                  value:
+                    code: 404
+                    message: "Group not found"
+                noUsersInGroup:
+                  summary: Group exists but has no users
+                  value:
+                    code: 404
+                    message: "No users found in the specified group"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve a specific user by their ID
+      operationId: getUserById
+      security:
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+          description: The ID of the user
+          example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                email: "admin@test.com"
+                role: "admin"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Unauthorized"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "Insufficient permissions"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "User not found"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "Internal server error"
+
+  /users/email/{email}:
+    get:
+      tags:
+        - Users
+      summary: Get user by email
+      description: Retrieve a specific user by their email address
+      operationId: getUserByEmail
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_users]
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+          description: The email address of the user
+          example: "admin@test.com"
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                email: "admin@test.com"
+                role: "admin"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Unauthorized"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "Insufficient permissions"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 404
+                message: "User not found"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "Internal server error"
 
   /admin/invite:
     post:
@@ -824,7 +1079,7 @@ paths:
       operationId: inviteUser
       security:
         - BearerAuth: [ ]
-        - OAuth2: [ manage_users ]
+        - OAuth2: [ manage_group_users ]
       requestBody:
         required: true
         content:
