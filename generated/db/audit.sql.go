@@ -24,8 +24,8 @@ LIMIT $2 OFFSET $3
 
 type GetTakingHistoryByItemIdParams struct {
 	ItemID uuid.UUID `json:"item_id"`
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
+	Limit  int64     `json:"limit"`
+	Offset int64     `json:"offset"`
 }
 
 type GetTakingHistoryByItemIdRow struct {
@@ -78,8 +78,8 @@ LIMIT $2 OFFSET $3
 
 type GetTakingHistoryByUserIdParams struct {
 	UserID uuid.UUID `json:"user_id"`
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
+	Limit  int64     `json:"limit"`
+	Offset int64     `json:"offset"`
 }
 
 type GetTakingHistoryByUserIdRow struct {
@@ -137,8 +137,8 @@ LIMIT $3 OFFSET $4
 type GetTakingHistoryByUserIdWithGroupFilterParams struct {
 	UserID  uuid.UUID `json:"user_id"`
 	GroupID uuid.UUID `json:"group_id"`
-	Limit   int32     `json:"limit"`
-	Offset  int32     `json:"offset"`
+	Limit   int64     `json:"limit"`
+	Offset  int64     `json:"offset"`
 }
 
 type GetTakingHistoryByUserIdWithGroupFilterRow struct {
@@ -208,11 +208,11 @@ type GetTakingStatsParams struct {
 }
 
 type GetTakingStatsRow struct {
-	TotalTakings  int64       `json:"total_takings"`
-	TotalQuantity interface{} `json:"total_quantity"`
-	UniqueUsers   int64       `json:"unique_users"`
-	FirstTaking   interface{} `json:"first_taking"`
-	LastTaking    interface{} `json:"last_taking"`
+	TotalTakings  int64            `json:"total_takings"`
+	TotalQuantity pgtype.Int8      `json:"total_quantity"`
+	UniqueUsers   int64            `json:"unique_users"`
+	FirstTaking   pgtype.Timestamp `json:"first_taking"`
+	LastTaking    pgtype.Timestamp `json:"last_taking"`
 }
 
 func (q *Queries) GetTakingStats(ctx context.Context, arg GetTakingStatsParams) (GetTakingStatsRow, error) {

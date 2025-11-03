@@ -139,7 +139,7 @@ type GetCartItemCountParams struct {
 
 type GetCartItemCountRow struct {
 	ItemCount     int64       `json:"item_count"`
-	TotalQuantity interface{} `json:"total_quantity"`
+	TotalQuantity pgtype.Int8 `json:"total_quantity"`
 }
 
 func (q *Queries) GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error) {
