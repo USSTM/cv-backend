@@ -6,7 +6,7 @@ generate-api:
 
 # Generate database code from SQL
 generate-db:
-	go tool sqlc generate
+	export $$(cat .env | xargs) && go tool sqlc generate
 
 # Generate all code
 generate: generate-db generate-api

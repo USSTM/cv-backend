@@ -81,6 +81,32 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	return items, nil
 }
 
+const getUserGroupsByUserId = `-- name: GetUserGroupsByUserId :many
+SELECT scope_id
+FROM user_roles
+WHERE user_id = $1 AND scope = 'group' AND scope_id IS NOT NULL
+`
+
+func (q *Queries) GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, getUserGroupsByUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*uuid.UUID{}
+	for rows.Next() {
+		var scope_id *uuid.UUID
+		if err := rows.Scan(&scope_id); err != nil {
+			return nil, err
+		}
+		items = append(items, scope_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUsersByGroup = `-- name: GetUsersByGroup :many
 SELECT u.id, u.email, ur.role_name, ur.scope, ur.scope_id
 FROM users u
@@ -120,4 +146,25 @@ func (q *Queries) GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]Ge
 		return nil, err
 	}
 	return items, nil
+}
+
+const isUserMemberOfGroup = `-- name: IsUserMemberOfGroup :one
+SELECT EXISTS(
+  SELECT 1 FROM user_roles
+  WHERE user_id = $1
+    AND scope = 'group'
+    AND scope_id = $2
+) AS is_member
+`
+
+type IsUserMemberOfGroupParams struct {
+	UserID  *uuid.UUID `json:"user_id"`
+	ScopeID *uuid.UUID `json:"scope_id"`
+}
+
+func (q *Queries) IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isUserMemberOfGroup, arg.UserID, arg.ScopeID)
+	var is_member bool
+	err := row.Scan(&is_member)
+	return is_member, err
 }

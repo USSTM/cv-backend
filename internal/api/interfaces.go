@@ -6,11 +6,13 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // DatabaseService defines the interface for database operations
 type DatabaseService interface {
 	Queries() *db.Queries
+	Pool() *pgxpool.Pool
 	Close()
 }
 

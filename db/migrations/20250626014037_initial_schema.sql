@@ -108,7 +108,8 @@ CREATE TABLE requests (
     status request_status DEFAULT 'pending',
     requested_at TIMESTAMP DEFAULT NOW(),
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    reviewed_at TIMESTAMP
+    reviewed_at TIMESTAMP,
+    fulfilled_at TIMESTAMP NULL
 );
 
 -- Borrowings table for items currently out (medium + approved high)
@@ -126,6 +127,21 @@ CREATE TABLE borrowings (
     after_condition condition,
     after_condition_url TEXT
 );
+
+-- Item takings table for items audit trail (no returns needed)
+CREATE TABLE item_takings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    quantity INT NOT NULL,
+    taken_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for audit queries on item_takings
+CREATE INDEX idx_item_takings_user ON item_takings(user_id, taken_at DESC);
+CREATE INDEX idx_item_takings_item ON item_takings(item_id, taken_at DESC);
+CREATE INDEX idx_item_takings_group ON item_takings(group_id, taken_at DESC);
 
 -- Time Slots for Availability Table
 CREATE TABLE time_slots (
@@ -163,6 +179,7 @@ CREATE TABLE booking (
 DROP TABLE IF EXISTS booking;
 DROP TABLE IF EXISTS user_availability;
 DROP TABLE IF EXISTS time_slots;
+DROP TABLE IF EXISTS item_takings;
 DROP TABLE IF EXISTS borrowings;
 DROP TABLE IF EXISTS requests;
 DROP TABLE IF EXISTS cart;

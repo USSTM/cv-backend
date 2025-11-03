@@ -324,3 +324,16 @@ func (ib *ItemBuilder) Create() *TestItem {
 		Urls:        item.Urls,
 	}
 }
+
+// AssignUserToGroup assigns a user to a group with the specified role
+func (tdb *TestDatabase) AssignUserToGroup(t *testing.T, userID, groupID uuid.UUID, roleName string) {
+	ctx := context.Background()
+
+	err := tdb.Queries().CreateUserRole(ctx, db.CreateUserRoleParams{
+		UserID:   &userID,
+		RoleName: pgtype.Text{String: roleName, Valid: true},
+		Scope:    db.ScopeTypeGroup,
+		ScopeID:  &groupID,
+	})
+	require.NoError(t, err, "Failed to assign user %s to group %s with role %s", userID, groupID, roleName)
+}

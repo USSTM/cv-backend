@@ -18,9 +18,8 @@ func TestServer_LoginUser(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	// Create test database
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t) // This includes seeding from the migration
+	// Get test database
+	testDB := getSharedTestDatabase(t)
 
 	// Create mock services
 	mockJWT := testutil.NewMockJWTService(t)
@@ -119,8 +118,7 @@ func TestServer_PingProtected(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 
 	mockJWT := &testutil.MockJWTService{}
 	mockAuth := &testutil.MockAuthenticator{}

@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,12 +29,13 @@ type TestDatabase struct {
 func NewTestDatabase(t *testing.T) *TestDatabase {
 	ctx := context.Background()
 
-	// Create PostgreSQL container
+	// Create PostgreSQL container with reuse enabled
 	postgresContainer, err := postgres.Run(ctx,
 		"postgres:15-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
+		testcontainers.WithReuseByName("cv-backend-test-db"), // Enable container reuse across tests
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
 				wait.ForLog("database system is ready to accept connections").
@@ -56,10 +58,7 @@ func NewTestDatabase(t *testing.T) *TestDatabase {
 
 	require.NoError(t, pool.Ping(ctx), "Failed to ping database")
 
-	// Create database wrapper using your existing constructor
 	dbWrapper := &database.Database{}
-	// We'll need to access the pool directly for some operations
-	// Since your Database struct has unexported fields, we'll work with queries directly
 	queries := db.New(pool)
 
 	testDB := &TestDatabase{
@@ -69,23 +68,17 @@ func NewTestDatabase(t *testing.T) *TestDatabase {
 		queries:   queries,
 	}
 
-	// Set up cleanup
-	t.Cleanup(func() {
-		pool.Close()
-		if err := postgresContainer.Terminate(ctx); err != nil {
-			t.Logf("Failed to terminate container: %v", err)
-		}
-	})
-
 	return testDB
 }
 
-// Queries returns the SQLC queries interface
 func (tdb *TestDatabase) Queries() *db.Queries {
 	return tdb.queries
 }
 
-// RunMigrations runs your goose migrations
+func (tdb *TestDatabase) Pool() *pgxpool.Pool {
+	return tdb.pool
+}
+
 func (tdb *TestDatabase) RunMigrations(t *testing.T) {
 	// Convert pgxpool connection to database/sql for goose
 	sqlDB := stdlib.OpenDBFromPool(tdb.pool)
@@ -94,8 +87,8 @@ func (tdb *TestDatabase) RunMigrations(t *testing.T) {
 	// Set the SQL dialect for goose
 	goose.SetDialect("postgres")
 
-	// Run migrations from your db/migrations directory
-	// Need to use relative path from the project root
+	// Run migrations from db/migrations directory
+	// relative from project root
 	err := goose.Up(sqlDB, "../../db/migrations")
 	require.NoError(t, err, "Failed to run goose migrations")
 }
@@ -109,31 +102,31 @@ func (tdb *TestDatabase) Cleanup() {
 	}
 }
 
-// CleanupDatabase truncates all tables for test isolation
+// CleanupDatabase truncates test data tables while preserving seed data
 func (tdb *TestDatabase) CleanupDatabase(t *testing.T) {
 	ctx := context.Background()
 
-	// Truncate in reverse dependency order based on your schema
+	// Only truncate tables with test data
+	// Seed data tables (roles, permissions, role_permissions) should be same
 	tables := []string{
+		"item_takings",
+		"cart_items",
 		"booking",
 		"user_availability",
 		"time_slots",
 		"borrowings",
 		"requests",
-		"cart",
 		"items",
 		"signup_codes",
-		"user_roles",
-		"role_permissions",
-		"permissions",
-		"roles",
+		"user_roles", // user roles change per test
 		"users",
 		"groups",
 	}
 
 	for _, table := range tables {
 		_, err := tdb.pool.Exec(ctx, "TRUNCATE TABLE "+table+" CASCADE")
-		if err != nil {
+		// Ignore errors if table doesn't exist yet (first test before migrations)
+		if err != nil && !strings.Contains(err.Error(), "does not exist") {
 			t.Logf("Failed to truncate table %s: %v", table, err)
 		}
 	}

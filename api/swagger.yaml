@@ -51,7 +51,7 @@ components:
     GetItemByTypeResponse:
       type: array
       items:
-          $ref: "#/components/schemas/ItemResponse"
+        $ref: "#/components/schemas/ItemResponse"
 
     ItemResponse:
       type: object
@@ -69,8 +69,8 @@ components:
         urls:
           type: array
           items:
-              type: string
-              format: uri
+            type: string
+            format: uri
       required:
         - id
         - name
@@ -96,8 +96,8 @@ components:
         urls:
           type: array
           items:
-              type: string
-              format: uri
+            type: string
+            format: uri
       required:
         - id
         - name
@@ -186,6 +186,388 @@ components:
       required:
         - message
         - timestamp
+
+    AddToCartRequest:
+      type: object
+      properties:
+        groupId:
+          $ref: "#/components/schemas/UUID"
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+        - groupId
+        - itemId
+        - quantity
+
+    CartItemResponse:
+      type: object
+      properties:
+        groupId:
+          $ref: "#/components/schemas/UUID"
+        userId:
+          $ref: "#/components/schemas/UUID"
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        itemName:
+          type: string
+        itemType:
+          type: string
+          enum: [low, medium, high]
+        quantity:
+          type: integer
+        stock:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - groupId
+        - userId
+        - itemId
+        - itemName
+        - itemType
+        - quantity
+        - stock
+        - createdAt
+
+    CheckoutCartRequest:
+      type: object
+      properties:
+        groupId:
+          $ref: "#/components/schemas/UUID"
+        dueDate:
+          type: string
+          format: date-time
+          description: Due date for MEDIUM items (ignored for LOW/HIGH)
+        beforeCondition:
+          type: string
+          enum: [unusable, damaged, decent, good, pristine]
+          description: Item condition for MEDIUM items (ignored for LOW/HIGH)
+        beforeConditionUrl:
+          type: string
+          format: uri
+          description: Photo URL for MEDIUM items (ignored for LOW/HIGH)
+      required:
+        - groupId
+        - dueDate
+        - beforeCondition
+        - beforeConditionUrl
+
+    CheckoutCartResponse:
+      type: object
+      properties:
+        lowItemsProcessed:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckoutItemResult"
+        mediumItemsBorrowed:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckoutItemResult"
+        highItemsRequested:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckoutItemResult"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckoutError"
+      required:
+        - lowItemsProcessed
+        - mediumItemsBorrowed
+        - highItemsRequested
+        - errors
+
+    CheckoutItemResult:
+      type: object
+      properties:
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        status:
+          type: string
+          enum: [completed, borrowed, pending_approval]
+        borrowingId:
+          $ref: "#/components/schemas/UUID"
+        requestId:
+          $ref: "#/components/schemas/UUID"
+        takingId:
+          $ref: "#/components/schemas/UUID"
+      required:
+        - itemId
+        - itemName
+        - quantity
+        - status
+
+    CheckoutError:
+      type: object
+      properties:
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        itemName:
+          type: string
+        message:
+          type: string
+      required:
+        - itemId
+        - message
+
+    TakingHistoryResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        userId:
+          $ref: "#/components/schemas/UUID"
+        groupId:
+          $ref: "#/components/schemas/UUID"
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        takenAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - groupId
+        - itemId
+        - itemName
+        - quantity
+        - takenAt
+
+    ItemTakingHistoryResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        userId:
+          $ref: "#/components/schemas/UUID"
+        userEmail:
+          type: string
+          format: email
+        groupId:
+          $ref: "#/components/schemas/UUID"
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        quantity:
+          type: integer
+        takenAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - userEmail
+        - groupId
+        - itemId
+        - quantity
+        - takenAt
+
+    TakingStatsResponse:
+      type: object
+      properties:
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        totalTakings:
+          type: integer
+          description: Number of times item was taken
+        totalQuantity:
+          type: integer
+          description: Total quantity taken
+        uniqueUsers:
+          type: integer
+          description: Number of unique users
+        firstTaking:
+          type: string
+          format: date-time
+          nullable: true
+        lastTaking:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - itemId
+        - totalTakings
+        - totalQuantity
+        - uniqueUsers
+
+    BorrowingRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user borrowing the item
+        group_id:
+          type: string
+          format: uuid
+          description: The ID of the student group under which the item is borrowed
+        item_id:
+          type: string
+          format: uuid
+          description: The ID of the item being borrowed
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity of the item to borrow
+        due_date:
+          type: string
+          format: date-time
+          description: When the item must be returned
+        before_condition:
+          type: string
+          description: Note on the condition of the item before borrowing
+        before_condition_url:
+          type: string
+          format: uri
+          description: URL to a photo documenting the item's condition before borrowing
+      required:
+        - user_id
+        - group_id
+        - item_id
+        - quantity
+        - due_date
+        - before_condition
+        - before_condition_url
+
+    BorrowingResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        group_id:
+          $ref: "#/components/schemas/UUID"
+        item_id:
+          $ref: "#/components/schemas/UUID"
+        quantity:
+          type: integer
+        borrowed_at:
+          type: string
+          format: date-time
+        due_date:
+          type: string
+          format: date-time
+        returned_at:
+          type: string
+          format: date-time
+          nullable: true
+        before_condition:
+          type: string
+        before_condition_url:
+          type: string
+          format: uri
+        after_condition:
+          type: string
+          nullable: true
+        after_condition_url:
+          type: string
+          format: uri
+          nullable: true
+      required:
+        - id
+        - user_id
+        - item_id
+        - quantity
+        - borrowed_at
+        - due_date
+        - before_condition
+        - before_condition_url
+
+    ReturnBorrowingRequest:
+      type: object
+      properties:
+        after_condition:
+          type: string
+        after_condition_url:
+          type: string
+          format: uri
+      required:
+        - after_condition
+
+    RequestStatus:
+      type: string
+      enum:
+        - pending
+        - approved
+        - denied
+      description: Status of a request for a high-value item
+
+    RequestItemRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user requesting the item
+        group_id:
+          type: string
+          format: uuid
+          description: The ID of the student group under which the item is requested
+        item_id:
+          type: string
+          format: uuid
+          description: The ID of the item being requested (must be high-value)
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity of the item to request
+      required:
+        - user_id
+        - group_id
+        - item_id
+        - quantity
+
+    RequestItemResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        group_id:
+          $ref: "#/components/schemas/UUID"
+        item_id:
+          $ref: "#/components/schemas/UUID"
+        quantity:
+          type: integer
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+        reviewed_by:
+          $ref: "#/components/schemas/UUID"
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - user_id
+        - group_id
+        - item_id
+        - quantity
+        - status
+
+    ReviewRequestRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+          description: New status (approved or denied)
+      required:
+        - status
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -677,7 +1059,7 @@ paths:
                   urls:
                     - "http://example.com/laptop1.jpg"
                     - "http://example.com/laptop2.jpg"
-            
+
       responses:
         "200":
           description: Item updated
@@ -1154,3 +1536,1304 @@ paths:
               example:
                 code: 500
                 message: "An unexpected error occurred."
+
+  /cart/{groupId}:
+    get:
+      tags:
+        - Cart
+      summary: Get user's cart
+      description: Retrieve all items in the user's cart for a specific group
+      operationId: GetCart
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_cart]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: Cart items retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CartItemResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - Cart
+      summary: Clear cart
+      description: Remove all items from the user's cart
+      operationId: ClearCart
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_cart]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Cart cleared successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /cart/{groupId}/items:
+    post:
+      tags:
+        - Cart
+      summary: Add item to cart
+      description: Add an item to the user's cart or update quantity if already exists
+      operationId: AddToCart
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_cart]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToCartRequest"
+      responses:
+        "200":
+          description: Item added to cart successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartItemResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /cart/{groupId}/items/{itemId}:
+    patch:
+      tags:
+        - Cart
+      summary: Update cart item quantity
+      description: Update the quantity of an item in the cart
+      operationId: UpdateCartItemQuantity
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_cart]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+              required:
+                - quantity
+      responses:
+        "200":
+          description: Quantity updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartItemResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not in cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - Cart
+      summary: Remove item from cart
+      description: Remove a specific item from the cart
+      operationId: RemoveFromCart
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_cart]
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Item removed from cart successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /checkout:
+    post:
+      tags:
+        - Checkout
+      summary: Checkout cart
+      description: |
+        Process all items in cart with type-specific logic:
+        - LOW items: Decrement stock only (no borrowing record, audit trail created)
+        - MEDIUM items: Create borrowing record + decrement stock
+        - HIGH items: Create approval request (stock decremented after approval)
+      operationId: CheckoutCart
+      security:
+        - BearerAuth: []
+        - OAuth2: [request_items]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutCartRequest"
+      responses:
+        "200":
+          description: Checkout processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutCartResponse"
+        "400":
+          description: Bad Request (e.g., cart is empty)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /audit/takings/users/{userId}:
+    get:
+      tags:
+        - Audit
+      summary: Get user taking history
+      description: |
+        View LOW items taken by a user with role-based access control:
+        - Regular users: Can only view their own taking history
+        - Group admins: Can view taking history for users in their group(s)
+        - Global admins: Can view any user's taking history
+      operationId: GetUserTakingHistory
+      security:
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+          description: The ID of the user whose taking history to retrieve
+        - name: groupId
+          in: query
+          schema:
+            $ref: "#/components/schemas/UUID"
+          description: Optional group ID to filter results (for group admins)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Taking history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TakingHistoryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions to view this user's data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /audit/takings/items/{itemId}:
+    get:
+      tags:
+        - Audit
+      summary: Get taking history for an item
+      description: View all users who took this LOW item (admin only)
+      operationId: GetItemTakingHistory
+      security:
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Item taking history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItemTakingHistoryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /audit/takings/items/{itemId}/stats:
+    get:
+      tags:
+        - Audit
+      summary: Get taking statistics for an item
+      description: Get aggregate stats for LOW item usage (admin only)
+      operationId: GetItemTakingStats
+      security:
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Taking statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TakingStatsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /borrowings/item:
+    post:
+      tags:
+        - Borrowings
+      summary: Borrow an item (creating a borrowing record)
+      description: Submit a new borrowing item request
+      operationId: BorrowItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ request_items ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BorrowingRequest"
+      responses:
+        "201":
+          description: Borrowed Item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/item/return/{itemId}:
+    post:
+      tags:
+        - Borrowings
+      summary: Return a borrowed item
+      description: Marks a borrowing as returned and records its condition
+      operationId: returnItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ request_items ]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnBorrowingRequest"
+      responses:
+        "200":
+          description: Item returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/item/status/{itemId}:
+    get:
+      tags:
+        - Borrowings
+      summary: Get the status of a certain borrowed item
+      description: Retrieves the status of a specific borrowed item
+      operationId: CheckBorrowingItemStatus
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ request_items ]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: Status of the borrowed item
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_borrowed:
+                    type: boolean
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/item/active:
+    get:
+      tags:
+        - Borrowings
+      summary: Get all active borrowings
+      description: Retrieves all currently active borrowing records
+      operationId: GetAllActiveBorrowedItems
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_all_data ]
+      responses:
+        "200":
+          description: List of active borrowings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/item/returned:
+    get:
+      tags:
+        - Borrowings
+      summary: Get all returned borrowings
+      description: Retrieves all returned borrowing records
+      operationId: GetAllReturnedItems
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_all_data ]
+      responses:
+        "200":
+          description: List of returned borrowings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/item/returned/{due_date}:
+    get:
+      tags:
+        - Borrowings
+      summary: Get all returned borrowings by due date
+      description: Retrieves all returned borrowing records filtered by due date
+      operationId: GetActiveBorrowedItemsToBeReturnedByDate
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_all_data ]
+      parameters:
+        - name: due_date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of returned borrowings by due date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/user/{userId}:
+    get:
+      tags:
+        - Borrowings
+      summary: Get borrowings for a user
+      description: Retrieves all borrowing records for a user
+      operationId: GetBorrowedItemHistoryByUserId
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_own_data ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: List of borrowings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+               code: 500
+               message: "An unexpected error occurred."
+
+  /borrowings/user/active/{userId}:
+    get:
+      tags:
+        - Borrowings
+      summary: Get currently active borrowings for a user
+      description: Retrieves all currently active borrowing records for a user
+      operationId: GetActiveBorrowedItemsByUserId
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_own_data ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: List of current active borrowings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+
+  /borrowings/user/returned/{userId}:
+    get:
+      tags:
+        - Borrowings
+      summary: Get returned borrowings for a user
+      description: Retrieves all returned borrowing records for a user
+      operationId: GetReturnedItemsByUserId
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_own_data ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: List of returned borrowings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BorrowingResponse"
+        "400":
+          description: Bad Request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 400
+                message: "Invalid input data."
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 401
+                message: "Credentials Invalid or Not Provided"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 403
+                message: "You do not have permission to request items."
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: 500
+                message: "An unexpected error occurred."
+  /requests/item:
+    post:
+      tags:
+        - Requests
+      summary: Request a high-value item
+      description: Create a request for approval to borrow a high-value item
+      operationId: RequestItem
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ request_items ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestItemRequest"
+      responses:
+        "201":
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestItemResponse"
+        "400":
+          description: Bad Request - invalid input or not a high-value item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /requests/{requestId}/review:
+    post:
+      tags:
+        - Requests
+      summary: Review (approve/deny) a request
+      description: Approve or deny a pending request for a high-value item
+      operationId: ReviewRequest
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ approve_all_requests ]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequestRequest"
+      responses:
+        "200":
+          description: Request reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestItemResponse"
+        "400":
+          description: Bad Request - request not found, already reviewed, or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /requests:
+    get:
+      tags:
+        - Requests
+      summary: Get all requests
+      description: Retrieves all requests system-wide
+      operationId: GetAllRequests
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_all_data ]
+      responses:
+        "200":
+          description: List of all requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequestItemResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /requests/pending:
+    get:
+      tags:
+        - Requests
+      summary: Get pending requests
+      description: Retrieves all pending requests awaiting approval
+      operationId: GetPendingRequests
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ approve_all_requests ]
+      responses:
+        "200":
+          description: List of pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequestItemResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /requests/user/{userId}:
+    get:
+      tags:
+        - Requests
+      summary: Get requests by user
+      description: Retrieves all requests for a specific user
+      operationId: GetRequestsByUserId
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_own_data ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: List of user requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequestItemResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /requests/{requestId}:
+    get:
+      tags:
+        - Requests
+      summary: Get request by ID
+      description: Retrieves a specific request by its ID
+      operationId: GetRequestById
+      security:
+        - BearerAuth: [ ]
+        - OAuth2: [ view_own_data ]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: Request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestItemResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
