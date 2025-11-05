@@ -5,3 +5,5 @@ generate:
   models: true
   embedded-spec: true
 output: generated/api/api.gen.go
+output-options:
+  response-type-suffix: ""

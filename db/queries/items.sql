@@ -12,6 +12,9 @@ SELECT id, name, description, type, stock, urls FROM items WHERE type = $1;
 -- name: GetItemByID :one
 SELECT id, name, description, type, stock, urls FROM items WHERE id = $1;
 
+-- name: GetItemByIDForUpdate :one
+SELECT id, name, description, type, stock, urls FROM items WHERE id = $1 FOR UPDATE;
+
 -- name: UpdateItem :one
 UPDATE items
 SET name = $2, description = $3, type = $4, stock = $5, urls = $6
@@ -30,3 +33,13 @@ SET name = COALESCE(sqlc.narg('name'), name),
     urls = COALESCE(sqlc.narg('urls'), urls)
 WHERE id = sqlc.arg('id')
 RETURNING id, name, description, type, stock, urls;
+
+-- name: DecrementItemStock :exec
+UPDATE items
+SET stock = stock - $2
+WHERE id = $1 AND stock >= $2;
+
+-- name: IncrementItemStock :exec
+UPDATE items
+SET stock = stock + $2
+WHERE id = $1;

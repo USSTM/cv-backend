@@ -46,6 +46,22 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, e
 	return i, err
 }
 
+const decrementItemStock = `-- name: DecrementItemStock :exec
+UPDATE items
+SET stock = stock - $2
+WHERE id = $1 AND stock >= $2
+`
+
+type DecrementItemStockParams struct {
+	ID    uuid.UUID `json:"id"`
+	Stock int32     `json:"stock"`
+}
+
+func (q *Queries) DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error {
+	_, err := q.db.Exec(ctx, decrementItemStock, arg.ID, arg.Stock)
+	return err
+}
+
 const deleteItem = `-- name: DeleteItem :exec
 DELETE FROM items WHERE id = $1
 `
@@ -104,6 +120,24 @@ func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (Item, error) {
 	return i, err
 }
 
+const getItemByIDForUpdate = `-- name: GetItemByIDForUpdate :one
+SELECT id, name, description, type, stock, urls FROM items WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error) {
+	row := q.db.QueryRow(ctx, getItemByIDForUpdate, id)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+		&i.Urls,
+	)
+	return i, err
+}
+
 const getItemsByType = `-- name: GetItemsByType :many
 SELECT id, name, description, type, stock, urls FROM items WHERE type = $1
 `
@@ -133,6 +167,22 @@ func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const incrementItemStock = `-- name: IncrementItemStock :exec
+UPDATE items
+SET stock = stock + $2
+WHERE id = $1
+`
+
+type IncrementItemStockParams struct {
+	ID    uuid.UUID `json:"id"`
+	Stock int32     `json:"stock"`
+}
+
+func (q *Queries) IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error {
+	_, err := q.db.Exec(ctx, incrementItemStock, arg.ID, arg.Stock)
+	return err
 }
 
 const patchItem = `-- name: PatchItem :one

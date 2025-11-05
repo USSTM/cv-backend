@@ -8,10 +8,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	AddToCart(ctx context.Context, arg AddToCartParams) (AddToCartRow, error)
+	// this function creates a new borrowing record for a user borrowing an item
+	BorrowItem(ctx context.Context, arg BorrowItemParams) (Borrowing, error)
+	// this function checks if an item is currently borrowed (i.e., not available) by looking for active borrowings without a return timestamp and returns true if the item is available
+	CheckBorrowingItemStatus(ctx context.Context, itemID *uuid.UUID) (bool, error)
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
+	ClearCart(ctx context.Context, arg ClearCartParams) error
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
@@ -20,18 +27,57 @@ type Querier interface {
 	CreateSignUpCode(ctx context.Context, arg CreateSignUpCodeParams) (SignupCode, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
+	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
+	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
+	GetActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
+	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, dueDate pgtype.Timestamp) ([]Borrowing, error)
+	// this function gets an active borrowing by item_id and user_id, used to validate ownership before return
+	GetActiveBorrowingByItemAndUser(ctx context.Context, arg GetActiveBorrowingByItemAndUserParams) (Borrowing, error)
+	GetAllActiveBorrowedItems(ctx context.Context) ([]Borrowing, error)
 	GetAllItems(ctx context.Context) ([]Item, error)
+	GetAllRequests(ctx context.Context) ([]Request, error)
+	GetAllReturnedItems(ctx context.Context) ([]Borrowing, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
+	GetApprovedRequestForUserAndItem(ctx context.Context, arg GetApprovedRequestForUserAndItemParams) (Request, error)
+	GetBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
+	GetCartByUser(ctx context.Context, arg GetCartByUserParams) ([]GetCartByUserRow, error)
+	GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error)
+	GetCartItemsForCheckout(ctx context.Context, arg GetCartItemsForCheckoutParams) ([]GetCartItemsForCheckoutRow, error)
 	GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error)
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
+	GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error)
+	GetPendingRequests(ctx context.Context) ([]Request, error)
+	GetRequestById(ctx context.Context, id uuid.UUID) (Request, error)
+	GetRequestByIdForUpdate(ctx context.Context, id uuid.UUID) (Request, error)
+	GetRequestsByUserId(ctx context.Context, userID *uuid.UUID) ([]Request, error)
+	GetReturnedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
+	GetTakingHistoryByItemId(ctx context.Context, arg GetTakingHistoryByItemIdParams) ([]GetTakingHistoryByItemIdRow, error)
+	GetTakingHistoryByUserId(ctx context.Context, arg GetTakingHistoryByUserIdParams) ([]GetTakingHistoryByUserIdRow, error)
+	GetTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg GetTakingHistoryByUserIdWithGroupFilterParams) ([]GetTakingHistoryByUserIdWithGroupFilterRow, error)
+	GetTakingStats(ctx context.Context, arg GetTakingStatsParams) (GetTakingStatsRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
+	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
+	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
+	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
+	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
+	RecordItemTaking(ctx context.Context, arg RecordItemTakingParams) (ItemTaking, error)
+	RemoveFromCart(ctx context.Context, arg RemoveFromCartParams) error
+	// this function creates a new request in the requests table for a user requesting an item
+	RequestItem(ctx context.Context, arg RequestItemParams) (RequestItemRow, error)
+	// this function records the return of a borrowed item, updating the after condition and return timestamp (basically closing the borrowing record)
+	// it only works if the item is currently borrowed (i.e., has no return timestamp yet)
+	// the request is identified by the item_id
+	ReturnItem(ctx context.Context, arg ReturnItemParams) (Borrowing, error)
+	// this function updates the status of a request (approve or deny) and records who reviewed it and when
+	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
+	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }

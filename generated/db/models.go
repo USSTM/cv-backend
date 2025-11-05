@@ -237,6 +237,15 @@ type Item struct {
 	Urls        []string    `json:"urls"`
 }
 
+type ItemTaking struct {
+	ID       uuid.UUID        `json:"id"`
+	UserID   uuid.UUID        `json:"user_id"`
+	GroupID  uuid.UUID        `json:"group_id"`
+	ItemID   uuid.UUID        `json:"item_id"`
+	Quantity int32            `json:"quantity"`
+	TakenAt  pgtype.Timestamp `json:"taken_at"`
+}
+
 type Permission struct {
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
@@ -252,6 +261,7 @@ type Request struct {
 	RequestedAt pgtype.Timestamp  `json:"requested_at"`
 	ReviewedBy  *uuid.UUID        `json:"reviewed_by"`
 	ReviewedAt  pgtype.Timestamp  `json:"reviewed_at"`
+	FulfilledAt pgtype.Timestamp  `json:"fulfilled_at"`
 }
 
 type Role struct {

@@ -17,8 +17,7 @@ func TestServer_Users(t *testing.T) {
 		t.Skip("Skipping users tests in short mode")
 	}
 
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
@@ -144,8 +143,7 @@ func TestServer_GetUserById(t *testing.T) {
 		t.Skip("Skipping get user by id tests in short mode")
 	}
 
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
@@ -254,8 +252,7 @@ func TestServer_GetUserByEmail(t *testing.T) {
 		t.Skip("Skipping get user by email tests in short mode")
 	}
 
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
@@ -336,8 +333,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 		t.Skip("Skipping get users by group tests in short mode")
 	}
 
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 

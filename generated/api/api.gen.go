@@ -28,6 +28,29 @@ const (
 	OAuth2Scopes     = "OAuth2.Scopes"
 )
 
+// Defines values for CartItemResponseItemType.
+const (
+	CartItemResponseItemTypeHigh   CartItemResponseItemType = "high"
+	CartItemResponseItemTypeLow    CartItemResponseItemType = "low"
+	CartItemResponseItemTypeMedium CartItemResponseItemType = "medium"
+)
+
+// Defines values for CheckoutCartRequestBeforeCondition.
+const (
+	Damaged  CheckoutCartRequestBeforeCondition = "damaged"
+	Decent   CheckoutCartRequestBeforeCondition = "decent"
+	Good     CheckoutCartRequestBeforeCondition = "good"
+	Pristine CheckoutCartRequestBeforeCondition = "pristine"
+	Unusable CheckoutCartRequestBeforeCondition = "unusable"
+)
+
+// Defines values for CheckoutItemResultStatus.
+const (
+	Borrowed        CheckoutItemResultStatus = "borrowed"
+	Completed       CheckoutItemResultStatus = "completed"
+	PendingApproval CheckoutItemResultStatus = "pending_approval"
+)
+
 // Defines values for InviteUserRequestScope.
 const (
 	Global InviteUserRequestScope = "global"
@@ -36,9 +59,16 @@ const (
 
 // Defines values for ItemType.
 const (
-	High   ItemType = "high"
-	Low    ItemType = "low"
-	Medium ItemType = "medium"
+	ItemTypeHigh   ItemType = "high"
+	ItemTypeLow    ItemType = "low"
+	ItemTypeMedium ItemType = "medium"
+)
+
+// Defines values for RequestStatus.
+const (
+	Approved RequestStatus = "approved"
+	Denied   RequestStatus = "denied"
+	Pending  RequestStatus = "pending"
 )
 
 // Defines values for UserRole.
@@ -48,6 +78,113 @@ const (
 	GroupAdmin UserRole = "group_admin"
 	Member     UserRole = "member"
 )
+
+// AddToCartRequest defines model for AddToCartRequest.
+type AddToCartRequest struct {
+	GroupId  UUID `json:"groupId"`
+	ItemId   UUID `json:"itemId"`
+	Quantity int  `json:"quantity"`
+}
+
+// BorrowingRequest defines model for BorrowingRequest.
+type BorrowingRequest struct {
+	// BeforeCondition Note on the condition of the item before borrowing
+	BeforeCondition string `json:"before_condition"`
+
+	// BeforeConditionUrl URL to a photo documenting the item's condition before borrowing
+	BeforeConditionUrl string `json:"before_condition_url"`
+
+	// DueDate When the item must be returned
+	DueDate time.Time `json:"due_date"`
+
+	// GroupId The ID of the student group under which the item is borrowed
+	GroupId openapi_types.UUID `json:"group_id"`
+
+	// ItemId The ID of the item being borrowed
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// Quantity Quantity of the item to borrow
+	Quantity int `json:"quantity"`
+
+	// UserId The ID of the user borrowing the item
+	UserId openapi_types.UUID `json:"user_id"`
+}
+
+// BorrowingResponse defines model for BorrowingResponse.
+type BorrowingResponse struct {
+	AfterCondition     *string    `json:"after_condition"`
+	AfterConditionUrl  *string    `json:"after_condition_url"`
+	BeforeCondition    string     `json:"before_condition"`
+	BeforeConditionUrl string     `json:"before_condition_url"`
+	BorrowedAt         time.Time  `json:"borrowed_at"`
+	DueDate            time.Time  `json:"due_date"`
+	GroupId            *UUID      `json:"group_id,omitempty"`
+	Id                 UUID       `json:"id"`
+	ItemId             UUID       `json:"item_id"`
+	Quantity           int        `json:"quantity"`
+	ReturnedAt         *time.Time `json:"returned_at"`
+	UserId             UUID       `json:"user_id"`
+}
+
+// CartItemResponse defines model for CartItemResponse.
+type CartItemResponse struct {
+	CreatedAt time.Time                `json:"createdAt"`
+	GroupId   UUID                     `json:"groupId"`
+	ItemId    UUID                     `json:"itemId"`
+	ItemName  string                   `json:"itemName"`
+	ItemType  CartItemResponseItemType `json:"itemType"`
+	Quantity  int                      `json:"quantity"`
+	Stock     int                      `json:"stock"`
+	UserId    UUID                     `json:"userId"`
+}
+
+// CartItemResponseItemType defines model for CartItemResponse.ItemType.
+type CartItemResponseItemType string
+
+// CheckoutCartRequest defines model for CheckoutCartRequest.
+type CheckoutCartRequest struct {
+	// BeforeCondition Item condition for MEDIUM items (ignored for LOW/HIGH)
+	BeforeCondition CheckoutCartRequestBeforeCondition `json:"beforeCondition"`
+
+	// BeforeConditionUrl Photo URL for MEDIUM items (ignored for LOW/HIGH)
+	BeforeConditionUrl string `json:"beforeConditionUrl"`
+
+	// DueDate Due date for MEDIUM items (ignored for LOW/HIGH)
+	DueDate time.Time `json:"dueDate"`
+	GroupId UUID      `json:"groupId"`
+}
+
+// CheckoutCartRequestBeforeCondition Item condition for MEDIUM items (ignored for LOW/HIGH)
+type CheckoutCartRequestBeforeCondition string
+
+// CheckoutCartResponse defines model for CheckoutCartResponse.
+type CheckoutCartResponse struct {
+	Errors              []CheckoutError      `json:"errors"`
+	HighItemsRequested  []CheckoutItemResult `json:"highItemsRequested"`
+	LowItemsProcessed   []CheckoutItemResult `json:"lowItemsProcessed"`
+	MediumItemsBorrowed []CheckoutItemResult `json:"mediumItemsBorrowed"`
+}
+
+// CheckoutError defines model for CheckoutError.
+type CheckoutError struct {
+	ItemId   UUID    `json:"itemId"`
+	ItemName *string `json:"itemName,omitempty"`
+	Message  string  `json:"message"`
+}
+
+// CheckoutItemResult defines model for CheckoutItemResult.
+type CheckoutItemResult struct {
+	BorrowingId *UUID                    `json:"borrowingId,omitempty"`
+	ItemId      UUID                     `json:"itemId"`
+	ItemName    string                   `json:"itemName"`
+	Quantity    int                      `json:"quantity"`
+	RequestId   *UUID                    `json:"requestId,omitempty"`
+	Status      CheckoutItemResultStatus `json:"status"`
+	TakingId    *UUID                    `json:"takingId,omitempty"`
+}
+
+// CheckoutItemResultStatus defines model for CheckoutItemResult.Status.
+type CheckoutItemResultStatus string
 
 // Error defines model for Error.
 type Error struct {
@@ -103,6 +240,17 @@ type ItemResponse struct {
 	Urls        *[]string `json:"urls,omitempty"`
 }
 
+// ItemTakingHistoryResponse defines model for ItemTakingHistoryResponse.
+type ItemTakingHistoryResponse struct {
+	GroupId   UUID                `json:"groupId"`
+	Id        UUID                `json:"id"`
+	ItemId    UUID                `json:"itemId"`
+	Quantity  int                 `json:"quantity"`
+	TakenAt   time.Time           `json:"takenAt"`
+	UserEmail openapi_types.Email `json:"userEmail"`
+	UserId    UUID                `json:"userId"`
+}
+
 // ItemType defines model for ItemType.
 type ItemType string
 
@@ -122,6 +270,77 @@ type PingResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// RequestItemRequest defines model for RequestItemRequest.
+type RequestItemRequest struct {
+	// GroupId The ID of the student group under which the item is requested
+	GroupId openapi_types.UUID `json:"group_id"`
+
+	// ItemId The ID of the item being requested (must be high-value)
+	ItemId openapi_types.UUID `json:"item_id"`
+
+	// Quantity Quantity of the item to request
+	Quantity int `json:"quantity"`
+
+	// UserId The ID of the user requesting the item
+	UserId openapi_types.UUID `json:"user_id"`
+}
+
+// RequestItemResponse defines model for RequestItemResponse.
+type RequestItemResponse struct {
+	GroupId    UUID       `json:"group_id"`
+	Id         UUID       `json:"id"`
+	ItemId     UUID       `json:"item_id"`
+	Quantity   int        `json:"quantity"`
+	ReviewedAt *time.Time `json:"reviewed_at"`
+	ReviewedBy *UUID      `json:"reviewed_by,omitempty"`
+
+	// Status Status of a request for a high-value item
+	Status RequestStatus `json:"status"`
+	UserId UUID          `json:"user_id"`
+}
+
+// RequestStatus Status of a request for a high-value item
+type RequestStatus string
+
+// ReturnBorrowingRequest defines model for ReturnBorrowingRequest.
+type ReturnBorrowingRequest struct {
+	AfterCondition    string  `json:"after_condition"`
+	AfterConditionUrl *string `json:"after_condition_url,omitempty"`
+}
+
+// ReviewRequestRequest defines model for ReviewRequestRequest.
+type ReviewRequestRequest struct {
+	// Status Status of a request for a high-value item
+	Status RequestStatus `json:"status"`
+}
+
+// TakingHistoryResponse defines model for TakingHistoryResponse.
+type TakingHistoryResponse struct {
+	GroupId  UUID      `json:"groupId"`
+	Id       UUID      `json:"id"`
+	ItemId   UUID      `json:"itemId"`
+	ItemName string    `json:"itemName"`
+	Quantity int       `json:"quantity"`
+	TakenAt  time.Time `json:"takenAt"`
+	UserId   UUID      `json:"userId"`
+}
+
+// TakingStatsResponse defines model for TakingStatsResponse.
+type TakingStatsResponse struct {
+	FirstTaking *time.Time `json:"firstTaking"`
+	ItemId      UUID       `json:"itemId"`
+	LastTaking  *time.Time `json:"lastTaking"`
+
+	// TotalQuantity Total quantity taken
+	TotalQuantity int `json:"totalQuantity"`
+
+	// TotalTakings Number of times item was taken
+	TotalTakings int `json:"totalTakings"`
+
+	// UniqueUsers Number of unique users
+	UniqueUsers int `json:"uniqueUsers"`
+}
+
 // UUID defines model for UUID.
 type UUID = openapi_types.UUID
 
@@ -135,11 +354,51 @@ type User struct {
 // UserRole defines model for UserRole.
 type UserRole string
 
+// GetItemTakingHistoryParams defines parameters for GetItemTakingHistory.
+type GetItemTakingHistoryParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetItemTakingStatsParams defines parameters for GetItemTakingStats.
+type GetItemTakingStatsParams struct {
+	StartDate time.Time `form:"startDate" json:"startDate"`
+	EndDate   time.Time `form:"endDate" json:"endDate"`
+}
+
+// GetUserTakingHistoryParams defines parameters for GetUserTakingHistory.
+type GetUserTakingHistoryParams struct {
+	// GroupId Optional group ID to filter results (for group admins)
+	GroupId *UUID `form:"groupId,omitempty" json:"groupId,omitempty"`
+	Limit   *int  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int  `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// UpdateCartItemQuantityJSONBody defines parameters for UpdateCartItemQuantity.
+type UpdateCartItemQuantityJSONBody struct {
+	Quantity int `json:"quantity"`
+}
+
 // InviteUserJSONRequestBody defines body for InviteUser for application/json ContentType.
 type InviteUserJSONRequestBody = InviteUserRequest
 
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
+
+// BorrowItemJSONRequestBody defines body for BorrowItem for application/json ContentType.
+type BorrowItemJSONRequestBody = BorrowingRequest
+
+// ReturnItemJSONRequestBody defines body for ReturnItem for application/json ContentType.
+type ReturnItemJSONRequestBody = ReturnBorrowingRequest
+
+// AddToCartJSONRequestBody defines body for AddToCart for application/json ContentType.
+type AddToCartJSONRequestBody = AddToCartRequest
+
+// UpdateCartItemQuantityJSONRequestBody defines body for UpdateCartItemQuantity for application/json ContentType.
+type UpdateCartItemQuantityJSONRequestBody UpdateCartItemQuantityJSONBody
+
+// CheckoutCartJSONRequestBody defines body for CheckoutCart for application/json ContentType.
+type CheckoutCartJSONRequestBody = CheckoutCartRequest
 
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = ItemPostRequest
@@ -149,6 +408,12 @@ type PatchItemJSONRequestBody = ItemResponse
 
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemPostRequest
+
+// RequestItemJSONRequestBody defines body for RequestItem for application/json ContentType.
+type RequestItemJSONRequestBody = RequestItemRequest
+
+// ReviewRequestJSONRequestBody defines body for ReviewRequest for application/json ContentType.
+type ReviewRequestJSONRequestBody = ReviewRequestRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -161,9 +426,63 @@ type ServerInterface interface {
 	// Get users by group
 	// (GET /admin/users/group/{groupId})
 	GetUsersByGroup(w http.ResponseWriter, r *http.Request, groupId UUID)
+	// Get taking history for an item
+	// (GET /audit/takings/items/{itemId})
+	GetItemTakingHistory(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingHistoryParams)
+	// Get taking statistics for an item
+	// (GET /audit/takings/items/{itemId}/stats)
+	GetItemTakingStats(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingStatsParams)
+	// Get user taking history
+	// (GET /audit/takings/users/{userId})
+	GetUserTakingHistory(w http.ResponseWriter, r *http.Request, userId UUID, params GetUserTakingHistoryParams)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
+	// Borrow an item (creating a borrowing record)
+	// (POST /borrowings/item)
+	BorrowItem(w http.ResponseWriter, r *http.Request)
+	// Get all active borrowings
+	// (GET /borrowings/item/active)
+	GetAllActiveBorrowedItems(w http.ResponseWriter, r *http.Request)
+	// Return a borrowed item
+	// (POST /borrowings/item/return/{itemId})
+	ReturnItem(w http.ResponseWriter, r *http.Request, itemId UUID)
+	// Get all returned borrowings
+	// (GET /borrowings/item/returned)
+	GetAllReturnedItems(w http.ResponseWriter, r *http.Request)
+	// Get all returned borrowings by due date
+	// (GET /borrowings/item/returned/{due_date})
+	GetActiveBorrowedItemsToBeReturnedByDate(w http.ResponseWriter, r *http.Request, dueDate openapi_types.Date)
+	// Get the status of a certain borrowed item
+	// (GET /borrowings/item/status/{itemId})
+	CheckBorrowingItemStatus(w http.ResponseWriter, r *http.Request, itemId UUID)
+	// Get currently active borrowings for a user
+	// (GET /borrowings/user/active/{userId})
+	GetActiveBorrowedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Get returned borrowings for a user
+	// (GET /borrowings/user/returned/{userId})
+	GetReturnedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Get borrowings for a user
+	// (GET /borrowings/user/{userId})
+	GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Clear cart
+	// (DELETE /cart/{groupId})
+	ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID)
+	// Get user's cart
+	// (GET /cart/{groupId})
+	GetCart(w http.ResponseWriter, r *http.Request, groupId UUID)
+	// Add item to cart
+	// (POST /cart/{groupId}/items)
+	AddToCart(w http.ResponseWriter, r *http.Request, groupId UUID)
+	// Remove item from cart
+	// (DELETE /cart/{groupId}/items/{itemId})
+	RemoveFromCart(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID)
+	// Update cart item quantity
+	// (PATCH /cart/{groupId}/items/{itemId})
+	UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID)
+	// Checkout cart
+	// (POST /checkout)
+	CheckoutCart(w http.ResponseWriter, r *http.Request)
 	// Get all items
 	// (GET /items)
 	GetItems(w http.ResponseWriter, r *http.Request)
@@ -188,6 +507,24 @@ type ServerInterface interface {
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
+	// Get all requests
+	// (GET /requests)
+	GetAllRequests(w http.ResponseWriter, r *http.Request)
+	// Request a high-value item
+	// (POST /requests/item)
+	RequestItem(w http.ResponseWriter, r *http.Request)
+	// Get pending requests
+	// (GET /requests/pending)
+	GetPendingRequests(w http.ResponseWriter, r *http.Request)
+	// Get requests by user
+	// (GET /requests/user/{userId})
+	GetRequestsByUserId(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Get request by ID
+	// (GET /requests/{requestId})
+	GetRequestById(w http.ResponseWriter, r *http.Request, requestId UUID)
+	// Review (approve/deny) a request
+	// (POST /requests/{requestId}/review)
+	ReviewRequest(w http.ResponseWriter, r *http.Request, requestId UUID)
 	// Get user by email
 	// (GET /users/email/{email})
 	GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email)
@@ -218,9 +555,117 @@ func (_ Unimplemented) GetUsersByGroup(w http.ResponseWriter, r *http.Request, g
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get taking history for an item
+// (GET /audit/takings/items/{itemId})
+func (_ Unimplemented) GetItemTakingHistory(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingHistoryParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get taking statistics for an item
+// (GET /audit/takings/items/{itemId}/stats)
+func (_ Unimplemented) GetItemTakingStats(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingStatsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get user taking history
+// (GET /audit/takings/users/{userId})
+func (_ Unimplemented) GetUserTakingHistory(w http.ResponseWriter, r *http.Request, userId UUID, params GetUserTakingHistoryParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Login User
 // (POST /auth/login)
 func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Borrow an item (creating a borrowing record)
+// (POST /borrowings/item)
+func (_ Unimplemented) BorrowItem(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all active borrowings
+// (GET /borrowings/item/active)
+func (_ Unimplemented) GetAllActiveBorrowedItems(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Return a borrowed item
+// (POST /borrowings/item/return/{itemId})
+func (_ Unimplemented) ReturnItem(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all returned borrowings
+// (GET /borrowings/item/returned)
+func (_ Unimplemented) GetAllReturnedItems(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all returned borrowings by due date
+// (GET /borrowings/item/returned/{due_date})
+func (_ Unimplemented) GetActiveBorrowedItemsToBeReturnedByDate(w http.ResponseWriter, r *http.Request, dueDate openapi_types.Date) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the status of a certain borrowed item
+// (GET /borrowings/item/status/{itemId})
+func (_ Unimplemented) CheckBorrowingItemStatus(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get currently active borrowings for a user
+// (GET /borrowings/user/active/{userId})
+func (_ Unimplemented) GetActiveBorrowedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get returned borrowings for a user
+// (GET /borrowings/user/returned/{userId})
+func (_ Unimplemented) GetReturnedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get borrowings for a user
+// (GET /borrowings/user/{userId})
+func (_ Unimplemented) GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Clear cart
+// (DELETE /cart/{groupId})
+func (_ Unimplemented) ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get user's cart
+// (GET /cart/{groupId})
+func (_ Unimplemented) GetCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Add item to cart
+// (POST /cart/{groupId}/items)
+func (_ Unimplemented) AddToCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Remove item from cart
+// (DELETE /cart/{groupId}/items/{itemId})
+func (_ Unimplemented) RemoveFromCart(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update cart item quantity
+// (PATCH /cart/{groupId}/items/{itemId})
+func (_ Unimplemented) UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Checkout cart
+// (POST /checkout)
+func (_ Unimplemented) CheckoutCart(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -269,6 +714,42 @@ func (_ Unimplemented) UpdateItem(w http.ResponseWriter, r *http.Request, id UUI
 // Protected ping endpoint
 // (GET /ping)
 func (_ Unimplemented) PingProtected(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all requests
+// (GET /requests)
+func (_ Unimplemented) GetAllRequests(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Request a high-value item
+// (POST /requests/item)
+func (_ Unimplemented) RequestItem(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get pending requests
+// (GET /requests/pending)
+func (_ Unimplemented) GetPendingRequests(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get requests by user
+// (GET /requests/user/{userId})
+func (_ Unimplemented) GetRequestsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get request by ID
+// (GET /requests/{requestId})
+func (_ Unimplemented) GetRequestById(w http.ResponseWriter, r *http.Request, requestId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Review (approve/deny) a request
+// (POST /requests/{requestId}/review)
+func (_ Unimplemented) ReviewRequest(w http.ResponseWriter, r *http.Request, requestId UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -370,11 +851,658 @@ func (siw *ServerInterfaceWrapper) GetUsersByGroup(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetItemTakingHistory operation middleware
+func (siw *ServerInterfaceWrapper) GetItemTakingHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetItemTakingHistoryParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItemTakingHistory(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetItemTakingStats operation middleware
+func (siw *ServerInterfaceWrapper) GetItemTakingStats(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetItemTakingStatsParams
+
+	// ------------- Required query parameter "startDate" -------------
+
+	if paramValue := r.URL.Query().Get("startDate"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "startDate"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "startDate", r.URL.Query(), &params.StartDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "startDate", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "endDate" -------------
+
+	if paramValue := r.URL.Query().Get("endDate"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "endDate"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "endDate", r.URL.Query(), &params.EndDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "endDate", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItemTakingStats(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUserTakingHistory operation middleware
+func (siw *ServerInterfaceWrapper) GetUserTakingHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUserTakingHistoryParams
+
+	// ------------- Optional query parameter "groupId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "groupId", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserTakingHistory(w, r, userId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // LoginUser operation middleware
 func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LoginUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BorrowItem operation middleware
+func (siw *ServerInterfaceWrapper) BorrowItem(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"request_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BorrowItem(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAllActiveBorrowedItems operation middleware
+func (siw *ServerInterfaceWrapper) GetAllActiveBorrowedItems(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAllActiveBorrowedItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReturnItem operation middleware
+func (siw *ServerInterfaceWrapper) ReturnItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"request_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReturnItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAllReturnedItems operation middleware
+func (siw *ServerInterfaceWrapper) GetAllReturnedItems(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAllReturnedItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetActiveBorrowedItemsToBeReturnedByDate operation middleware
+func (siw *ServerInterfaceWrapper) GetActiveBorrowedItemsToBeReturnedByDate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "due_date" -------------
+	var dueDate openapi_types.Date
+
+	err = runtime.BindStyledParameterWithOptions("simple", "due_date", chi.URLParam(r, "due_date"), &dueDate, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "due_date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetActiveBorrowedItemsToBeReturnedByDate(w, r, dueDate)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckBorrowingItemStatus operation middleware
+func (siw *ServerInterfaceWrapper) CheckBorrowingItemStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"request_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckBorrowingItemStatus(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetActiveBorrowedItemsByUserId operation middleware
+func (siw *ServerInterfaceWrapper) GetActiveBorrowedItemsByUserId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetActiveBorrowedItemsByUserId(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReturnedItemsByUserId operation middleware
+func (siw *ServerInterfaceWrapper) GetReturnedItemsByUserId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReturnedItemsByUserId(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBorrowedItemHistoryByUserId operation middleware
+func (siw *ServerInterfaceWrapper) GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBorrowedItemHistoryByUserId(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearCart operation middleware
+func (siw *ServerInterfaceWrapper) ClearCart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_cart"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearCart(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCart operation middleware
+func (siw *ServerInterfaceWrapper) GetCart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_cart"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCart(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddToCart operation middleware
+func (siw *ServerInterfaceWrapper) AddToCart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_cart"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddToCart(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveFromCart operation middleware
+func (siw *ServerInterfaceWrapper) RemoveFromCart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_cart"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveFromCart(w, r, groupId, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCartItemQuantity operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_cart"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCartItemQuantity(w, r, groupId, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckoutCart operation middleware
+func (siw *ServerInterfaceWrapper) CheckoutCart(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"request_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckoutCart(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -615,6 +1743,171 @@ func (siw *ServerInterfaceWrapper) PingProtected(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetAllRequests operation middleware
+func (siw *ServerInterfaceWrapper) GetAllRequests(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_all_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAllRequests(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestItem operation middleware
+func (siw *ServerInterfaceWrapper) RequestItem(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"request_items"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestItem(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPendingRequests operation middleware
+func (siw *ServerInterfaceWrapper) GetPendingRequests(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"approve_all_requests"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPendingRequests(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRequestsByUserId operation middleware
+func (siw *ServerInterfaceWrapper) GetRequestsByUserId(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRequestsByUserId(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRequestById operation middleware
+func (siw *ServerInterfaceWrapper) GetRequestById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", chi.URLParam(r, "requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"view_own_data"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRequestById(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReviewRequest operation middleware
+func (siw *ServerInterfaceWrapper) ReviewRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", chi.URLParam(r, "requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"approve_all_requests"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReviewRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetUserByEmail operation middleware
 func (siw *ServerInterfaceWrapper) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
 
@@ -804,7 +2097,61 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/users/group/{groupId}", wrapper.GetUsersByGroup)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/audit/takings/items/{itemId}", wrapper.GetItemTakingHistory)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/audit/takings/items/{itemId}/stats", wrapper.GetItemTakingStats)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/audit/takings/users/{userId}", wrapper.GetUserTakingHistory)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/borrowings/item", wrapper.BorrowItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/item/active", wrapper.GetAllActiveBorrowedItems)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/borrowings/item/return/{itemId}", wrapper.ReturnItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/item/returned", wrapper.GetAllReturnedItems)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/item/returned/{due_date}", wrapper.GetActiveBorrowedItemsToBeReturnedByDate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/item/status/{itemId}", wrapper.CheckBorrowingItemStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/user/active/{userId}", wrapper.GetActiveBorrowedItemsByUserId)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/user/returned/{userId}", wrapper.GetReturnedItemsByUserId)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/user/{userId}", wrapper.GetBorrowedItemHistoryByUserId)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/cart/{groupId}", wrapper.ClearCart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/cart/{groupId}", wrapper.GetCart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/cart/{groupId}/items", wrapper.AddToCart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/cart/{groupId}/items/{itemId}", wrapper.RemoveFromCart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/cart/{groupId}/items/{itemId}", wrapper.UpdateCartItemQuantity)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/checkout", wrapper.CheckoutCart)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/items", wrapper.GetItems)
@@ -829,6 +2176,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/requests", wrapper.GetAllRequests)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/requests/item", wrapper.RequestItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/requests/pending", wrapper.GetPendingRequests)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/requests/user/{userId}", wrapper.GetRequestsByUserId)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/requests/{requestId}", wrapper.GetRequestById)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/requests/{requestId}/review", wrapper.ReviewRequest)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users/email/{email}", wrapper.GetUserByEmail)
@@ -998,6 +2363,141 @@ func (response GetUsersByGroup500JSONResponse) VisitGetUsersByGroupResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetItemTakingHistoryRequestObject struct {
+	ItemId UUID `json:"itemId"`
+	Params GetItemTakingHistoryParams
+}
+
+type GetItemTakingHistoryResponseObject interface {
+	VisitGetItemTakingHistoryResponse(w http.ResponseWriter) error
+}
+
+type GetItemTakingHistory200JSONResponse []ItemTakingHistoryResponse
+
+func (response GetItemTakingHistory200JSONResponse) VisitGetItemTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingHistory401JSONResponse Error
+
+func (response GetItemTakingHistory401JSONResponse) VisitGetItemTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingHistory403JSONResponse Error
+
+func (response GetItemTakingHistory403JSONResponse) VisitGetItemTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingHistory500JSONResponse Error
+
+func (response GetItemTakingHistory500JSONResponse) VisitGetItemTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingStatsRequestObject struct {
+	ItemId UUID `json:"itemId"`
+	Params GetItemTakingStatsParams
+}
+
+type GetItemTakingStatsResponseObject interface {
+	VisitGetItemTakingStatsResponse(w http.ResponseWriter) error
+}
+
+type GetItemTakingStats200JSONResponse TakingStatsResponse
+
+func (response GetItemTakingStats200JSONResponse) VisitGetItemTakingStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingStats401JSONResponse Error
+
+func (response GetItemTakingStats401JSONResponse) VisitGetItemTakingStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingStats403JSONResponse Error
+
+func (response GetItemTakingStats403JSONResponse) VisitGetItemTakingStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetItemTakingStats500JSONResponse Error
+
+func (response GetItemTakingStats500JSONResponse) VisitGetItemTakingStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserTakingHistoryRequestObject struct {
+	UserId UUID `json:"userId"`
+	Params GetUserTakingHistoryParams
+}
+
+type GetUserTakingHistoryResponseObject interface {
+	VisitGetUserTakingHistoryResponse(w http.ResponseWriter) error
+}
+
+type GetUserTakingHistory200JSONResponse []TakingHistoryResponse
+
+func (response GetUserTakingHistory200JSONResponse) VisitGetUserTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserTakingHistory401JSONResponse Error
+
+func (response GetUserTakingHistory401JSONResponse) VisitGetUserTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserTakingHistory403JSONResponse Error
+
+func (response GetUserTakingHistory403JSONResponse) VisitGetUserTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserTakingHistory500JSONResponse Error
+
+func (response GetUserTakingHistory500JSONResponse) VisitGetUserTakingHistoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type LoginUserRequestObject struct {
 	Body *LoginUserJSONRequestBody
 }
@@ -1027,6 +2527,795 @@ func (response LoginUser400JSONResponse) VisitLoginUserResponse(w http.ResponseW
 type LoginUser500JSONResponse Error
 
 func (response LoginUser500JSONResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BorrowItemRequestObject struct {
+	Body *BorrowItemJSONRequestBody
+}
+
+type BorrowItemResponseObject interface {
+	VisitBorrowItemResponse(w http.ResponseWriter) error
+}
+
+type BorrowItem201JSONResponse BorrowingResponse
+
+func (response BorrowItem201JSONResponse) VisitBorrowItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BorrowItem400JSONResponse Error
+
+func (response BorrowItem400JSONResponse) VisitBorrowItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BorrowItem401JSONResponse Error
+
+func (response BorrowItem401JSONResponse) VisitBorrowItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BorrowItem403JSONResponse Error
+
+func (response BorrowItem403JSONResponse) VisitBorrowItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BorrowItem500JSONResponse Error
+
+func (response BorrowItem500JSONResponse) VisitBorrowItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllActiveBorrowedItemsRequestObject struct {
+}
+
+type GetAllActiveBorrowedItemsResponseObject interface {
+	VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error
+}
+
+type GetAllActiveBorrowedItems200JSONResponse []BorrowingResponse
+
+func (response GetAllActiveBorrowedItems200JSONResponse) VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllActiveBorrowedItems400JSONResponse Error
+
+func (response GetAllActiveBorrowedItems400JSONResponse) VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllActiveBorrowedItems401JSONResponse Error
+
+func (response GetAllActiveBorrowedItems401JSONResponse) VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllActiveBorrowedItems403JSONResponse Error
+
+func (response GetAllActiveBorrowedItems403JSONResponse) VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllActiveBorrowedItems500JSONResponse Error
+
+func (response GetAllActiveBorrowedItems500JSONResponse) VisitGetAllActiveBorrowedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReturnItemRequestObject struct {
+	ItemId UUID `json:"itemId"`
+	Body   *ReturnItemJSONRequestBody
+}
+
+type ReturnItemResponseObject interface {
+	VisitReturnItemResponse(w http.ResponseWriter) error
+}
+
+type ReturnItem200JSONResponse BorrowingResponse
+
+func (response ReturnItem200JSONResponse) VisitReturnItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReturnItem400JSONResponse Error
+
+func (response ReturnItem400JSONResponse) VisitReturnItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReturnItem401JSONResponse Error
+
+func (response ReturnItem401JSONResponse) VisitReturnItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReturnItem403JSONResponse Error
+
+func (response ReturnItem403JSONResponse) VisitReturnItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReturnItem500JSONResponse Error
+
+func (response ReturnItem500JSONResponse) VisitReturnItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllReturnedItemsRequestObject struct {
+}
+
+type GetAllReturnedItemsResponseObject interface {
+	VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error
+}
+
+type GetAllReturnedItems200JSONResponse []BorrowingResponse
+
+func (response GetAllReturnedItems200JSONResponse) VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllReturnedItems400JSONResponse Error
+
+func (response GetAllReturnedItems400JSONResponse) VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllReturnedItems401JSONResponse Error
+
+func (response GetAllReturnedItems401JSONResponse) VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllReturnedItems403JSONResponse Error
+
+func (response GetAllReturnedItems403JSONResponse) VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllReturnedItems500JSONResponse Error
+
+func (response GetAllReturnedItems500JSONResponse) VisitGetAllReturnedItemsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDateRequestObject struct {
+	DueDate openapi_types.Date `json:"due_date"`
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDateResponseObject interface {
+	VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDate200JSONResponse []BorrowingResponse
+
+func (response GetActiveBorrowedItemsToBeReturnedByDate200JSONResponse) VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDate400JSONResponse Error
+
+func (response GetActiveBorrowedItemsToBeReturnedByDate400JSONResponse) VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDate401JSONResponse Error
+
+func (response GetActiveBorrowedItemsToBeReturnedByDate401JSONResponse) VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDate403JSONResponse Error
+
+func (response GetActiveBorrowedItemsToBeReturnedByDate403JSONResponse) VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse Error
+
+func (response GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse) VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckBorrowingItemStatusRequestObject struct {
+	ItemId UUID `json:"itemId"`
+}
+
+type CheckBorrowingItemStatusResponseObject interface {
+	VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error
+}
+
+type CheckBorrowingItemStatus200JSONResponse struct {
+	IsBorrowed *bool `json:"is_borrowed,omitempty"`
+}
+
+func (response CheckBorrowingItemStatus200JSONResponse) VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckBorrowingItemStatus400JSONResponse Error
+
+func (response CheckBorrowingItemStatus400JSONResponse) VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckBorrowingItemStatus401JSONResponse Error
+
+func (response CheckBorrowingItemStatus401JSONResponse) VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckBorrowingItemStatus403JSONResponse Error
+
+func (response CheckBorrowingItemStatus403JSONResponse) VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckBorrowingItemStatus500JSONResponse Error
+
+func (response CheckBorrowingItemStatus500JSONResponse) VisitCheckBorrowingItemStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsByUserIdRequestObject struct {
+	UserId UUID `json:"userId"`
+}
+
+type GetActiveBorrowedItemsByUserIdResponseObject interface {
+	VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error
+}
+
+type GetActiveBorrowedItemsByUserId200JSONResponse []BorrowingResponse
+
+func (response GetActiveBorrowedItemsByUserId200JSONResponse) VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsByUserId400JSONResponse Error
+
+func (response GetActiveBorrowedItemsByUserId400JSONResponse) VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsByUserId401JSONResponse Error
+
+func (response GetActiveBorrowedItemsByUserId401JSONResponse) VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsByUserId403JSONResponse Error
+
+func (response GetActiveBorrowedItemsByUserId403JSONResponse) VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetActiveBorrowedItemsByUserId500JSONResponse Error
+
+func (response GetActiveBorrowedItemsByUserId500JSONResponse) VisitGetActiveBorrowedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetReturnedItemsByUserIdRequestObject struct {
+	UserId UUID `json:"userId"`
+}
+
+type GetReturnedItemsByUserIdResponseObject interface {
+	VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error
+}
+
+type GetReturnedItemsByUserId200JSONResponse []BorrowingResponse
+
+func (response GetReturnedItemsByUserId200JSONResponse) VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetReturnedItemsByUserId400JSONResponse Error
+
+func (response GetReturnedItemsByUserId400JSONResponse) VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetReturnedItemsByUserId401JSONResponse Error
+
+func (response GetReturnedItemsByUserId401JSONResponse) VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetReturnedItemsByUserId403JSONResponse Error
+
+func (response GetReturnedItemsByUserId403JSONResponse) VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetReturnedItemsByUserId500JSONResponse Error
+
+func (response GetReturnedItemsByUserId500JSONResponse) VisitGetReturnedItemsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBorrowedItemHistoryByUserIdRequestObject struct {
+	UserId UUID `json:"userId"`
+}
+
+type GetBorrowedItemHistoryByUserIdResponseObject interface {
+	VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error
+}
+
+type GetBorrowedItemHistoryByUserId200JSONResponse []BorrowingResponse
+
+func (response GetBorrowedItemHistoryByUserId200JSONResponse) VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBorrowedItemHistoryByUserId400JSONResponse Error
+
+func (response GetBorrowedItemHistoryByUserId400JSONResponse) VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBorrowedItemHistoryByUserId401JSONResponse Error
+
+func (response GetBorrowedItemHistoryByUserId401JSONResponse) VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBorrowedItemHistoryByUserId403JSONResponse Error
+
+func (response GetBorrowedItemHistoryByUserId403JSONResponse) VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBorrowedItemHistoryByUserId500JSONResponse Error
+
+func (response GetBorrowedItemHistoryByUserId500JSONResponse) VisitGetBorrowedItemHistoryByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ClearCartRequestObject struct {
+	GroupId UUID `json:"groupId"`
+}
+
+type ClearCartResponseObject interface {
+	VisitClearCartResponse(w http.ResponseWriter) error
+}
+
+type ClearCart204Response struct {
+}
+
+func (response ClearCart204Response) VisitClearCartResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ClearCart401JSONResponse Error
+
+func (response ClearCart401JSONResponse) VisitClearCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ClearCart403JSONResponse Error
+
+func (response ClearCart403JSONResponse) VisitClearCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ClearCart500JSONResponse Error
+
+func (response ClearCart500JSONResponse) VisitClearCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCartRequestObject struct {
+	GroupId UUID `json:"groupId"`
+}
+
+type GetCartResponseObject interface {
+	VisitGetCartResponse(w http.ResponseWriter) error
+}
+
+type GetCart200JSONResponse []CartItemResponse
+
+func (response GetCart200JSONResponse) VisitGetCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCart401JSONResponse Error
+
+func (response GetCart401JSONResponse) VisitGetCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCart403JSONResponse Error
+
+func (response GetCart403JSONResponse) VisitGetCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCart500JSONResponse Error
+
+func (response GetCart500JSONResponse) VisitGetCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCartRequestObject struct {
+	GroupId UUID `json:"groupId"`
+	Body    *AddToCartJSONRequestBody
+}
+
+type AddToCartResponseObject interface {
+	VisitAddToCartResponse(w http.ResponseWriter) error
+}
+
+type AddToCart200JSONResponse CartItemResponse
+
+func (response AddToCart200JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCart400JSONResponse Error
+
+func (response AddToCart400JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCart401JSONResponse Error
+
+func (response AddToCart401JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCart403JSONResponse Error
+
+func (response AddToCart403JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCart404JSONResponse Error
+
+func (response AddToCart404JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddToCart500JSONResponse Error
+
+func (response AddToCart500JSONResponse) VisitAddToCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveFromCartRequestObject struct {
+	GroupId UUID `json:"groupId"`
+	ItemId  UUID `json:"itemId"`
+}
+
+type RemoveFromCartResponseObject interface {
+	VisitRemoveFromCartResponse(w http.ResponseWriter) error
+}
+
+type RemoveFromCart204Response struct {
+}
+
+func (response RemoveFromCart204Response) VisitRemoveFromCartResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveFromCart401JSONResponse Error
+
+func (response RemoveFromCart401JSONResponse) VisitRemoveFromCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveFromCart403JSONResponse Error
+
+func (response RemoveFromCart403JSONResponse) VisitRemoveFromCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveFromCart500JSONResponse Error
+
+func (response RemoveFromCart500JSONResponse) VisitRemoveFromCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantityRequestObject struct {
+	GroupId UUID `json:"groupId"`
+	ItemId  UUID `json:"itemId"`
+	Body    *UpdateCartItemQuantityJSONRequestBody
+}
+
+type UpdateCartItemQuantityResponseObject interface {
+	VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error
+}
+
+type UpdateCartItemQuantity200JSONResponse CartItemResponse
+
+func (response UpdateCartItemQuantity200JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantity400JSONResponse Error
+
+func (response UpdateCartItemQuantity400JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantity401JSONResponse Error
+
+func (response UpdateCartItemQuantity401JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantity403JSONResponse Error
+
+func (response UpdateCartItemQuantity403JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantity404JSONResponse Error
+
+func (response UpdateCartItemQuantity404JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCartItemQuantity500JSONResponse Error
+
+func (response UpdateCartItemQuantity500JSONResponse) VisitUpdateCartItemQuantityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckoutCartRequestObject struct {
+	Body *CheckoutCartJSONRequestBody
+}
+
+type CheckoutCartResponseObject interface {
+	VisitCheckoutCartResponse(w http.ResponseWriter) error
+}
+
+type CheckoutCart200JSONResponse CheckoutCartResponse
+
+func (response CheckoutCart200JSONResponse) VisitCheckoutCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckoutCart400JSONResponse Error
+
+func (response CheckoutCart400JSONResponse) VisitCheckoutCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckoutCart401JSONResponse Error
+
+func (response CheckoutCart401JSONResponse) VisitCheckoutCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckoutCart403JSONResponse Error
+
+func (response CheckoutCart403JSONResponse) VisitCheckoutCartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CheckoutCart500JSONResponse Error
+
+func (response CheckoutCart500JSONResponse) VisitCheckoutCartResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -1447,6 +3736,305 @@ func (response PingProtected500JSONResponse) VisitPingProtectedResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetAllRequestsRequestObject struct {
+}
+
+type GetAllRequestsResponseObject interface {
+	VisitGetAllRequestsResponse(w http.ResponseWriter) error
+}
+
+type GetAllRequests200JSONResponse []RequestItemResponse
+
+func (response GetAllRequests200JSONResponse) VisitGetAllRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllRequests401JSONResponse Error
+
+func (response GetAllRequests401JSONResponse) VisitGetAllRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllRequests403JSONResponse Error
+
+func (response GetAllRequests403JSONResponse) VisitGetAllRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllRequests500JSONResponse Error
+
+func (response GetAllRequests500JSONResponse) VisitGetAllRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItemRequestObject struct {
+	Body *RequestItemJSONRequestBody
+}
+
+type RequestItemResponseObject interface {
+	VisitRequestItemResponse(w http.ResponseWriter) error
+}
+
+type RequestItem201JSONResponse RequestItemResponse
+
+func (response RequestItem201JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItem400JSONResponse Error
+
+func (response RequestItem400JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItem401JSONResponse Error
+
+func (response RequestItem401JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItem403JSONResponse Error
+
+func (response RequestItem403JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItem404JSONResponse Error
+
+func (response RequestItem404JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestItem500JSONResponse Error
+
+func (response RequestItem500JSONResponse) VisitRequestItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPendingRequestsRequestObject struct {
+}
+
+type GetPendingRequestsResponseObject interface {
+	VisitGetPendingRequestsResponse(w http.ResponseWriter) error
+}
+
+type GetPendingRequests200JSONResponse []RequestItemResponse
+
+func (response GetPendingRequests200JSONResponse) VisitGetPendingRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPendingRequests401JSONResponse Error
+
+func (response GetPendingRequests401JSONResponse) VisitGetPendingRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPendingRequests403JSONResponse Error
+
+func (response GetPendingRequests403JSONResponse) VisitGetPendingRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPendingRequests500JSONResponse Error
+
+func (response GetPendingRequests500JSONResponse) VisitGetPendingRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestsByUserIdRequestObject struct {
+	UserId UUID `json:"userId"`
+}
+
+type GetRequestsByUserIdResponseObject interface {
+	VisitGetRequestsByUserIdResponse(w http.ResponseWriter) error
+}
+
+type GetRequestsByUserId200JSONResponse []RequestItemResponse
+
+func (response GetRequestsByUserId200JSONResponse) VisitGetRequestsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestsByUserId401JSONResponse Error
+
+func (response GetRequestsByUserId401JSONResponse) VisitGetRequestsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestsByUserId403JSONResponse Error
+
+func (response GetRequestsByUserId403JSONResponse) VisitGetRequestsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestsByUserId500JSONResponse Error
+
+func (response GetRequestsByUserId500JSONResponse) VisitGetRequestsByUserIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestByIdRequestObject struct {
+	RequestId UUID `json:"requestId"`
+}
+
+type GetRequestByIdResponseObject interface {
+	VisitGetRequestByIdResponse(w http.ResponseWriter) error
+}
+
+type GetRequestById200JSONResponse RequestItemResponse
+
+func (response GetRequestById200JSONResponse) VisitGetRequestByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestById401JSONResponse Error
+
+func (response GetRequestById401JSONResponse) VisitGetRequestByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestById403JSONResponse Error
+
+func (response GetRequestById403JSONResponse) VisitGetRequestByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestById404JSONResponse Error
+
+func (response GetRequestById404JSONResponse) VisitGetRequestByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRequestById500JSONResponse Error
+
+func (response GetRequestById500JSONResponse) VisitGetRequestByIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReviewRequestRequestObject struct {
+	RequestId UUID `json:"requestId"`
+	Body      *ReviewRequestJSONRequestBody
+}
+
+type ReviewRequestResponseObject interface {
+	VisitReviewRequestResponse(w http.ResponseWriter) error
+}
+
+type ReviewRequest200JSONResponse RequestItemResponse
+
+func (response ReviewRequest200JSONResponse) VisitReviewRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReviewRequest400JSONResponse Error
+
+func (response ReviewRequest400JSONResponse) VisitReviewRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReviewRequest401JSONResponse Error
+
+func (response ReviewRequest401JSONResponse) VisitReviewRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReviewRequest403JSONResponse Error
+
+func (response ReviewRequest403JSONResponse) VisitReviewRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReviewRequest500JSONResponse Error
+
+func (response ReviewRequest500JSONResponse) VisitReviewRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetUserByEmailRequestObject struct {
 	Email openapi_types.Email `json:"email"`
 }
@@ -1564,9 +4152,63 @@ type StrictServerInterface interface {
 	// Get users by group
 	// (GET /admin/users/group/{groupId})
 	GetUsersByGroup(ctx context.Context, request GetUsersByGroupRequestObject) (GetUsersByGroupResponseObject, error)
+	// Get taking history for an item
+	// (GET /audit/takings/items/{itemId})
+	GetItemTakingHistory(ctx context.Context, request GetItemTakingHistoryRequestObject) (GetItemTakingHistoryResponseObject, error)
+	// Get taking statistics for an item
+	// (GET /audit/takings/items/{itemId}/stats)
+	GetItemTakingStats(ctx context.Context, request GetItemTakingStatsRequestObject) (GetItemTakingStatsResponseObject, error)
+	// Get user taking history
+	// (GET /audit/takings/users/{userId})
+	GetUserTakingHistory(ctx context.Context, request GetUserTakingHistoryRequestObject) (GetUserTakingHistoryResponseObject, error)
 	// Login User
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
+	// Borrow an item (creating a borrowing record)
+	// (POST /borrowings/item)
+	BorrowItem(ctx context.Context, request BorrowItemRequestObject) (BorrowItemResponseObject, error)
+	// Get all active borrowings
+	// (GET /borrowings/item/active)
+	GetAllActiveBorrowedItems(ctx context.Context, request GetAllActiveBorrowedItemsRequestObject) (GetAllActiveBorrowedItemsResponseObject, error)
+	// Return a borrowed item
+	// (POST /borrowings/item/return/{itemId})
+	ReturnItem(ctx context.Context, request ReturnItemRequestObject) (ReturnItemResponseObject, error)
+	// Get all returned borrowings
+	// (GET /borrowings/item/returned)
+	GetAllReturnedItems(ctx context.Context, request GetAllReturnedItemsRequestObject) (GetAllReturnedItemsResponseObject, error)
+	// Get all returned borrowings by due date
+	// (GET /borrowings/item/returned/{due_date})
+	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, request GetActiveBorrowedItemsToBeReturnedByDateRequestObject) (GetActiveBorrowedItemsToBeReturnedByDateResponseObject, error)
+	// Get the status of a certain borrowed item
+	// (GET /borrowings/item/status/{itemId})
+	CheckBorrowingItemStatus(ctx context.Context, request CheckBorrowingItemStatusRequestObject) (CheckBorrowingItemStatusResponseObject, error)
+	// Get currently active borrowings for a user
+	// (GET /borrowings/user/active/{userId})
+	GetActiveBorrowedItemsByUserId(ctx context.Context, request GetActiveBorrowedItemsByUserIdRequestObject) (GetActiveBorrowedItemsByUserIdResponseObject, error)
+	// Get returned borrowings for a user
+	// (GET /borrowings/user/returned/{userId})
+	GetReturnedItemsByUserId(ctx context.Context, request GetReturnedItemsByUserIdRequestObject) (GetReturnedItemsByUserIdResponseObject, error)
+	// Get borrowings for a user
+	// (GET /borrowings/user/{userId})
+	GetBorrowedItemHistoryByUserId(ctx context.Context, request GetBorrowedItemHistoryByUserIdRequestObject) (GetBorrowedItemHistoryByUserIdResponseObject, error)
+	// Clear cart
+	// (DELETE /cart/{groupId})
+	ClearCart(ctx context.Context, request ClearCartRequestObject) (ClearCartResponseObject, error)
+	// Get user's cart
+	// (GET /cart/{groupId})
+	GetCart(ctx context.Context, request GetCartRequestObject) (GetCartResponseObject, error)
+	// Add item to cart
+	// (POST /cart/{groupId}/items)
+	AddToCart(ctx context.Context, request AddToCartRequestObject) (AddToCartResponseObject, error)
+	// Remove item from cart
+	// (DELETE /cart/{groupId}/items/{itemId})
+	RemoveFromCart(ctx context.Context, request RemoveFromCartRequestObject) (RemoveFromCartResponseObject, error)
+	// Update cart item quantity
+	// (PATCH /cart/{groupId}/items/{itemId})
+	UpdateCartItemQuantity(ctx context.Context, request UpdateCartItemQuantityRequestObject) (UpdateCartItemQuantityResponseObject, error)
+	// Checkout cart
+	// (POST /checkout)
+	CheckoutCart(ctx context.Context, request CheckoutCartRequestObject) (CheckoutCartResponseObject, error)
 	// Get all items
 	// (GET /items)
 	GetItems(ctx context.Context, request GetItemsRequestObject) (GetItemsResponseObject, error)
@@ -1591,6 +4233,24 @@ type StrictServerInterface interface {
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
+	// Get all requests
+	// (GET /requests)
+	GetAllRequests(ctx context.Context, request GetAllRequestsRequestObject) (GetAllRequestsResponseObject, error)
+	// Request a high-value item
+	// (POST /requests/item)
+	RequestItem(ctx context.Context, request RequestItemRequestObject) (RequestItemResponseObject, error)
+	// Get pending requests
+	// (GET /requests/pending)
+	GetPendingRequests(ctx context.Context, request GetPendingRequestsRequestObject) (GetPendingRequestsResponseObject, error)
+	// Get requests by user
+	// (GET /requests/user/{userId})
+	GetRequestsByUserId(ctx context.Context, request GetRequestsByUserIdRequestObject) (GetRequestsByUserIdResponseObject, error)
+	// Get request by ID
+	// (GET /requests/{requestId})
+	GetRequestById(ctx context.Context, request GetRequestByIdRequestObject) (GetRequestByIdResponseObject, error)
+	// Review (approve/deny) a request
+	// (POST /requests/{requestId}/review)
+	ReviewRequest(ctx context.Context, request ReviewRequestRequestObject) (ReviewRequestResponseObject, error)
 	// Get user by email
 	// (GET /users/email/{email})
 	GetUserByEmail(ctx context.Context, request GetUserByEmailRequestObject) (GetUserByEmailResponseObject, error)
@@ -1709,6 +4369,87 @@ func (sh *strictHandler) GetUsersByGroup(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// GetItemTakingHistory operation middleware
+func (sh *strictHandler) GetItemTakingHistory(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingHistoryParams) {
+	var request GetItemTakingHistoryRequestObject
+
+	request.ItemId = itemId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItemTakingHistory(ctx, request.(GetItemTakingHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItemTakingHistory")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemTakingHistoryResponseObject); ok {
+		if err := validResponse.VisitGetItemTakingHistoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetItemTakingStats operation middleware
+func (sh *strictHandler) GetItemTakingStats(w http.ResponseWriter, r *http.Request, itemId UUID, params GetItemTakingStatsParams) {
+	var request GetItemTakingStatsRequestObject
+
+	request.ItemId = itemId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItemTakingStats(ctx, request.(GetItemTakingStatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItemTakingStats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemTakingStatsResponseObject); ok {
+		if err := validResponse.VisitGetItemTakingStatsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUserTakingHistory operation middleware
+func (sh *strictHandler) GetUserTakingHistory(w http.ResponseWriter, r *http.Request, userId UUID, params GetUserTakingHistoryParams) {
+	var request GetUserTakingHistoryRequestObject
+
+	request.UserId = userId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserTakingHistory(ctx, request.(GetUserTakingHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserTakingHistory")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserTakingHistoryResponseObject); ok {
+		if err := validResponse.VisitGetUserTakingHistoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // LoginUser operation middleware
 func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	var request LoginUserRequestObject
@@ -1733,6 +4474,425 @@ func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LoginUserResponseObject); ok {
 		if err := validResponse.VisitLoginUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// BorrowItem operation middleware
+func (sh *strictHandler) BorrowItem(w http.ResponseWriter, r *http.Request) {
+	var request BorrowItemRequestObject
+
+	var body BorrowItemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BorrowItem(ctx, request.(BorrowItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BorrowItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BorrowItemResponseObject); ok {
+		if err := validResponse.VisitBorrowItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAllActiveBorrowedItems operation middleware
+func (sh *strictHandler) GetAllActiveBorrowedItems(w http.ResponseWriter, r *http.Request) {
+	var request GetAllActiveBorrowedItemsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAllActiveBorrowedItems(ctx, request.(GetAllActiveBorrowedItemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAllActiveBorrowedItems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAllActiveBorrowedItemsResponseObject); ok {
+		if err := validResponse.VisitGetAllActiveBorrowedItemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReturnItem operation middleware
+func (sh *strictHandler) ReturnItem(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	var request ReturnItemRequestObject
+
+	request.ItemId = itemId
+
+	var body ReturnItemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReturnItem(ctx, request.(ReturnItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReturnItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReturnItemResponseObject); ok {
+		if err := validResponse.VisitReturnItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAllReturnedItems operation middleware
+func (sh *strictHandler) GetAllReturnedItems(w http.ResponseWriter, r *http.Request) {
+	var request GetAllReturnedItemsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAllReturnedItems(ctx, request.(GetAllReturnedItemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAllReturnedItems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAllReturnedItemsResponseObject); ok {
+		if err := validResponse.VisitGetAllReturnedItemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetActiveBorrowedItemsToBeReturnedByDate operation middleware
+func (sh *strictHandler) GetActiveBorrowedItemsToBeReturnedByDate(w http.ResponseWriter, r *http.Request, dueDate openapi_types.Date) {
+	var request GetActiveBorrowedItemsToBeReturnedByDateRequestObject
+
+	request.DueDate = dueDate
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetActiveBorrowedItemsToBeReturnedByDate(ctx, request.(GetActiveBorrowedItemsToBeReturnedByDateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetActiveBorrowedItemsToBeReturnedByDate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetActiveBorrowedItemsToBeReturnedByDateResponseObject); ok {
+		if err := validResponse.VisitGetActiveBorrowedItemsToBeReturnedByDateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CheckBorrowingItemStatus operation middleware
+func (sh *strictHandler) CheckBorrowingItemStatus(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	var request CheckBorrowingItemStatusRequestObject
+
+	request.ItemId = itemId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CheckBorrowingItemStatus(ctx, request.(CheckBorrowingItemStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CheckBorrowingItemStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CheckBorrowingItemStatusResponseObject); ok {
+		if err := validResponse.VisitCheckBorrowingItemStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetActiveBorrowedItemsByUserId operation middleware
+func (sh *strictHandler) GetActiveBorrowedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	var request GetActiveBorrowedItemsByUserIdRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetActiveBorrowedItemsByUserId(ctx, request.(GetActiveBorrowedItemsByUserIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetActiveBorrowedItemsByUserId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetActiveBorrowedItemsByUserIdResponseObject); ok {
+		if err := validResponse.VisitGetActiveBorrowedItemsByUserIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetReturnedItemsByUserId operation middleware
+func (sh *strictHandler) GetReturnedItemsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	var request GetReturnedItemsByUserIdRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetReturnedItemsByUserId(ctx, request.(GetReturnedItemsByUserIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetReturnedItemsByUserId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetReturnedItemsByUserIdResponseObject); ok {
+		if err := validResponse.VisitGetReturnedItemsByUserIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBorrowedItemHistoryByUserId operation middleware
+func (sh *strictHandler) GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	var request GetBorrowedItemHistoryByUserIdRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBorrowedItemHistoryByUserId(ctx, request.(GetBorrowedItemHistoryByUserIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBorrowedItemHistoryByUserId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBorrowedItemHistoryByUserIdResponseObject); ok {
+		if err := validResponse.VisitGetBorrowedItemHistoryByUserIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClearCart operation middleware
+func (sh *strictHandler) ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	var request ClearCartRequestObject
+
+	request.GroupId = groupId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ClearCart(ctx, request.(ClearCartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClearCart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ClearCartResponseObject); ok {
+		if err := validResponse.VisitClearCartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCart operation middleware
+func (sh *strictHandler) GetCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	var request GetCartRequestObject
+
+	request.GroupId = groupId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCart(ctx, request.(GetCartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCartResponseObject); ok {
+		if err := validResponse.VisitGetCartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddToCart operation middleware
+func (sh *strictHandler) AddToCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	var request AddToCartRequestObject
+
+	request.GroupId = groupId
+
+	var body AddToCartJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddToCart(ctx, request.(AddToCartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddToCart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddToCartResponseObject); ok {
+		if err := validResponse.VisitAddToCartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveFromCart operation middleware
+func (sh *strictHandler) RemoveFromCart(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID) {
+	var request RemoveFromCartRequestObject
+
+	request.GroupId = groupId
+	request.ItemId = itemId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveFromCart(ctx, request.(RemoveFromCartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveFromCart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveFromCartResponseObject); ok {
+		if err := validResponse.VisitRemoveFromCartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateCartItemQuantity operation middleware
+func (sh *strictHandler) UpdateCartItemQuantity(w http.ResponseWriter, r *http.Request, groupId UUID, itemId UUID) {
+	var request UpdateCartItemQuantityRequestObject
+
+	request.GroupId = groupId
+	request.ItemId = itemId
+
+	var body UpdateCartItemQuantityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateCartItemQuantity(ctx, request.(UpdateCartItemQuantityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateCartItemQuantity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateCartItemQuantityResponseObject); ok {
+		if err := validResponse.VisitUpdateCartItemQuantityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CheckoutCart operation middleware
+func (sh *strictHandler) CheckoutCart(w http.ResponseWriter, r *http.Request) {
+	var request CheckoutCartRequestObject
+
+	var body CheckoutCartJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CheckoutCart(ctx, request.(CheckoutCartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CheckoutCart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CheckoutCartResponseObject); ok {
+		if err := validResponse.VisitCheckoutCartResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1963,6 +5123,170 @@ func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetAllRequests operation middleware
+func (sh *strictHandler) GetAllRequests(w http.ResponseWriter, r *http.Request) {
+	var request GetAllRequestsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAllRequests(ctx, request.(GetAllRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAllRequests")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAllRequestsResponseObject); ok {
+		if err := validResponse.VisitGetAllRequestsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RequestItem operation middleware
+func (sh *strictHandler) RequestItem(w http.ResponseWriter, r *http.Request) {
+	var request RequestItemRequestObject
+
+	var body RequestItemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestItem(ctx, request.(RequestItemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestItem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RequestItemResponseObject); ok {
+		if err := validResponse.VisitRequestItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPendingRequests operation middleware
+func (sh *strictHandler) GetPendingRequests(w http.ResponseWriter, r *http.Request) {
+	var request GetPendingRequestsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPendingRequests(ctx, request.(GetPendingRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPendingRequests")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPendingRequestsResponseObject); ok {
+		if err := validResponse.VisitGetPendingRequestsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRequestsByUserId operation middleware
+func (sh *strictHandler) GetRequestsByUserId(w http.ResponseWriter, r *http.Request, userId UUID) {
+	var request GetRequestsByUserIdRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRequestsByUserId(ctx, request.(GetRequestsByUserIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRequestsByUserId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRequestsByUserIdResponseObject); ok {
+		if err := validResponse.VisitGetRequestsByUserIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRequestById operation middleware
+func (sh *strictHandler) GetRequestById(w http.ResponseWriter, r *http.Request, requestId UUID) {
+	var request GetRequestByIdRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRequestById(ctx, request.(GetRequestByIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRequestById")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRequestByIdResponseObject); ok {
+		if err := validResponse.VisitGetRequestByIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReviewRequest operation middleware
+func (sh *strictHandler) ReviewRequest(w http.ResponseWriter, r *http.Request, requestId UUID) {
+	var request ReviewRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body ReviewRequestJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReviewRequest(ctx, request.(ReviewRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReviewRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReviewRequestResponseObject); ok {
+		if err := validResponse.VisitReviewRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetUserByEmail operation middleware
 func (sh *strictHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email) {
 	var request GetUserByEmailRequestObject
@@ -2018,56 +5342,105 @@ func (sh *strictHandler) GetUserById(w http.ResponseWriter, r *http.Request, use
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"AAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

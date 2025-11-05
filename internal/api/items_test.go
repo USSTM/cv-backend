@@ -11,8 +11,7 @@ import (
 )
 
 func testItemServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := testutil.NewTestDatabase(t)
-	testDB.RunMigrations(t)
+	testDB := getSharedTestDatabase(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
