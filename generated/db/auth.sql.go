@@ -34,22 +34,6 @@ func (q *Queries) CheckUserPermission(ctx context.Context, arg CheckUserPermissi
 	return has_permission, err
 }
 
-const createGroup = `-- name: CreateGroup :one
-INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id, name, description
-`
-
-type CreateGroupParams struct {
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-}
-
-func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
-	row := q.db.QueryRow(ctx, createGroup, arg.Name, arg.Description)
-	var i Group
-	err := row.Scan(&i.ID, &i.Name, &i.Description)
-	return i, err
-}
-
 const createPermission = `-- name: CreatePermission :exec
 INSERT INTO permissions (name, description) VALUES ($1, $2)
 `
