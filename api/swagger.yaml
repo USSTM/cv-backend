@@ -3040,9 +3040,9 @@ paths:
         "401":
           description: Unauthorized
           content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Error"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "403":
           description: Forbidden - insufficient permissions
           content:
