@@ -133,10 +133,14 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 		}, nil
 	}
 
+	var description *string
+	if group.Description.Valid {
+		description = &group.Description.String
+	}
 	response := api.CreateGroup201JSONResponse{
 		Id:          group.ID,
 		Name:        group.Name,
-		Description: &group.Description.String,
+		Description: description,
 	}
 
 	return response, nil
