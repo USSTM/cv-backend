@@ -86,10 +86,14 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 		}, nil
 	}
 
+	var description *string
+	if group.Description.Valid {
+		description = &group.Description.String
+	}
 	response := api.GetGroupByID200JSONResponse{
 		Id:          group.ID,
 		Name:        group.Name,
-		Description: &group.Description.String,
+		Description: description,
 	}
 
 	return response, nil
