@@ -44,10 +44,14 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 
 	var response api.GetAllGroups200JSONResponse
 	for _, group := range groups {
+		var description *string
+		if group.Description.Valid {
+			description = &group.Description.String
+		}
 		response = append(response, api.Group{
 			Id:          group.ID,
 			Name:        group.Name,
-			Description: &group.Description.String,
+			Description: description,
 		})
 	}
 
