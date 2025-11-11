@@ -181,10 +181,14 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 		}, nil
 	}
 
+	var description *string
+	if group.Description.Valid {
+		description = &group.Description.String
+	}
 	response := api.UpdateGroup200JSONResponse{
 		Id:          group.ID,
 		Name:        group.Name,
-		Description: &group.Description.String,
+		Description: description,
 	}
 
 	return response, nil
