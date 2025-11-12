@@ -2,15 +2,16 @@ package testutil
 
 import (
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
-	"testing"
-	"time"
 )
 
 // TestItem represents a test item

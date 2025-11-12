@@ -146,8 +146,9 @@ CREATE INDEX idx_item_takings_group ON item_takings(group_id, taken_at DESC);
 -- Time Slots for Availability Table
 CREATE TABLE time_slots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    CONSTRAINT valid_time_range CHECK (end_time > start_time)
 );
 
 -- Availability for Scheduling Table

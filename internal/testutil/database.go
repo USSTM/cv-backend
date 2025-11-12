@@ -107,13 +107,12 @@ func (tdb *TestDatabase) CleanupDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// Only truncate tables with test data
-	// Seed data tables (roles, permissions, role_permissions) should be same
+	// Seed data tables (roles, permissions, role_permissions, time_slots) are preserved
 	tables := []string{
 		"item_takings",
 		"cart_items",
 		"booking",
 		"user_availability",
-		"time_slots",
 		"borrowings",
 		"requests",
 		"items",

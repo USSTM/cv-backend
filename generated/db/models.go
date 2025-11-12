@@ -288,9 +288,9 @@ type SignupCode struct {
 }
 
 type TimeSlot struct {
-	ID        uuid.UUID        `json:"id"`
-	StartTime pgtype.Timestamp `json:"start_time"`
-	EndTime   pgtype.Timestamp `json:"end_time"`
+	ID        uuid.UUID   `json:"id"`
+	StartTime pgtype.Time `json:"start_time"`
+	EndTime   pgtype.Time `json:"end_time"`
 }
 
 type User struct {

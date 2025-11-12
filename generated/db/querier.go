@@ -65,6 +65,7 @@ type Querier interface {
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
 	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
 	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
+	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
 	RecordItemTaking(ctx context.Context, arg RecordItemTakingParams) (ItemTaking, error)
