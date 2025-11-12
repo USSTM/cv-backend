@@ -15,10 +15,15 @@ type Querier interface {
 	AddToCart(ctx context.Context, arg AddToCartParams) (AddToCartRow, error)
 	// this function creates a new borrowing record for a user borrowing an item
 	BorrowItem(ctx context.Context, arg BorrowItemParams) (Borrowing, error)
+	// Check if user already has availability for this slot/date
+	CheckAvailabilityConflict(ctx context.Context, arg CheckAvailabilityConflictParams) (bool, error)
+	// Check if availability is referenced by active bookings
+	CheckAvailabilityInUse(ctx context.Context, availabilityID *uuid.UUID) (bool, error)
 	// this function checks if an item is currently borrowed (i.e., not available) by looking for active borrowings without a return timestamp and returns true if the item is available
 	CheckBorrowingItemStatus(ctx context.Context, itemID *uuid.UUID) (bool, error)
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
 	ClearCart(ctx context.Context, arg ClearCartParams) error
+	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (UserAvailability, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
@@ -29,6 +34,7 @@ type Querier interface {
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
+	DeleteAvailability(ctx context.Context, id uuid.UUID) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 	GetActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
 	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, dueDate pgtype.Timestamp) ([]Borrowing, error)
@@ -40,6 +46,13 @@ type Querier interface {
 	GetAllReturnedItems(ctx context.Context) ([]Borrowing, error)
 	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetApprovedRequestForUserAndItem(ctx context.Context, arg GetApprovedRequestForUserAndItemParams) (Request, error)
+	// Get all approvers available on a specific date
+	GetAvailabilityByDate(ctx context.Context, date pgtype.Date) ([]GetAvailabilityByDateRow, error)
+	GetAvailabilityByID(ctx context.Context, id uuid.UUID) (GetAvailabilityByIDRow, error)
+	// Get count of availability entries for a user in a date range
+	GetAvailabilityCountByUser(ctx context.Context, arg GetAvailabilityCountByUserParams) (int64, error)
+	// Find all approvers available for a specific date/time slot
+	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]GetAvailableApproversForSlotRow, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
 	GetCartByUser(ctx context.Context, arg GetCartByUserParams) ([]GetCartByUserRow, error)
 	GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error)
@@ -57,6 +70,9 @@ type Querier interface {
 	GetTakingHistoryByUserId(ctx context.Context, arg GetTakingHistoryByUserIdParams) ([]GetTakingHistoryByUserIdRow, error)
 	GetTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg GetTakingHistoryByUserIdWithGroupFilterParams) ([]GetTakingHistoryByUserIdWithGroupFilterRow, error)
 	GetTakingStats(ctx context.Context, arg GetTakingStatsParams) (GetTakingStatsRow, error)
+	GetTimeSlotByID(ctx context.Context, id uuid.UUID) (TimeSlot, error)
+	// Get a specific user's availability schedule
+	GetUserAvailability(ctx context.Context, arg GetUserAvailabilityParams) ([]GetUserAvailabilityRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
@@ -65,6 +81,7 @@ type Querier interface {
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
 	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
 	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
+	ListAvailability(ctx context.Context, arg ListAvailabilityParams) ([]ListAvailabilityRow, error)
 	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)

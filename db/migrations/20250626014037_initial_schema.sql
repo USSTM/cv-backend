@@ -155,9 +155,9 @@ CREATE TABLE time_slots (
 CREATE TABLE user_availability (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     time_slot_id UUID REFERENCES time_slots(id) ON DELETE CASCADE,
-    date DATE NOT NULL
+    date DATE NOT NULL,
+    CONSTRAINT unique_user_slot_date UNIQUE (user_id, time_slot_id, date)
 );
 
 -- Booking System Table for scheduling pickup/return

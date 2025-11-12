@@ -302,7 +302,6 @@ type User struct {
 type UserAvailability struct {
 	ID         uuid.UUID   `json:"id"`
 	UserID     *uuid.UUID  `json:"user_id"`
-	GroupID    *uuid.UUID  `json:"group_id"`
 	TimeSlotID *uuid.UUID  `json:"time_slot_id"`
 	Date       pgtype.Date `json:"date"`
 }

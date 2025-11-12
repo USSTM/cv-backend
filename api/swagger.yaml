@@ -116,7 +116,7 @@ components:
           example: "group_admin"
         scope:
           type: string
-          enum: [ global, group ]
+          enum: [global, group]
           example: "group"
         scope_id:
           $ref: "#/components/schemas/UUID"
@@ -568,6 +568,103 @@ components:
       required:
         - status
 
+    TimeSlot:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        start_time:
+          type: string
+          format: time
+          example: "09:00:00"
+          description: Start time in HH:MM:SS format
+        end_time:
+          type: string
+          format: time
+          example: "09:15:00"
+          description: End time in HH:MM:SS format
+      required:
+        - id
+        - start_time
+        - end_time
+
+    CreateAvailabilityRequest:
+      type: object
+      properties:
+        time_slot_id:
+          $ref: "#/components/schemas/UUID"
+        date:
+          type: string
+          format: date
+          example: "2025-01-15"
+          description: Date in YYYY-MM-DD format
+      required:
+        - time_slot_id
+        - date
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        time_slot_id:
+          $ref: "#/components/schemas/UUID"
+        date:
+          type: string
+          format: date
+          example: "2025-01-15"
+        user_email:
+          type: string
+          format: email
+          example: "approver@example.com"
+        start_time:
+          type: string
+          format: time
+          example: "09:00:00"
+        end_time:
+          type: string
+          format: time
+          example: "09:15:00"
+      required:
+        - id
+        - user_id
+        - time_slot_id
+        - date
+        - user_email
+        - start_time
+        - end_time
+
+    UserAvailabilityResponse:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        user_id:
+          $ref: "#/components/schemas/UUID"
+        time_slot_id:
+          $ref: "#/components/schemas/UUID"
+        date:
+          type: string
+          format: date
+          example: "2025-01-15"
+        start_time:
+          type: string
+          format: time
+          example: "09:00:00"
+        end_time:
+          type: string
+          format: time
+          example: "09:15:00"
+      required:
+        - id
+        - user_id
+        - time_slot_id
+        - date
+        - start_time
+        - end_time
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -632,9 +729,341 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /time-slots:
+    get:
+      tags:
+        - Time Slots
+      summary: List all pre-defined time slots
+      description: Retrieve all available time slots (15-minute intervals from 08:00 to 18:00)
+      operationId: listTimeSlots
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of time slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSlot"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 code: 500
                 message: "An unexpected error occurred."
+
+  /availability:
+    post:
+      tags:
+        - Availability
+      summary: Create availability
+      description: Approvers set their availability schedule (not group-specific)
+      operationId: createAvailability
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_time_slots]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAvailabilityRequest"
+      responses:
+        "201":
+          description: Availability created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityResponse"
+        "400":
+          description: Bad request (invalid date, date in past)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Conflict (already have availability for this slot/date)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      tags:
+        - Availability
+      summary: List availability
+      description: List all availability with optional filters
+      operationId: listAvailability
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          description: Filter by specific date (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: user_id
+          in: query
+          description: Filter by user ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of availability
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailabilityResponse"
+        "400":
+          description: Bad request (invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /availability/{date}:
+    get:
+      tags:
+        - Availability
+      summary: Get availability by date
+      description: Get all approvers available on a specific date
+      operationId: getAvailabilityByDate
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: date
+          in: path
+          description: Date to check (YYYY-MM-DD)
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Availability for the specified date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailabilityResponse"
+        "400":
+          description: Bad request (invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /availability/{id}:
+    get:
+      tags:
+        - Availability
+      summary: Get availability by ID
+      description: Get a single availability record
+      operationId: getAvailabilityByID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Availability ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Availability details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Availability not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - Availability
+      summary: Delete availability
+      description: Remove an availability record (approvers only, cannot delete if referenced by active bookings)
+      operationId: deleteAvailability
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_time_slots]
+      parameters:
+        - name: id
+          in: path
+          description: Availability ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Availability deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Conflict (availability is referenced by active bookings)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userId}/availability:
+    get:
+      tags:
+        - Availability
+      summary: Get user availability
+      description: Get a user's availability schedule (all authenticated users can view any approver's availability for booking)
+      operationId: getUserAvailability
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from_date
+          in: query
+          description: Start date filter (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: End date filter (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: User's availability schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserAvailabilityResponse"
+        "400":
+          description: Bad request (invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /ping:
     get:
@@ -680,8 +1109,8 @@ paths:
       description: Retrieve all items from the catalog
       operationId: getItems
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_items ]
+        - BearerAuth: []
+        - OAuth2: [view_items]
       responses:
         "200":
           description: List of items
@@ -724,8 +1153,8 @@ paths:
       description: Add a new item to the catalog
       operationId: createItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ manage_items ]
+        - BearerAuth: []
+        - OAuth2: [manage_items]
       requestBody:
         required: true
         content:
@@ -803,8 +1232,8 @@ paths:
       description: Retrieve items filtered by type
       operationId: getItemsByType
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_items ]
+        - BearerAuth: []
+        - OAuth2: [view_items]
       parameters:
         - name: type
           in: path
@@ -865,8 +1294,8 @@ paths:
       description: Retrieve a single item by its ID
       operationId: getItemById
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_items ]
+        - BearerAuth: []
+        - OAuth2: [view_items]
       parameters:
         - name: id
           in: path
@@ -935,8 +1364,8 @@ paths:
       description: Update any subset of item fields
       operationId: patchItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ manage_items ]
+        - BearerAuth: []
+        - OAuth2: [manage_items]
       parameters:
         - name: id
           in: path
@@ -953,11 +1382,11 @@ paths:
               patchDescription:
                 summary: Patch item description
                 value:
-                    description: "Updated description for the item"
+                  description: "Updated description for the item"
               patchStock:
                 summary: Patch item stock
                 value:
-                    stock: 10
+                  stock: 10
       responses:
         "200":
           description: Item updated
@@ -1027,8 +1456,8 @@ paths:
       description: Update an existing item
       operationId: updateItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ manage_items ]
+        - BearerAuth: []
+        - OAuth2: [manage_items]
       parameters:
         - name: id
           in: path
@@ -1129,8 +1558,8 @@ paths:
       description: Delete an item by its ID
       operationId: deleteItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ manage_items ]
+        - BearerAuth: []
+        - OAuth2: [manage_items]
       parameters:
         - name: id
           in: path
@@ -1460,8 +1889,8 @@ paths:
       description: Invite a new user to the system - requires global or group admin permissions
       operationId: inviteUser
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ manage_group_users ]
+        - BearerAuth: []
+        - OAuth2: [manage_group_users]
       requestBody:
         required: true
         content:
@@ -2021,8 +2450,8 @@ paths:
       description: Submit a new borrowing item request
       operationId: BorrowItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ request_items ]
+        - BearerAuth: []
+        - OAuth2: [request_items]
       requestBody:
         required: true
         content:
@@ -2081,8 +2510,8 @@ paths:
       description: Marks a borrowing as returned and records its condition
       operationId: returnItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ request_items ]
+        - BearerAuth: []
+        - OAuth2: [request_items]
       parameters:
         - name: itemId
           in: path
@@ -2147,8 +2576,8 @@ paths:
       description: Retrieves the status of a specific borrowed item
       operationId: CheckBorrowingItemStatus
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ request_items ]
+        - BearerAuth: []
+        - OAuth2: [request_items]
       parameters:
         - name: itemId
           in: path
@@ -2210,8 +2639,8 @@ paths:
       description: Retrieves all currently active borrowing records
       operationId: GetAllActiveBorrowedItems
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_all_data ]
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
       responses:
         "200":
           description: List of active borrowings
@@ -2266,8 +2695,8 @@ paths:
       description: Retrieves all returned borrowing records
       operationId: GetAllReturnedItems
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_all_data ]
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
       responses:
         "200":
           description: List of returned borrowings
@@ -2322,8 +2751,8 @@ paths:
       description: Retrieves all returned borrowing records filtered by due date
       operationId: GetActiveBorrowedItemsToBeReturnedByDate
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_all_data ]
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
       parameters:
         - name: due_date
           in: path
@@ -2385,8 +2814,8 @@ paths:
       description: Retrieves all borrowing records for a user
       operationId: GetBorrowedItemHistoryByUserId
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_own_data ]
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
       parameters:
         - name: userId
           in: path
@@ -2436,8 +2865,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
-               code: 500
-               message: "An unexpected error occurred."
+                code: 500
+                message: "An unexpected error occurred."
 
   /borrowings/user/active/{userId}:
     get:
@@ -2447,8 +2876,8 @@ paths:
       description: Retrieves all currently active borrowing records for a user
       operationId: GetActiveBorrowedItemsByUserId
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_own_data ]
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
       parameters:
         - name: userId
           in: path
@@ -2509,8 +2938,8 @@ paths:
       description: Retrieves all returned borrowing records for a user
       operationId: GetReturnedItemsByUserId
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_own_data ]
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
       parameters:
         - name: userId
           in: path
@@ -2570,8 +2999,8 @@ paths:
       description: Create a request for approval to borrow a high-value item
       operationId: RequestItem
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ request_items ]
+        - BearerAuth: []
+        - OAuth2: [request_items]
       requestBody:
         required: true
         content:
@@ -2624,8 +3053,8 @@ paths:
       description: Approve or deny a pending request for a high-value item
       operationId: ReviewRequest
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ approve_all_requests ]
+        - BearerAuth: []
+        - OAuth2: [approve_all_requests]
       parameters:
         - name: requestId
           in: path
@@ -2678,8 +3107,8 @@ paths:
       description: Retrieves all requests system-wide
       operationId: GetAllRequests
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_all_data ]
+        - BearerAuth: []
+        - OAuth2: [view_all_data]
       responses:
         "200":
           description: List of all requests
@@ -2716,8 +3145,8 @@ paths:
       description: Retrieves all pending requests awaiting approval
       operationId: GetPendingRequests
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ approve_all_requests ]
+        - BearerAuth: []
+        - OAuth2: [approve_all_requests]
       responses:
         "200":
           description: List of pending requests
@@ -2754,8 +3183,8 @@ paths:
       description: Retrieves all requests for a specific user
       operationId: GetRequestsByUserId
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_own_data ]
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
       parameters:
         - name: userId
           in: path
@@ -2798,8 +3227,8 @@ paths:
       description: Retrieves a specific request by its ID
       operationId: GetRequestById
       security:
-        - BearerAuth: [ ]
-        - OAuth2: [ view_own_data ]
+        - BearerAuth: []
+        - OAuth2: [view_own_data]
       parameters:
         - name: requestId
           in: path

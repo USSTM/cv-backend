@@ -7,7 +7,21 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
+
+const getTimeSlotByID = `-- name: GetTimeSlotByID :one
+SELECT id, start_time, end_time FROM time_slots
+WHERE id = $1
+`
+
+func (q *Queries) GetTimeSlotByID(ctx context.Context, id uuid.UUID) (TimeSlot, error) {
+	row := q.db.QueryRow(ctx, getTimeSlotByID, id)
+	var i TimeSlot
+	err := row.Scan(&i.ID, &i.StartTime, &i.EndTime)
+	return i, err
+}
 
 const listTimeSlots = `-- name: ListTimeSlots :many
 SELECT id, start_time, end_time FROM time_slots

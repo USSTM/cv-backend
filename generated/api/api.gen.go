@@ -86,6 +86,17 @@ type AddToCartRequest struct {
 	Quantity int  `json:"quantity"`
 }
 
+// AvailabilityResponse defines model for AvailabilityResponse.
+type AvailabilityResponse struct {
+	Date       openapi_types.Date  `json:"date"`
+	EndTime    string              `json:"end_time"`
+	Id         UUID                `json:"id"`
+	StartTime  string              `json:"start_time"`
+	TimeSlotId UUID                `json:"time_slot_id"`
+	UserEmail  openapi_types.Email `json:"user_email"`
+	UserId     UUID                `json:"user_id"`
+}
+
 // BorrowingRequest defines model for BorrowingRequest.
 type BorrowingRequest struct {
 	// BeforeCondition Note on the condition of the item before borrowing
@@ -185,6 +196,13 @@ type CheckoutItemResult struct {
 
 // CheckoutItemResultStatus defines model for CheckoutItemResult.Status.
 type CheckoutItemResultStatus string
+
+// CreateAvailabilityRequest defines model for CreateAvailabilityRequest.
+type CreateAvailabilityRequest struct {
+	// Date Date in YYYY-MM-DD format
+	Date       openapi_types.Date `json:"date"`
+	TimeSlotId UUID               `json:"time_slot_id"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -361,6 +379,16 @@ type User struct {
 	Role  UserRole            `json:"role"`
 }
 
+// UserAvailabilityResponse defines model for UserAvailabilityResponse.
+type UserAvailabilityResponse struct {
+	Date       openapi_types.Date `json:"date"`
+	EndTime    string             `json:"end_time"`
+	Id         UUID               `json:"id"`
+	StartTime  string             `json:"start_time"`
+	TimeSlotId UUID               `json:"time_slot_id"`
+	UserId     UUID               `json:"user_id"`
+}
+
 // UserRole defines model for UserRole.
 type UserRole string
 
@@ -384,9 +412,27 @@ type GetUserTakingHistoryParams struct {
 	Offset  *int  `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListAvailabilityParams defines parameters for ListAvailability.
+type ListAvailabilityParams struct {
+	// Date Filter by specific date (YYYY-MM-DD)
+	Date *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+
+	// UserId Filter by user ID
+	UserId *openapi_types.UUID `form:"user_id,omitempty" json:"user_id,omitempty"`
+}
+
 // UpdateCartItemQuantityJSONBody defines parameters for UpdateCartItemQuantity.
 type UpdateCartItemQuantityJSONBody struct {
 	Quantity int `json:"quantity"`
+}
+
+// GetUserAvailabilityParams defines parameters for GetUserAvailability.
+type GetUserAvailabilityParams struct {
+	// FromDate Start date filter (YYYY-MM-DD)
+	FromDate *openapi_types.Date `form:"from_date,omitempty" json:"from_date,omitempty"`
+
+	// ToDate End date filter (YYYY-MM-DD)
+	ToDate *openapi_types.Date `form:"to_date,omitempty" json:"to_date,omitempty"`
 }
 
 // InviteUserJSONRequestBody defines body for InviteUser for application/json ContentType.
@@ -394,6 +440,9 @@ type InviteUserJSONRequestBody = InviteUserRequest
 
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
+
+// CreateAvailabilityJSONRequestBody defines body for CreateAvailability for application/json ContentType.
+type CreateAvailabilityJSONRequestBody = CreateAvailabilityRequest
 
 // BorrowItemJSONRequestBody defines body for BorrowItem for application/json ContentType.
 type BorrowItemJSONRequestBody = BorrowingRequest
@@ -448,6 +497,21 @@ type ServerInterface interface {
 	// Login User
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
+	// List availability
+	// (GET /availability)
+	ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams)
+	// Create availability
+	// (POST /availability)
+	CreateAvailability(w http.ResponseWriter, r *http.Request)
+	// Get availability by date
+	// (GET /availability/{date})
+	GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date)
+	// Delete availability
+	// (DELETE /availability/{id})
+	DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// Get availability by ID
+	// (GET /availability/{id})
+	GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(w http.ResponseWriter, r *http.Request)
@@ -544,6 +608,9 @@ type ServerInterface interface {
 	// Get user by ID
 	// (GET /users/{userId})
 	GetUserById(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Get user availability
+	// (GET /users/{userId}/availability)
+	GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -589,6 +656,36 @@ func (_ Unimplemented) GetUserTakingHistory(w http.ResponseWriter, r *http.Reque
 // Login User
 // (POST /auth/login)
 func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List availability
+// (GET /availability)
+func (_ Unimplemented) ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create availability
+// (POST /availability)
+func (_ Unimplemented) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get availability by date
+// (GET /availability/{date})
+func (_ Unimplemented) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete availability
+// (DELETE /availability/{id})
+func (_ Unimplemented) DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get availability by ID
+// (GET /availability/{id})
+func (_ Unimplemented) GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -781,6 +878,12 @@ func (_ Unimplemented) GetUserByEmail(w http.ResponseWriter, r *http.Request, em
 // Get user by ID
 // (GET /users/{userId})
 func (_ Unimplemented) GetUserById(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get user availability
+// (GET /users/{userId}/availability)
+func (_ Unimplemented) GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1053,6 +1156,164 @@ func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LoginUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAvailability operation middleware
+func (siw *ServerInterfaceWrapper) ListAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAvailabilityParams
+
+	// ------------- Optional query parameter "date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "date", r.URL.Query(), &params.Date)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "user_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "user_id", r.URL.Query(), &params.UserId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAvailability(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAvailability operation middleware
+func (siw *ServerInterfaceWrapper) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_time_slots"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAvailability(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAvailabilityByDate operation middleware
+func (siw *ServerInterfaceWrapper) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "date" -------------
+	var date openapi_types.Date
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", chi.URLParam(r, "date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAvailabilityByDate(w, r, date)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAvailability operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_time_slots"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAvailability(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAvailabilityByID operation middleware
+func (siw *ServerInterfaceWrapper) GetAvailabilityByID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAvailabilityByID(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2013,6 +2274,56 @@ func (siw *ServerInterfaceWrapper) GetUserById(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetUserAvailability operation middleware
+func (siw *ServerInterfaceWrapper) GetUserAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUserAvailabilityParams
+
+	// ------------- Optional query parameter "from_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "from_date", r.URL.Query(), &params.FromDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from_date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "to_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "to_date", r.URL.Query(), &params.ToDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to_date", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserAvailability(w, r, userId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -2148,6 +2459,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability", wrapper.ListAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/availability", wrapper.CreateAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability/{date}", wrapper.GetAvailabilityByDate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/availability/{id}", wrapper.DeleteAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability/{id}", wrapper.GetAvailabilityByID)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/borrowings/item", wrapper.BorrowItem)
 	})
 	r.Group(func(r chi.Router) {
@@ -2242,6 +2568,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users/{userId}", wrapper.GetUserById)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/users/{userId}/availability", wrapper.GetUserAvailability)
 	})
 
 	return r
@@ -2569,6 +2898,252 @@ func (response LoginUser400JSONResponse) VisitLoginUserResponse(w http.ResponseW
 type LoginUser500JSONResponse Error
 
 func (response LoginUser500JSONResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailabilityRequestObject struct {
+	Params ListAvailabilityParams
+}
+
+type ListAvailabilityResponseObject interface {
+	VisitListAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type ListAvailability200JSONResponse []AvailabilityResponse
+
+func (response ListAvailability200JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability400JSONResponse Error
+
+func (response ListAvailability400JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability401JSONResponse Error
+
+func (response ListAvailability401JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability500JSONResponse Error
+
+func (response ListAvailability500JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailabilityRequestObject struct {
+	Body *CreateAvailabilityJSONRequestBody
+}
+
+type CreateAvailabilityResponseObject interface {
+	VisitCreateAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type CreateAvailability201JSONResponse AvailabilityResponse
+
+func (response CreateAvailability201JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability400JSONResponse Error
+
+func (response CreateAvailability400JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability401JSONResponse Error
+
+func (response CreateAvailability401JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability403JSONResponse Error
+
+func (response CreateAvailability403JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability409JSONResponse Error
+
+func (response CreateAvailability409JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability500JSONResponse Error
+
+func (response CreateAvailability500JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDateRequestObject struct {
+	Date openapi_types.Date `json:"date"`
+}
+
+type GetAvailabilityByDateResponseObject interface {
+	VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error
+}
+
+type GetAvailabilityByDate200JSONResponse []AvailabilityResponse
+
+func (response GetAvailabilityByDate200JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate400JSONResponse Error
+
+func (response GetAvailabilityByDate400JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate401JSONResponse Error
+
+func (response GetAvailabilityByDate401JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate500JSONResponse Error
+
+func (response GetAvailabilityByDate500JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailabilityRequestObject struct {
+	Id openapi_types.UUID `json:"id"`
+}
+
+type DeleteAvailabilityResponseObject interface {
+	VisitDeleteAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type DeleteAvailability204Response struct {
+}
+
+func (response DeleteAvailability204Response) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAvailability401JSONResponse Error
+
+func (response DeleteAvailability401JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability403JSONResponse Error
+
+func (response DeleteAvailability403JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability409JSONResponse Error
+
+func (response DeleteAvailability409JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability500JSONResponse Error
+
+func (response DeleteAvailability500JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByIDRequestObject struct {
+	Id openapi_types.UUID `json:"id"`
+}
+
+type GetAvailabilityByIDResponseObject interface {
+	VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error
+}
+
+type GetAvailabilityByID200JSONResponse AvailabilityResponse
+
+func (response GetAvailabilityByID200JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID401JSONResponse Error
+
+func (response GetAvailabilityByID401JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID404JSONResponse Error
+
+func (response GetAvailabilityByID404JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID500JSONResponse Error
+
+func (response GetAvailabilityByID500JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4217,6 +4792,60 @@ func (response GetUserById500JSONResponse) VisitGetUserByIdResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUserAvailabilityRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+	Params GetUserAvailabilityParams
+}
+
+type GetUserAvailabilityResponseObject interface {
+	VisitGetUserAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type GetUserAvailability200JSONResponse []UserAvailabilityResponse
+
+func (response GetUserAvailability200JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability400JSONResponse Error
+
+func (response GetUserAvailability400JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability401JSONResponse Error
+
+func (response GetUserAvailability401JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability403JSONResponse Error
+
+func (response GetUserAvailability403JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability500JSONResponse Error
+
+func (response GetUserAvailability500JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Invite user (admin only)
@@ -4240,6 +4869,21 @@ type StrictServerInterface interface {
 	// Login User
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
+	// List availability
+	// (GET /availability)
+	ListAvailability(ctx context.Context, request ListAvailabilityRequestObject) (ListAvailabilityResponseObject, error)
+	// Create availability
+	// (POST /availability)
+	CreateAvailability(ctx context.Context, request CreateAvailabilityRequestObject) (CreateAvailabilityResponseObject, error)
+	// Get availability by date
+	// (GET /availability/{date})
+	GetAvailabilityByDate(ctx context.Context, request GetAvailabilityByDateRequestObject) (GetAvailabilityByDateResponseObject, error)
+	// Delete availability
+	// (DELETE /availability/{id})
+	DeleteAvailability(ctx context.Context, request DeleteAvailabilityRequestObject) (DeleteAvailabilityResponseObject, error)
+	// Get availability by ID
+	// (GET /availability/{id})
+	GetAvailabilityByID(ctx context.Context, request GetAvailabilityByIDRequestObject) (GetAvailabilityByIDResponseObject, error)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(ctx context.Context, request BorrowItemRequestObject) (BorrowItemResponseObject, error)
@@ -4336,6 +4980,9 @@ type StrictServerInterface interface {
 	// Get user by ID
 	// (GET /users/{userId})
 	GetUserById(ctx context.Context, request GetUserByIdRequestObject) (GetUserByIdResponseObject, error)
+	// Get user availability
+	// (GET /users/{userId}/availability)
+	GetUserAvailability(ctx context.Context, request GetUserAvailabilityRequestObject) (GetUserAvailabilityResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -4553,6 +5200,141 @@ func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LoginUserResponseObject); ok {
 		if err := validResponse.VisitLoginUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAvailability operation middleware
+func (sh *strictHandler) ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams) {
+	var request ListAvailabilityRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAvailability(ctx, request.(ListAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAvailabilityResponseObject); ok {
+		if err := validResponse.VisitListAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAvailability operation middleware
+func (sh *strictHandler) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+	var request CreateAvailabilityRequestObject
+
+	var body CreateAvailabilityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAvailability(ctx, request.(CreateAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAvailabilityResponseObject); ok {
+		if err := validResponse.VisitCreateAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAvailabilityByDate operation middleware
+func (sh *strictHandler) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date) {
+	var request GetAvailabilityByDateRequestObject
+
+	request.Date = date
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAvailabilityByDate(ctx, request.(GetAvailabilityByDateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAvailabilityByDate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAvailabilityByDateResponseObject); ok {
+		if err := validResponse.VisitGetAvailabilityByDateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAvailability operation middleware
+func (sh *strictHandler) DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request DeleteAvailabilityRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAvailability(ctx, request.(DeleteAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAvailabilityResponseObject); ok {
+		if err := validResponse.VisitDeleteAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAvailabilityByID operation middleware
+func (sh *strictHandler) GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request GetAvailabilityByIDRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAvailabilityByID(ctx, request.(GetAvailabilityByIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAvailabilityByID")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAvailabilityByIDResponseObject); ok {
+		if err := validResponse.VisitGetAvailabilityByIDResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5442,110 +6224,151 @@ func (sh *strictHandler) GetUserById(w http.ResponseWriter, r *http.Request, use
 	}
 }
 
+// GetUserAvailability operation middleware
+func (sh *strictHandler) GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams) {
+	var request GetUserAvailabilityRequestObject
+
+	request.UserId = userId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserAvailability(ctx, request.(GetUserAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserAvailabilityResponseObject); ok {
+		if err := validResponse.VisitGetUserAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
