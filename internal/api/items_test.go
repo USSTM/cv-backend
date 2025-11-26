@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
+	"testing"
+
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func testItemServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
