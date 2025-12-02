@@ -13,7 +13,7 @@ import (
 )
 
 const getAllRequests = `-- name: GetAllRequests :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 ORDER BY requested_at DESC
 `
 
@@ -37,6 +37,8 @@ func (q *Queries) GetAllRequests(ctx context.Context) ([]Request, error) {
 			&i.ReviewedBy,
 			&i.ReviewedAt,
 			&i.FulfilledAt,
+			&i.BookingID,
+			&i.PreferredAvailabilityID,
 		); err != nil {
 			return nil, err
 		}
@@ -49,7 +51,7 @@ func (q *Queries) GetAllRequests(ctx context.Context) ([]Request, error) {
 }
 
 const getApprovedRequestForUserAndItem = `-- name: GetApprovedRequestForUserAndItem :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE user_id = $1
   AND item_id = $2
   AND status = 'approved'
@@ -77,12 +79,14 @@ func (q *Queries) GetApprovedRequestForUserAndItem(ctx context.Context, arg GetA
 		&i.ReviewedBy,
 		&i.ReviewedAt,
 		&i.FulfilledAt,
+		&i.BookingID,
+		&i.PreferredAvailabilityID,
 	)
 	return i, err
 }
 
 const getPendingRequests = `-- name: GetPendingRequests :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE status = 'pending'
 ORDER BY requested_at ASC
 `
@@ -107,6 +111,8 @@ func (q *Queries) GetPendingRequests(ctx context.Context) ([]Request, error) {
 			&i.ReviewedBy,
 			&i.ReviewedAt,
 			&i.FulfilledAt,
+			&i.BookingID,
+			&i.PreferredAvailabilityID,
 		); err != nil {
 			return nil, err
 		}
@@ -118,8 +124,33 @@ func (q *Queries) GetPendingRequests(ctx context.Context) ([]Request, error) {
 	return items, nil
 }
 
+const getRequestByBookingID = `-- name: GetRequestByBookingID :one
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+WHERE booking_id = $1
+`
+
+func (q *Queries) GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error) {
+	row := q.db.QueryRow(ctx, getRequestByBookingID, bookingID)
+	var i Request
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.ItemID,
+		&i.Quantity,
+		&i.Status,
+		&i.RequestedAt,
+		&i.ReviewedBy,
+		&i.ReviewedAt,
+		&i.FulfilledAt,
+		&i.BookingID,
+		&i.PreferredAvailabilityID,
+	)
+	return i, err
+}
+
 const getRequestById = `-- name: GetRequestById :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE id = $1
 `
 
@@ -137,12 +168,14 @@ func (q *Queries) GetRequestById(ctx context.Context, id uuid.UUID) (Request, er
 		&i.ReviewedBy,
 		&i.ReviewedAt,
 		&i.FulfilledAt,
+		&i.BookingID,
+		&i.PreferredAvailabilityID,
 	)
 	return i, err
 }
 
 const getRequestByIdForUpdate = `-- name: GetRequestByIdForUpdate :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE id = $1
 FOR UPDATE
 `
@@ -161,12 +194,14 @@ func (q *Queries) GetRequestByIdForUpdate(ctx context.Context, id uuid.UUID) (Re
 		&i.ReviewedBy,
 		&i.ReviewedAt,
 		&i.FulfilledAt,
+		&i.BookingID,
+		&i.PreferredAvailabilityID,
 	)
 	return i, err
 }
 
 const getRequestsByUserId = `-- name: GetRequestsByUserId :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE user_id = $1
 ORDER BY requested_at DESC
 `
@@ -191,6 +226,8 @@ func (q *Queries) GetRequestsByUserId(ctx context.Context, userID *uuid.UUID) ([
 			&i.ReviewedBy,
 			&i.ReviewedAt,
 			&i.FulfilledAt,
+			&i.BookingID,
+			&i.PreferredAvailabilityID,
 		); err != nil {
 			return nil, err
 		}
@@ -311,6 +348,38 @@ func (q *Queries) ReviewRequest(ctx context.Context, arg ReviewRequestParams) (R
 		&i.Status,
 		&i.ReviewedAt,
 		&i.ReviewedBy,
+	)
+	return i, err
+}
+
+const updateRequestWithBooking = `-- name: UpdateRequestWithBooking :one
+UPDATE requests
+SET booking_id = $2
+WHERE id = $1
+RETURNING id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id
+`
+
+type UpdateRequestWithBookingParams struct {
+	ID        uuid.UUID  `json:"id"`
+	BookingID *uuid.UUID `json:"booking_id"`
+}
+
+func (q *Queries) UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error) {
+	row := q.db.QueryRow(ctx, updateRequestWithBooking, arg.ID, arg.BookingID)
+	var i Request
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.ItemID,
+		&i.Quantity,
+		&i.Status,
+		&i.RequestedAt,
+		&i.ReviewedBy,
+		&i.ReviewedAt,
+		&i.FulfilledAt,
+		&i.BookingID,
+		&i.PreferredAvailabilityID,
 	)
 	return i, err
 }

@@ -313,6 +313,40 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 		}, nil
 	}
 
+	// fetch availability to check ownership
+	availability, err := s.db.Queries().GetAvailabilityByID(ctx, request.Id)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return api.DeleteAvailability404JSONResponse{
+				Code:    404,
+				Message: "Availability not found",
+			}, nil
+		}
+		log.Printf("Failed to fetch availability: %v", err)
+		return api.DeleteAvailability500JSONResponse{
+			Code:    500,
+			Message: "An unexpected error occurred",
+		}, nil
+	}
+
+	// check ownership: users can only delete their own availability unless they have view_all_data permission
+	if availability.UserID != nil && *availability.UserID != user.ID {
+		hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+		if err != nil {
+			log.Printf("Failed to check global permission: %v", err)
+			return api.DeleteAvailability500JSONResponse{
+				Code:    500,
+				Message: "An unexpected error occurred",
+			}, nil
+		}
+		if !hasGlobalPermission {
+			return api.DeleteAvailability403JSONResponse{
+				Code:    403,
+				Message: "You can only delete your own availability",
+			}, nil
+		}
+	}
+
 	// referenced by bookings table?
 	inUse, err := s.db.Queries().CheckAvailabilityInUse(ctx, &request.Id)
 	if err != nil {

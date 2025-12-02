@@ -67,10 +67,11 @@ DELETE FROM user_availability WHERE id = $1;
 
 -- name: CheckAvailabilityInUse :one
 -- Check if availability is referenced by active bookings
+-- Active bookings are those that haven't been cancelled, expired, fulfilled, or no-show
 SELECT EXISTS(
   SELECT 1 FROM booking
   WHERE availability_id = $1
-    AND status IN ('pending', 'approved')
+    AND status NOT IN ('cancelled', 'expired', 'no_show', 'fulfilled')
 ) AS in_use;
 
 -- name: GetAvailableApproversForSlot :many

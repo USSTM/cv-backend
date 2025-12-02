@@ -502,7 +502,13 @@ components:
         - pending
         - approved
         - denied
-      description: Status of a request for a high-value item
+        - fulfilled
+        - pending_confirmation
+        - confirmed
+        - expired
+        - no_show
+        - cancelled
+      description: Status of a request or booking
 
     RequestItemRequest:
       type: object
@@ -565,6 +571,15 @@ components:
         status:
           $ref: "#/components/schemas/RequestStatus"
           description: New status (approved or denied)
+        availability_id:
+          $ref: "#/components/schemas/UUID"
+          description: Required when approving HIGH items - specifies the time slot for pickup
+        pickup_location:
+          type: string
+          description: Required when approving HIGH items - where to meet for pickup
+        return_location:
+          type: string
+          description: Required when approving HIGH items - where to return the item
       required:
         - status
 
@@ -664,6 +679,89 @@ components:
         - date
         - start_time
         - end_time
+
+    Booking:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        requester_id:
+          $ref: "#/components/schemas/UUID"
+        manager_id:
+          $ref: "#/components/schemas/UUID"
+        item_id:
+          $ref: "#/components/schemas/UUID"
+        availability_id:
+          $ref: "#/components/schemas/UUID"
+        pick_up_date:
+          type: string
+          format: date-time
+        pick_up_location:
+          type: string
+        return_date:
+          type: string
+          format: date-time
+        return_location:
+          type: string
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        confirmed_by:
+          $ref: "#/components/schemas/UUID"
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - requester_id
+        - item_id
+        - availability_id
+        - pick_up_date
+        - pick_up_location
+        - return_date
+        - return_location
+        - status
+        - created_at
+
+    BookingResponse:
+      allOf:
+        - $ref: "#/components/schemas/Booking"
+        - type: object
+          properties:
+            requester_email:
+              type: string
+            manager_email:
+              type: string
+            item_name:
+              type: string
+            item_type:
+              $ref: "#/components/schemas/ItemType"
+            availability_date:
+              type: string
+              format: date
+            group_name:
+              type: string
+            start_time:
+              type: string
+              format: time
+            end_time:
+              type: string
+              format: time
+
+    ConfirmBookingRequest:
+      type: object
+      description: Empty request body for confirming a booking
+
+    CancelBookingRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Optional cancellation reason
 
   securitySchemes:
     BearerAuth:
@@ -987,6 +1085,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "404":
+          description: Availability not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "409":
           description: Conflict (availability is referenced by active bookings)
           content:
@@ -1042,6 +1146,331 @@ paths:
                   $ref: "#/components/schemas/UserAvailabilityResponse"
         "400":
           description: Bad request (invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{bookingId}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Get a specific booking (owners can view own, admins view all)
+      operationId: getBookingByID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          description: Booking ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: List bookings
+      description: List bookings with role-based filtering
+      operationId: listBookings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by booking status
+          required: false
+          schema:
+            $ref: "#/components/schemas/RequestStatus"
+        - name: group_id
+          in: query
+          description: Filter by group ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: from_date
+          in: query
+          description: Start date filter (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: End date filter (YYYY-MM-DD)
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/my-bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get my bookings
+      description: Get authenticated user's bookings
+      operationId: getMyBookings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by booking status
+          required: false
+          schema:
+            $ref: "#/components/schemas/RequestStatus"
+      responses:
+        "200":
+          description: User's bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{bookingId}/confirm:
+    patch:
+      tags:
+        - Bookings
+      summary: Confirm booking
+      description: User confirms pickup time (must be requester, within 48h, before pickup)
+      operationId: confirmBooking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          description: Booking ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmBookingRequest"
+      responses:
+        "200":
+          description: Booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          description: Bad request (already confirmed, expired, past pickup date)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions (not the requester)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{bookingId}/cancel:
+    patch:
+      tags:
+        - Bookings
+      summary: Cancel booking
+      description: Cancel booking (requester before pickup, managers/admins anytime)
+      operationId: cancelBooking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          description: Booking ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelBookingRequest"
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          description: Bad request (already cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/pending-confirmation:
+    get:
+      tags:
+        - Bookings
+      summary: List pending confirmation
+      description: List bookings awaiting user confirmation (managers/admins only)
+      operationId: listPendingConfirmation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: group_id
+          in: query
+          description: Filter by group ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Bookings pending confirmation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingResponse"
+        "400":
+          description: Bad request - group_id required for group administrators
           content:
             application/json:
               schema:

@@ -66,9 +66,15 @@ const (
 
 // Defines values for RequestStatus.
 const (
-	Approved RequestStatus = "approved"
-	Denied   RequestStatus = "denied"
-	Pending  RequestStatus = "pending"
+	Approved            RequestStatus = "approved"
+	Cancelled           RequestStatus = "cancelled"
+	Confirmed           RequestStatus = "confirmed"
+	Denied              RequestStatus = "denied"
+	Expired             RequestStatus = "expired"
+	Fulfilled           RequestStatus = "fulfilled"
+	NoShow              RequestStatus = "no_show"
+	Pending             RequestStatus = "pending"
+	PendingConfirmation RequestStatus = "pending_confirmation"
 )
 
 // Defines values for UserRole.
@@ -95,6 +101,52 @@ type AvailabilityResponse struct {
 	TimeSlotId UUID                `json:"time_slot_id"`
 	UserEmail  openapi_types.Email `json:"user_email"`
 	UserId     UUID                `json:"user_id"`
+}
+
+// Booking defines model for Booking.
+type Booking struct {
+	AvailabilityId UUID       `json:"availability_id"`
+	ConfirmedAt    *time.Time `json:"confirmed_at"`
+	ConfirmedBy    *UUID      `json:"confirmed_by,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	Id             UUID       `json:"id"`
+	ItemId         UUID       `json:"item_id"`
+	ManagerId      *UUID      `json:"manager_id,omitempty"`
+	PickUpDate     time.Time  `json:"pick_up_date"`
+	PickUpLocation string     `json:"pick_up_location"`
+	RequesterId    UUID       `json:"requester_id"`
+	ReturnDate     time.Time  `json:"return_date"`
+	ReturnLocation string     `json:"return_location"`
+
+	// Status Status of a request or booking
+	Status RequestStatus `json:"status"`
+}
+
+// BookingResponse defines model for BookingResponse.
+type BookingResponse struct {
+	AvailabilityDate *openapi_types.Date `json:"availability_date,omitempty"`
+	AvailabilityId   UUID                `json:"availability_id"`
+	ConfirmedAt      *time.Time          `json:"confirmed_at"`
+	ConfirmedBy      *UUID               `json:"confirmed_by,omitempty"`
+	CreatedAt        time.Time           `json:"created_at"`
+	EndTime          *string             `json:"end_time,omitempty"`
+	GroupName        *string             `json:"group_name,omitempty"`
+	Id               UUID                `json:"id"`
+	ItemId           UUID                `json:"item_id"`
+	ItemName         *string             `json:"item_name,omitempty"`
+	ItemType         *ItemType           `json:"item_type,omitempty"`
+	ManagerEmail     *string             `json:"manager_email,omitempty"`
+	ManagerId        *UUID               `json:"manager_id,omitempty"`
+	PickUpDate       time.Time           `json:"pick_up_date"`
+	PickUpLocation   string              `json:"pick_up_location"`
+	RequesterEmail   *string             `json:"requester_email,omitempty"`
+	RequesterId      UUID                `json:"requester_id"`
+	ReturnDate       time.Time           `json:"return_date"`
+	ReturnLocation   string              `json:"return_location"`
+	StartTime        *string             `json:"start_time,omitempty"`
+
+	// Status Status of a request or booking
+	Status RequestStatus `json:"status"`
 }
 
 // BorrowingRequest defines model for BorrowingRequest.
@@ -135,6 +187,12 @@ type BorrowingResponse struct {
 	Quantity           int        `json:"quantity"`
 	ReturnedAt         *time.Time `json:"returned_at"`
 	UserId             UUID       `json:"user_id"`
+}
+
+// CancelBookingRequest defines model for CancelBookingRequest.
+type CancelBookingRequest struct {
+	// Reason Optional cancellation reason
+	Reason *string `json:"reason,omitempty"`
 }
 
 // CartItemResponse defines model for CartItemResponse.
@@ -196,6 +254,9 @@ type CheckoutItemResult struct {
 
 // CheckoutItemResultStatus defines model for CheckoutItemResult.Status.
 type CheckoutItemResultStatus string
+
+// ConfirmBookingRequest Empty request body for confirming a booking
+type ConfirmBookingRequest = map[string]interface{}
 
 // CreateAvailabilityRequest defines model for CreateAvailabilityRequest.
 type CreateAvailabilityRequest struct {
@@ -312,12 +373,12 @@ type RequestItemResponse struct {
 	ReviewedAt *time.Time `json:"reviewed_at"`
 	ReviewedBy *UUID      `json:"reviewed_by,omitempty"`
 
-	// Status Status of a request for a high-value item
+	// Status Status of a request or booking
 	Status RequestStatus `json:"status"`
 	UserId UUID          `json:"user_id"`
 }
 
-// RequestStatus Status of a request for a high-value item
+// RequestStatus Status of a request or booking
 type RequestStatus string
 
 // ReturnBorrowingRequest defines model for ReturnBorrowingRequest.
@@ -328,7 +389,15 @@ type ReturnBorrowingRequest struct {
 
 // ReviewRequestRequest defines model for ReviewRequestRequest.
 type ReviewRequestRequest struct {
-	// Status Status of a request for a high-value item
+	AvailabilityId *UUID `json:"availability_id,omitempty"`
+
+	// PickupLocation Required when approving HIGH items - where to meet for pickup
+	PickupLocation *string `json:"pickup_location,omitempty"`
+
+	// ReturnLocation Required when approving HIGH items - where to return the item
+	ReturnLocation *string `json:"return_location,omitempty"`
+
+	// Status Status of a request or booking
 	Status RequestStatus `json:"status"`
 }
 
@@ -421,6 +490,33 @@ type ListAvailabilityParams struct {
 	UserId *openapi_types.UUID `form:"user_id,omitempty" json:"user_id,omitempty"`
 }
 
+// ListBookingsParams defines parameters for ListBookings.
+type ListBookingsParams struct {
+	// Status Filter by booking status
+	Status *RequestStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// GroupId Filter by group ID
+	GroupId *openapi_types.UUID `form:"group_id,omitempty" json:"group_id,omitempty"`
+
+	// FromDate Start date filter (YYYY-MM-DD)
+	FromDate *openapi_types.Date `form:"from_date,omitempty" json:"from_date,omitempty"`
+
+	// ToDate End date filter (YYYY-MM-DD)
+	ToDate *openapi_types.Date `form:"to_date,omitempty" json:"to_date,omitempty"`
+}
+
+// GetMyBookingsParams defines parameters for GetMyBookings.
+type GetMyBookingsParams struct {
+	// Status Filter by booking status
+	Status *RequestStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListPendingConfirmationParams defines parameters for ListPendingConfirmation.
+type ListPendingConfirmationParams struct {
+	// GroupId Filter by group ID
+	GroupId *openapi_types.UUID `form:"group_id,omitempty" json:"group_id,omitempty"`
+}
+
 // UpdateCartItemQuantityJSONBody defines parameters for UpdateCartItemQuantity.
 type UpdateCartItemQuantityJSONBody struct {
 	Quantity int `json:"quantity"`
@@ -443,6 +539,12 @@ type LoginUserJSONRequestBody = LoginRequest
 
 // CreateAvailabilityJSONRequestBody defines body for CreateAvailability for application/json ContentType.
 type CreateAvailabilityJSONRequestBody = CreateAvailabilityRequest
+
+// CancelBookingJSONRequestBody defines body for CancelBooking for application/json ContentType.
+type CancelBookingJSONRequestBody = CancelBookingRequest
+
+// ConfirmBookingJSONRequestBody defines body for ConfirmBooking for application/json ContentType.
+type ConfirmBookingJSONRequestBody = ConfirmBookingRequest
 
 // BorrowItemJSONRequestBody defines body for BorrowItem for application/json ContentType.
 type BorrowItemJSONRequestBody = BorrowingRequest
@@ -512,6 +614,24 @@ type ServerInterface interface {
 	// Get availability by ID
 	// (GET /availability/{id})
 	GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// List bookings
+	// (GET /bookings)
+	ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams)
+	// Get my bookings
+	// (GET /bookings/my-bookings)
+	GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams)
+	// List pending confirmation
+	// (GET /bookings/pending-confirmation)
+	ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams)
+	// Get booking by ID
+	// (GET /bookings/{bookingId})
+	GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
+	// Cancel booking
+	// (PATCH /bookings/{bookingId}/cancel)
+	CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
+	// Confirm booking
+	// (PATCH /bookings/{bookingId}/confirm)
+	ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(w http.ResponseWriter, r *http.Request)
@@ -686,6 +806,42 @@ func (_ Unimplemented) DeleteAvailability(w http.ResponseWriter, r *http.Request
 // Get availability by ID
 // (GET /availability/{id})
 func (_ Unimplemented) GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List bookings
+// (GET /bookings)
+func (_ Unimplemented) ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get my bookings
+// (GET /bookings/my-bookings)
+func (_ Unimplemented) GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List pending confirmation
+// (GET /bookings/pending-confirmation)
+func (_ Unimplemented) ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get booking by ID
+// (GET /bookings/{bookingId})
+func (_ Unimplemented) GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Cancel booking
+// (PATCH /bookings/{bookingId}/cancel)
+func (_ Unimplemented) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Confirm booking
+// (PATCH /bookings/{bookingId}/confirm)
+func (_ Unimplemented) ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1314,6 +1470,222 @@ func (siw *ServerInterfaceWrapper) GetAvailabilityByID(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAvailabilityByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBookings operation middleware
+func (siw *ServerInterfaceWrapper) ListBookings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBookingsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "group_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "group_id", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group_id", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "from_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "from_date", r.URL.Query(), &params.FromDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from_date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "to_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "to_date", r.URL.Query(), &params.ToDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to_date", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBookings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyBookings operation middleware
+func (siw *ServerInterfaceWrapper) GetMyBookings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyBookingsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyBookings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPendingConfirmation operation middleware
+func (siw *ServerInterfaceWrapper) ListPendingConfirmation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPendingConfirmationParams
+
+	// ------------- Optional query parameter "group_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "group_id", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPendingConfirmation(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBookingByID operation middleware
+func (siw *ServerInterfaceWrapper) GetBookingByID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBookingByID(w, r, bookingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelBooking operation middleware
+func (siw *ServerInterfaceWrapper) CancelBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelBooking(w, r, bookingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmBooking operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmBooking(w, r, bookingId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2474,6 +2846,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/availability/{id}", wrapper.GetAvailabilityByID)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings", wrapper.ListBookings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/my-bookings", wrapper.GetMyBookings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/pending-confirmation", wrapper.ListPendingConfirmation)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/{bookingId}", wrapper.GetBookingByID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/bookings/{bookingId}/cancel", wrapper.CancelBooking)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/bookings/{bookingId}/confirm", wrapper.ConfirmBooking)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/borrowings/item", wrapper.BorrowItem)
 	})
 	r.Group(func(r chi.Router) {
@@ -3088,6 +3478,15 @@ func (response DeleteAvailability403JSONResponse) VisitDeleteAvailabilityRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeleteAvailability404JSONResponse Error
+
+func (response DeleteAvailability404JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteAvailability409JSONResponse Error
 
 func (response DeleteAvailability409JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
@@ -3144,6 +3543,317 @@ func (response GetAvailabilityByID404JSONResponse) VisitGetAvailabilityByIDRespo
 type GetAvailabilityByID500JSONResponse Error
 
 func (response GetAvailabilityByID500JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookingsRequestObject struct {
+	Params ListBookingsParams
+}
+
+type ListBookingsResponseObject interface {
+	VisitListBookingsResponse(w http.ResponseWriter) error
+}
+
+type ListBookings200JSONResponse []BookingResponse
+
+func (response ListBookings200JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings401JSONResponse Error
+
+func (response ListBookings401JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings403JSONResponse Error
+
+func (response ListBookings403JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings500JSONResponse Error
+
+func (response ListBookings500JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookingsRequestObject struct {
+	Params GetMyBookingsParams
+}
+
+type GetMyBookingsResponseObject interface {
+	VisitGetMyBookingsResponse(w http.ResponseWriter) error
+}
+
+type GetMyBookings200JSONResponse []BookingResponse
+
+func (response GetMyBookings200JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookings401JSONResponse Error
+
+func (response GetMyBookings401JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookings500JSONResponse Error
+
+func (response GetMyBookings500JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmationRequestObject struct {
+	Params ListPendingConfirmationParams
+}
+
+type ListPendingConfirmationResponseObject interface {
+	VisitListPendingConfirmationResponse(w http.ResponseWriter) error
+}
+
+type ListPendingConfirmation200JSONResponse []BookingResponse
+
+func (response ListPendingConfirmation200JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation400JSONResponse Error
+
+func (response ListPendingConfirmation400JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation401JSONResponse Error
+
+func (response ListPendingConfirmation401JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation403JSONResponse Error
+
+func (response ListPendingConfirmation403JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation500JSONResponse Error
+
+func (response ListPendingConfirmation500JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByIDRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+}
+
+type GetBookingByIDResponseObject interface {
+	VisitGetBookingByIDResponse(w http.ResponseWriter) error
+}
+
+type GetBookingByID200JSONResponse BookingResponse
+
+func (response GetBookingByID200JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID401JSONResponse Error
+
+func (response GetBookingByID401JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID403JSONResponse Error
+
+func (response GetBookingByID403JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID404JSONResponse Error
+
+func (response GetBookingByID404JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID500JSONResponse Error
+
+func (response GetBookingByID500JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBookingRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+	Body      *CancelBookingJSONRequestBody
+}
+
+type CancelBookingResponseObject interface {
+	VisitCancelBookingResponse(w http.ResponseWriter) error
+}
+
+type CancelBooking200JSONResponse BookingResponse
+
+func (response CancelBooking200JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking400JSONResponse Error
+
+func (response CancelBooking400JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking401JSONResponse Error
+
+func (response CancelBooking401JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking403JSONResponse Error
+
+func (response CancelBooking403JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking404JSONResponse Error
+
+func (response CancelBooking404JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking500JSONResponse Error
+
+func (response CancelBooking500JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBookingRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+	Body      *ConfirmBookingJSONRequestBody
+}
+
+type ConfirmBookingResponseObject interface {
+	VisitConfirmBookingResponse(w http.ResponseWriter) error
+}
+
+type ConfirmBooking200JSONResponse BookingResponse
+
+func (response ConfirmBooking200JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking400JSONResponse Error
+
+func (response ConfirmBooking400JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking401JSONResponse Error
+
+func (response ConfirmBooking401JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking403JSONResponse Error
+
+func (response ConfirmBooking403JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking404JSONResponse Error
+
+func (response ConfirmBooking404JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking500JSONResponse Error
+
+func (response ConfirmBooking500JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4884,6 +5594,24 @@ type StrictServerInterface interface {
 	// Get availability by ID
 	// (GET /availability/{id})
 	GetAvailabilityByID(ctx context.Context, request GetAvailabilityByIDRequestObject) (GetAvailabilityByIDResponseObject, error)
+	// List bookings
+	// (GET /bookings)
+	ListBookings(ctx context.Context, request ListBookingsRequestObject) (ListBookingsResponseObject, error)
+	// Get my bookings
+	// (GET /bookings/my-bookings)
+	GetMyBookings(ctx context.Context, request GetMyBookingsRequestObject) (GetMyBookingsResponseObject, error)
+	// List pending confirmation
+	// (GET /bookings/pending-confirmation)
+	ListPendingConfirmation(ctx context.Context, request ListPendingConfirmationRequestObject) (ListPendingConfirmationResponseObject, error)
+	// Get booking by ID
+	// (GET /bookings/{bookingId})
+	GetBookingByID(ctx context.Context, request GetBookingByIDRequestObject) (GetBookingByIDResponseObject, error)
+	// Cancel booking
+	// (PATCH /bookings/{bookingId}/cancel)
+	CancelBooking(ctx context.Context, request CancelBookingRequestObject) (CancelBookingResponseObject, error)
+	// Confirm booking
+	// (PATCH /bookings/{bookingId}/confirm)
+	ConfirmBooking(ctx context.Context, request ConfirmBookingRequestObject) (ConfirmBookingResponseObject, error)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(ctx context.Context, request BorrowItemRequestObject) (BorrowItemResponseObject, error)
@@ -5335,6 +6063,176 @@ func (sh *strictHandler) GetAvailabilityByID(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAvailabilityByIDResponseObject); ok {
 		if err := validResponse.VisitGetAvailabilityByIDResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListBookings operation middleware
+func (sh *strictHandler) ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams) {
+	var request ListBookingsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBookings(ctx, request.(ListBookingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBookings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBookingsResponseObject); ok {
+		if err := validResponse.VisitListBookingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyBookings operation middleware
+func (sh *strictHandler) GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams) {
+	var request GetMyBookingsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyBookings(ctx, request.(GetMyBookingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyBookings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyBookingsResponseObject); ok {
+		if err := validResponse.VisitGetMyBookingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPendingConfirmation operation middleware
+func (sh *strictHandler) ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams) {
+	var request ListPendingConfirmationRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPendingConfirmation(ctx, request.(ListPendingConfirmationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPendingConfirmation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPendingConfirmationResponseObject); ok {
+		if err := validResponse.VisitListPendingConfirmationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBookingByID operation middleware
+func (sh *strictHandler) GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request GetBookingByIDRequestObject
+
+	request.BookingId = bookingId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBookingByID(ctx, request.(GetBookingByIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBookingByID")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBookingByIDResponseObject); ok {
+		if err := validResponse.VisitGetBookingByIDResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelBooking operation middleware
+func (sh *strictHandler) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request CancelBookingRequestObject
+
+	request.BookingId = bookingId
+
+	var body CancelBookingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelBooking(ctx, request.(CancelBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelBookingResponseObject); ok {
+		if err := validResponse.VisitCancelBookingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmBooking operation middleware
+func (sh *strictHandler) ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request ConfirmBookingRequestObject
+
+	request.BookingId = bookingId
+
+	var body ConfirmBookingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmBooking(ctx, request.(ConfirmBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmBookingResponseObject); ok {
+		if err := validResponse.VisitConfirmBookingResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -6254,121 +7152,135 @@ func (sh *strictHandler) GetUserAvailability(w http.ResponseWriter, r *http.Requ
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"H4sIAAAAAAAC/+x9a3PbOLL2X0HpfavWriNFcuJcxp/GiTOJ9sQZT2zPTDYn5YJJyMKaBBQAtFcn5f9+",
+	"CjcSJEGKlCXZSvhlN2OBQAPofvqCRuN7L6DxjBJEBO8dfO/xYIpiqP55GIZn9A1k4hP6liAu5N9mjM4Q",
+	"ExipFleMJrNxKP/5/xma9A56/2+YdTc0fQ3Pz8dHvbt+DwsUN2/9LYFEYDGX7WNMcJzEvYO9fk/MZ6h3",
+	"0MNEoCvEend3/R5D3xLMUNg7+JLSlA7n9PQ1/Zpe/hsFQg5zeANxBC9xhMX8E+IzSjgqzzSEQv0V/QfG",
+	"s0j28HT09PlgtDfYe97r9yaUxVD0DnS7dBQuGCZXchREwguB40Ifo18O9p4fjEZuD6qVpwfceOG4gEz4",
+	"RxuNGo4m/37BIyoumo+bcMQuUAxxlB8XzmaM3iD2q/nTk4DGLg36Ew8RqsOm4xfYAMuNtx0U5tO32+RQ",
+	"nFs2Z798LPOa0mtJYolLoMNLLRYuoGSCWYzCC6iELMdNA0MRSaIIXsoFFSxBntXKermcNx6ZISjqx70H",
+	"I0oBbLEMMSTwqsWO93szHFxfJLMLK53NJmC/imgABaZEfllqxDTmtSKHIZEw0pIa81EtMVxAkfBFZBiY",
+	"PtWNvQKRm1W2Qf0S5xbW1rNo+emW55FSneOyGnFywRdG0e+T3sGX+glbObzr1wqidz8WgfRChFR65oJA",
+	"3bwsJXJp63/Vf62f4lig+Ey2c+Qjhdgapq1uk9cOC6Z5V9qur2rDGKO3assqDINLNKEMXQSUhNhydYh4",
+	"wPBM/2fvIxUIUALEFIG0GaAT9Qe5PED3AS7tYL5NKI5zkbCoPNb5pw9AUADBbEoFBSENkhgRgclVOto/",
+	"uEOFZ+R0nRKGfYSECUr5LD/4X1NEsknFCRfgEgEtLSgs2g6DenbTWJQf4GyKwPjILh0XSYiIAKo9SEiI",
+	"GLid4mCa0YC5mVp++CTRmtLLq4sHNnsmF7VN766Vl+/+D/NLbgBBTe+9fq1RmDMe6siWzbKdTgdaTHoB",
+	"XjNTI90pF1/TaTqsUmbfXgVH+1EzFcIqoxVOJBTkhHChFVH4xgpUgf8XduMDgMbSu0jYLH+1MltcCW0v",
+	"co3MnXUZRq6MlBndQsm9jMcVmtpepne3bGUi8AaSAEWp+VChixiC3KeBflf/gBEIVDeRMluAad1AE8rx",
+	"mZAKuloCjeVzKFpy3bp8atn6Y51RcmZsEkQksH7pRRppUYgTiYlTfDV1tsIP42UW5YIG1/6fJN+Ml+O7",
+	"zNM3nTgufzpRZ1o5htQk9Z0d8nLYFAXXNBG1URDNr2+qbR3JI455MaEMHL89Gp8fK1XDwQ6+IpShUP3y",
+	"4fe/hu/H797vKi9U70JCEq7EV3quMbxSqjVEASJSmq4oVQY7w1xggrz7U6Dx3GcmnSjrSBpLzSlsYBcd",
+	"ec2iowQBKQfLjLU6+ankKEt3aeV63rVczDtVCIEYo0z9S81+Edm207fys14GSpAxOJf/LSVU8hs37IrC",
+	"1n0bSEsi4Rsgoreq/xNGA8T5yvvXWKOGeG3tyFWOUNjy8nT8JHhXtm+3r27/9VaVNn6FwB0jzuGV77ei",
+	"prbwaL+oo9tZxDLkWePzQRTVIntIbc+4TbzURFcs3srGEdI77DgzM0RCTK4udEATRl6kFfC6xbpUbZCj",
+	"v3JKS1Hq3TUd/SsbQ3nYfRvPxByYJQKXNJwrmDWxQ+kBQXBpwiq+UZS2zIfMK7Si3xuWoAowAZ8/f/48",
+	"OD4eHB0BA+v9pWPr7WPVhVX3BYd9a1whyQEN814FJuLZ057PKW0sqarPejl9h5SIvp5L48ZVMI2gMme3",
+	"emD4nVSF5xx55pvGlhZH8FvETmmEquNlPKCzml/u5blY4jMK7Hi+VR+TGyyQXJhKzvccgcwY4jhERPya",
+	"cC7iJwFsdACSW5SsN+2YwjDGxPdVulgWzq4iegkjG5qQ0yr0VdnLsgu7/JpWelJGyBq4ZZK1TyivNthz",
+	"kOQu7BGKIvD3ySnYe3Y/bi7v2Qc4E9S/0NY5Shs/90FH22hxwqK8WbnIVK81k5SkmI0U2pnSdH+t2ICa",
+	"o9T86q9glauXdOuX8UxZE+8xF5TVHE+3DRps4Mjes/TwGpE2oRDp1r9trmzuEUrAuShCNm6/Np0gm1Ll",
+	"9i0ZTvlArzBpo2Akyb8KyigRNE6a6RcvZvtmYqipYj5BrxFpiM0ntQFrxzxydCf1n/1IruECxrNSXsYz",
+	"aTuO9s5UtsPBaPSvhsGDwoJYatyhfMtj9kmjXl2mzMqOb5jjga7h/CbtHuzY8yrJqYMbGCVodz2nOmbM",
+	"lR7rmD43cq6zkDFqoXsbThluMLq95ylD2knzDJWlUh9Wep6x6DyvxinPk1ViWf13ybIwdckpc/xvqzZM",
+	"4KHXt7lUOv5LsEaAJJrgKMqFKIxDb1Mx0twg5WbP1Ez7PUIv+FRpJHMEgkKvNvqkTpgWn/p7zhuXPF+s",
+	"l8niOP6ll6xmSK2meLmErRkOrgsJRPmd/WSoBbdTRIDeNAlD78fv3psw90D+xpDEvhghocIwut+GWUL3",
+	"GVF356LiWnKOakRjuwzbe4Qjl7J6V2LGekxXf1ixzorV+yT3l1fv0gQzLnTL5ZVDux2J4P1HFFTA6I9K",
+	"U+VM/gzsOgG1St6onupHE+NB+Y9JfImYMkykGaktnlvIazpMCP6WqIBIbX+6mbJ1eG9hYnTKBDlyi6uQ",
+	"H9zLEThGpxH1+SVO/lwh7ExCNXuACXj//uD4+OD01Bf43URCdEkHM9GUtobp0z6pbJ5drKjOuTR7T5+h",
+	"/ecvXg7Qq18uB3tPw2cDuP/8xWD/6YsXe/t7L/dHeaqqrPINh3MXtuWIfZLtFoZl/evEEeuS91eavL/O",
+	"XPsWAmD5wgmc2GC3vUuQ2uX2hxhJVPSYr3JNUZAwLOanchKaJV4jyBA7TMRUZ3DI//rNrus//zpT8WrZ",
+	"undgfs0WeirETNL5u/z8qZKciN7qKGE8i3CAhb5JQ2fGytREX8AoujB2Pu8d9A71n4chIumRHAcwYJRz",
+	"AKNIBwEkROvMX/W9cQ7k98fqr9ZdAJLeMIkQBzreH82zLwPI5MQOw3DIUExvkDEJJ4zGQP2YNtXL2mQY",
+	"abHyGQrwBAfAniPketGaKTeu+pMet/Zb+Zk+beyDZBaq/4ckBCGKkEClpTHh2bpP9IzLa5Oya/a9+kz/",
+	"DIyLECGtJHTD9GM7w5px9Yydcc1WpzSfJpcxFhkHTKibkapb9XvSnVEcEEIBewe9PzG6Tb8Zpu39DKQ+",
+	"1nuy6PNbLKaYlDdHdWFJVl8rQyaAAkb0yjagtyQ3Ar0lDmuTMJuY9BacCCFUsqT+hMmElhX1axhcIxKC",
+	"w5OxWqE3MJ4lHPwJk0iA3xglAhGNPkIBZu73w5OxpBAxrjsbPRk92ZMyTGeIwBnuHfSePRk9keg6g2Kq",
+	"pHaooGWI1eGUUirUd6KuD68ABATd6rCToDqUN+dygQbAQKXlAeni6/CeGgDMEIsxl4TJnZJ6S7l40hR2",
+	"TsYyvnlNw7k+EZNTFgZgIqw9w+G/ee5USwNQGL5TYx8qtJTglMQxZPOMfkObhVMV6nOsA3OG+Kv+Px1f",
+	"dk4nzc8pGpsjSHvyKHdV0iBnXUNCtig+Cm5mT9LF4e45ao6OnFJIyTA8nJ1pNrOpFDtq1bfwzKh0LnyX",
+	"V5PSB1F/0FaK2peno73mO5mdgvb+efZ2fAz59M8wEX+8enU6/nv23x/Rv67+/Pzm75fvXz7rLUW2TQaQ",
+	"dHt4XOfHSgqASZqUw+yPRstMYX80crIh5AAwwiHAZJYIIAHkSfM5mFy4MtmvYZjGlRWpe8uRuueS+oah",
+	"EBGBYcSBJZsy8JEKcMLoDQ71utyT9HMiAZEy/L92mZ8tR/szl/bPNAEhBYQKMIU3yIEeCVoa6bS+WsXy",
+	"/0bZJQ5DRMAAYMKTyQQHGBGRQzw1t/3l5rbvzu1Uyraa2oQmJFzFBD7azmRfz5dj9Od5Rj8kICHoPzMU",
+	"CBQClT0IaBAkjKGVkDwmAjECI3CK2A1iwDbMjGB1q841f798vet/T43ZLz4L7uvd134Zr5Wy29FKjJJo",
+	"vqtCSdJm/NLTKP9VDmz0aGKjGVdI+MKXgmF0g5TZoi0mR3EuVpTvkDg3YZACwrbatS+ZulFj/ioQF+a+",
+	"cnO1Yd1f47XI5bW9ajel1O3+8xfo5atfRjXd7mXdGl/H7Vftlp/kl69+QXtPn+3X9P0069tVoGrXU35s",
+	"lFamTJVyFkSJTz9gLlQIS23aysC5CJuPEoXHNVi4Icj92cDMC2PvkHDgph2QDZWcDL+bGPtdG2DDBMCC",
+	"f5XzEhr6BhbyXs/fGfN2BhmMkVA4+6X+fNxaxK2DjNJ2Vz6STWQ6cM4Z8tZu0/03MaWvK4Pu+4OsdScM",
+	"0q7Ak1g5Vq/J42kP+VmmcFvcl5KQMWOnBDasBFrZ3dlp7EcqflNGcc6HV1wAQoq4ssHRf7BK5km9eK/N",
+	"rj8imZl91+8RqlBtTDSqeQZRfXNwmUgvRg6XnoDVj/aR2uijHMwynwFiFFo2vLv/DhTmJf1DS6UcNuX3",
+	"zqfIKWO9QJfzVDt5lXASYjHUt2z4UCHU8Ls+26zWwioWmWng2ykFgtJrIKaYgw+//6VjmQUToKRuSwm5",
+	"ZZ3rUY/pueu9tGPf9P0tQWpc03mEYyx6bl8hmkB1Z+v5yHck7O+GTiYcVfTj62Y5Xd1SsVTnPzdQNOrO",
+	"reYSMNWfA2ZssRDwJAgQ55MkiubNFc+DKJJVKYPmePPwcJE/6/AgRWFjJ5QBSNJUJosaEikaoMaQCyiq",
+	"QxPKTbi6YugKCgRUW3s1WcNGInG4BXioZJqHhw51IHtkizdV9d8sb9o/AiLhavq/L9zULZIvwcnD1bqZ",
+	"2n7MBQ54hyY/Gpo4e9sWUHRM4LtOvVtghljcMAlg0t6BOpZ6i8UUSN9ucAk5CgFUbAXkAjMaHfwPGYBP",
+	"6CqJINN2zAF4AzXiADlHac5ipo5c8/goP3yXRRXMd/qTMpC6rhk2R5U7fFd14hwSur1AMlef/YOXRq4K",
+	"Wyywoxbm9t9OKUdF8nVmq5JKf6gizY28L6BWlJLRsZvxkaRkgiOhLiHwJBIc7Ezy575815JYQM0snNIZ",
+	"iE2gewnj8KyzC5sECSQXG2DB3Aq4AtFtQ/80LaXC6ywASSXmi+kwolc6f8GfDiLHRUTIdUDcAHvf5NvL",
+	"/9bJZEDfmStio7pot1S2R7N1zl0rbJSfMFr12NUW1mkqe0Cv8cqzC1QAFlAGZpDzW8rCVSUZODkBj0s0",
+	"csyudgAY9sr4O+VXdZVGM7qTVltpzKhQLowi4LbWNgy1+lDrwPLZhfzWzd1dZAD8pnXp5Tw7N1HFo3ay",
+	"OiJV6tSmn/o9Dr8zUzW4gorxUcVIWQasZ7CKy4Yb0ZPeLOkWwfocOzSWytUl74AdbCTYVgyLodh9MP38",
+	"iDVfXt6VgOalLBV7989f7/pV2sykW3PApZ+kHIKcuNtsYLBDqLm1PLAiWg6DlMsHrUnRVdcpWllWXjNC",
+	"/KJX3m63Xfv0unWJWl8LHCZSYz6gxG3EIh7XHpX9sn4C3lAyiXAgwA6MGILhXCfp5eRNOpHKGucRFUO5",
+	"O7vbZIyXU+4LmGXz7xuhVtFUGX6XC3JXH8mVBkuKallyP80lZRjToBS5cAl4PTfBzVrLRRU8ExQEUxRc",
+	"e+2VfIQibBUw3TaL4rDMy+4JrJpSZ2Bsi4Gh5Mnd0cu5lZzGEot1uFTflfGlT6lbQ5DkB2IooCwEO5kk",
+	"UxLN+yCARNoh9sbPBDA0QQyRAIUqzhoIfJNeZeJlA+VIfdjGM8lxdOYaFM5xwmYi3dhJ2PeYai4hegF+",
+	"pnjW+N6JLvckILf+xM0c37Tx4BKiigXVisCPZD1o8W3s81QbCYBjchUhH+gsNgsUCjxC0Bg9rFcTIgFx",
+	"xB8Qhh4UBbZZqSsWrVHp2W3hulihbVU659RRQl3gqBwnfG07bxwjTK8q2weoKtIf9I/NlrxU6KZ6eHsI",
+	"WHe+1zZO2PfXrdDmqh65QSx0wmh8cf+A6FsSth1Z0PbjbsSTKT4+1iIsmnL9T2tYbVUk9DLDEQtlKbTk",
+	"YWwYzwcLIU3hpHPYF9oDUmeckqFwPH+caPZYRe28sKSdR75YecfzNqxuCgYOcgUDm6lxeAuxKq6pjsXc",
+	"DsCOeauQ6ztTvCItUvZ3ogl4ky9Y2FA21qFqH6ss2B0EZstyK/4gUbMBsAtsb6/pR3ucLCfMBYOCsk5J",
+	"boeS9PLWYhT5bv5Vl/xoHGsbYrdqbYfeEsQ4CGwyIb0lfZMiZ7ILo8ibUW2IaeJwm6aVvnZK/qN1uUuA",
+	"UQkQj8DR/hnifXa1t9bJtwJY9O8byPhQ1wtWWXBQBNOysOunGTMhT18mto/r6lK3fVA0FCCZCxwjT+6A",
+	"+9jjI5L3NSQv+J613HC2Xgu4yWpHP8jJnT0rT8nY7YCvA74q4MvjUlvU00ZRDeydO54QNxin6wbuZC9/",
+	"GyTs21J7+6+m/TwsetAv97zbjw1/3pfsHjH+pbX1Hxb/LBl9YCr891XWluXCNFfo54NGnZwopo7w7XZw",
+	"2QguNVM1wUtb1lNdrq2+H2GKnepymfkqp84bMHnw0y9PjPVlvHVATulpiw1niZbf8vcykn6IFOjnpLen",
+	"BOOnNFyE3TG6koyLSzJalFcxxSddgbDV55TkizEX4E+LnL0JDHaU0NlHci106bSQ3Rw2pjWOveg41Ek4",
+	"C2uG6SLOarmIiJzcnfzQ3pOmwyg6VM0tbIxNHelNxLZLaNbirklhjrxDuA7hOoRbZ/kDlRJfErsWcKZv",
+	"t+aqMPmNv2PIrnkOPCE3d2NRqMrDG0QDWKi6B+aBryK+6QfJjEG4qTIqa3J3Kx5X27i/28ACHWsjXW9X",
+	"h8sdLne4vC7LU6NCCpUoLNaiaQjKKGxoZaYo3NS6/GQ+2BK7sjy/zrLsEKxDsLVblj7BWwLGht/DBF3U",
+	"3+9simgmb1lfiAkTVH3ds+xBn9HXyEJf1Q1Q37VOQ/zjv9q5apTNrXGHuB3idoi7ecQtAF1j9NVp5Yvr",
+	"K2fIqy50O++aO/l+eUO2cL49RcF1So5E2lOb0b5R//4e6Jp/cxTzCztj513oS0ojBEnPffnOvHvpKYiV",
+	"LqNc1Pz6dUDaAWkHpGtyvt/pWkc5HAsQExCTpfzxhCNmznwW14hte/ija9WqOxgNTdjX83NbBnUxtq6m",
+	"Yurjt1zNQnfnTx3UdlC72QKs1RhXALfGWJsFDdqhbV3IoBZlc8HQDl+7+GuHrB2yPjyy+iIByyFqSyBt",
+	"i5+ufWrquXco6i050YFnB54deG4CPFtjZgCZyL8Iu6iqYRSZl2AmjMbp2yb/4EB2VY6RRgiyN/qXxZC4",
+	"tldZ9323PZkAgSSvew1pS4roKQ4r3vaQO2h5z7L5G92w3+B5Y83L5l1Nh5ON/OSfPPaZAQ/P3GtQ+HJS",
+	"0q5po++VQOnl7J4Z237Bss/MZMhekK6y+himvFVRmT8M03sJgpYkjjKQzFSNtm8JJEKVAp0Ae1dQv6Bb",
+	"ksDDMDyjDyKDq0+rTefyQAm1ZamvyKeFYYhCVSFc7ltZxjd0nzRdpp8GVzZy+1Nt8bZc/WwKZxJ7LPC0",
+	"w7NcJsEi6zgzGNRgqY3sNY71R78xGm8awPobzUnwWN8mLV/OP9SrVAElnbmwHfJlBCDj+iqTvKoKhdb8",
+	"UlZS7U8nqblgDHSvGOlPrfL6w3z9Q4nTcrZGPrvHLqv8d4wJjpO4d7Dne07TIfhL9tlXb/rP47JO7OYb",
+	"QzLsbJMf1TbBRIPBj4GeBv0C60KnGFhhpkxRcE0TUe1qnTCq3mHOhThU96qQuRTk9M0z9XRloJ5qTt95",
+	"PgBHKGAoRkQALmhwrZ9s3iG0dE7SB+pdaSAYxJGt8aCeXj5+ezQ+P7YdmmeSip+D/wJhfij56fvxu/eF",
+	"D/W7KTDKyshowtKvUQjgRCCWttz1POX8xiydsbjWUgzIGeKhPLkcCdV4aduBmeaXR4CYYAc9uXrSN7LA",
+	"AYpnYr7bGYOPDs5q0xFTxiqagRa5NJClAaOmgVrHoRIwole+iOxKbvfVraoZ4/X8bD5DdeJlj0D1NLsj",
+	"xIVHiKp2bnd+uNbzw8r04VTKHHkdm8b9upCuqovlRnWrhFNr8qWKYpnVV7IsTZhzFql/Z1N4q1vYJOcb",
+	"GCWeQM0RiiLw98kp2HuWeWof4EzQWa/fUxZF7+B56upM8ZX06BI12pfeVIjZwXBoiHkS0HgYqW/3nvx7",
+	"Judb2eCpaqBQT5JPE1E/A2BagfNPH/hqp6N4qxkzyq06oVw8UI0x7/Aeh6ArLPYzKAe9y516WLeD6jfo",
+	"jBNGipdIrIZIzbmhxJrhd/m/i1PvrFnnXG5WUFVl1mmbqxzbc1Y/B3XeUrJmhOXCcpIMRcN6a+cvZ2Om",
+	"69fBSQtbU19XxFwt3SaRpVnIzDPNfXeaH6mVIpqQMHtue1Wz+dj+KPCHt5Xz0laHhoteC7bvf5qDjsu5",
+	"qiOmqmD73vn1FxBz1hvLtntPn6H95y9eDtCrXy4He0/DZwO4//zFYP/pixd7+3sv90ejUQU44g0eAJon",
+	"fzu0WoxW5nloJdiSUbYPpvJpBR0wrcNKM2BSYaItzIe0TwgvQKLUNvHddHjkUNSSSeq87ebTe4hAQxt7",
+	"dmHCV+vnmX5ys7KD6c5+XGg/ll6xcoKttUkykMwBTy45Sh0/MMEo8pQ9PJH9NK85u/lkFTesqyZ95E7Y",
+	"DY6qqejJuotSGRk9Nxkgzl+Na2T0451d51ONxRWDaaR2hjHQvTdqGUfNg+wqzoKb6Clg1mE1+mpvtCUK",
+	"y+T/dBHhH1rXJjZpsNO2nVNU6RSdQCaZP7JZgdXu0SwRNUpXX0GxL/9UpKFui7JNUmr/8p6mnmdLpVPG",
+	"Gp9DWo2T++wB9MldvzBJ75lrcZ6tjlwd5dpwgus+e+3MhvueJXeWQ2c5dJZDZzkUlEPFGc8Mk6vKQ+5T",
+	"rNJ5ZowKswAknFFMhMqTkpIrGV8KWAC9b8acYHJ1Yr9eZ0bjyYJXVE7TpGCgZrzlCNMVDJnrOwKGL+We",
+	"pszpcHrGe5rbjbnJG5em080Bn3OB4sEtDlHlyxym501UNzCDtS1wkD735kztJ8lLX0mG1NaUIk9Z0cpB",
+	"yp15MVjwbKxNmUovrKiSIvYWi7A3aQAE0igeKHfD71o6DNtb14tejkg8SK6nVyjLXGBt3tYpn+uzt6XC",
+	"koZYeR87cOhqFtzzSS3NcT6IWAROM0TCOus0r6tN60xnw1uI9buxBrF8mvtEf7VN2rs40U5It0laNDMi",
+	"pcRZxvglRV7a5cXyskzN0FRaCtXCqmsu6/Y/aqHQe8qmnGknmNtrWtfX9TWicjkvVqWsksjv5l8N5TET",
+	"P2tw16awmVH9WWweMUyJeWhJXKEV3TqvqzNU70mMXfmttFWbCnkps6mBhA8Zkt3XVA/Uql96WyEicwCL",
+	"St4o4cXOtBzHermbl/x1OO/OjB6o4kRL4NGb/WD+OytKYT+tM2kp60tGy8GFPszsoPIHcxe09IAd03Yo",
+	"wWU3i9pVo5jAMRrwiIqGFSzgDcQRvIwQkF8C9SXY2Xs+iDFJBAJYzvcGRqbKxejVwWgEBAV78h+7JRyT",
+	"RvMZjtGpomAT1r0drY1Jn031wSTnRz7tyXGyWnMVzGFoEKIJJih0NyDjZLmTQDOO5mVpkfMhiiGOht/V",
+	"/zW4u1tweNV1uCnCDKgOAAxDhrj3LXbp/b6ev5XNyho4P9rZFOX7s49LGici3bceDGNMfhWIiycBlXrf",
+	"o8qRGbLBg8a26WpeNHbYS3fso7dFpg2j2Zybc59cd6/IyO1b+SWPoiA+yjyRcY2a26qEELWHObfivutd",
+	"6nA1SJoiHddIhzQBjygZRKFhVUF0CXMpNhg8PTcfZFDaOJBYjaL+sIWGTl/Mooyb46NKsGwIM48sHNmh",
+	"aIeiHYo+dhRdGCayOJeLEVVj6NB4Tjgy5Yu9gKryN+yDEu4XQM45TCIEdpQbluXcoVC15yCARF/chGRu",
+	"DjzL3UwoA5eUXmNytVuFzIcupQsQWnGGWoLlUDa1VJNEXSYoGqr97+XH2ZnKQEam4A7Y+fz58+fB8fHg",
+	"6GjX0vEtQWyeESJ90QvzBr9nbPs6/6Kx35Kw7ciCth93I6dcxY1uc9R1XsOfGw2GpVV0bS6L3h21vj94",
+	"udXxdka2/DAK84hj0TQHRF/vmvStaPEB1QcapLTquxu9A3sxI5K/TSkXB69Gr0a9u693/xcAAP//IH5F",
+	"Xp4nAQA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

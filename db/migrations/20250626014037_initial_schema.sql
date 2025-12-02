@@ -3,7 +3,7 @@
 CREATE TYPE item_type AS ENUM ('low', 'medium', 'high');
 
 -- Create enum for request status
-CREATE TYPE request_status AS ENUM ('pending', 'approved', 'denied');
+CREATE TYPE request_status AS ENUM ('pending', 'approved', 'denied', 'fulfilled', 'pending_confirmation', 'confirmed', 'expired', 'no_show', 'cancelled');
 
 -- Create enum for item conditions
 CREATE TYPE condition AS ENUM ('unusable', 'damaged', 'decent', 'good', 'pristine');
@@ -98,6 +98,42 @@ CREATE TABLE cart (
     PRIMARY KEY (group_id, user_id, item_id)
 );
 
+-- Time Slots for Availability Table
+CREATE TABLE time_slots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    CONSTRAINT valid_time_range CHECK (end_time > start_time)
+);
+
+-- Availability for Scheduling Table
+CREATE TABLE user_availability (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    time_slot_id UUID REFERENCES time_slots(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    CONSTRAINT unique_user_slot_date UNIQUE (user_id, time_slot_id, date)
+);
+
+-- Booking System Table for scheduling pickup/return
+CREATE TABLE booking (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    item_id UUID REFERENCES items(id) ON DELETE CASCADE,
+    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+    availability_id UUID REFERENCES user_availability(id) ON DELETE CASCADE,
+    pick_up_date TIMESTAMP NOT NULL,
+    pick_up_location TEXT NOT NULL,
+    return_date TIMESTAMP NOT NULL,
+    return_location TEXT NOT NULL,
+    status request_status NOT NULL DEFAULT 'pending_confirmation',
+    confirmed_at TIMESTAMP,
+    confirmed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT valid_dates CHECK (return_date > pick_up_date)
+);
+
 -- Requests table for high items needing approval
 CREATE TABLE requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,7 +145,9 @@ CREATE TABLE requests (
     requested_at TIMESTAMP DEFAULT NOW(),
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP,
-    fulfilled_at TIMESTAMP NULL
+    fulfilled_at TIMESTAMP NULL,
+    booking_id UUID REFERENCES booking(id) ON DELETE SET NULL,
+    preferred_availability_id UUID REFERENCES user_availability(id) ON DELETE SET NULL
 );
 
 -- Borrowings table for items currently out (medium + approved high)
@@ -143,38 +181,18 @@ CREATE INDEX idx_item_takings_user ON item_takings(user_id, taken_at DESC);
 CREATE INDEX idx_item_takings_item ON item_takings(item_id, taken_at DESC);
 CREATE INDEX idx_item_takings_group ON item_takings(group_id, taken_at DESC);
 
--- Time Slots for Availability Table
-CREATE TABLE time_slots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    CONSTRAINT valid_time_range CHECK (end_time > start_time)
-);
+-- Booking indexes for performance
+CREATE INDEX idx_booking_requester ON booking(requester_id, pick_up_date);
+CREATE INDEX idx_booking_status ON booking(status, pick_up_date);
+CREATE INDEX idx_booking_manager ON booking(manager_id, pick_up_date);
 
--- Availability for Scheduling Table
-CREATE TABLE user_availability (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    time_slot_id UUID REFERENCES time_slots(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    CONSTRAINT unique_user_slot_date UNIQUE (user_id, time_slot_id, date)
-);
+-- Availability indexes for performance
+CREATE INDEX idx_availability_date ON user_availability(date);
+CREATE INDEX idx_availability_user ON user_availability(user_id, date);
+CREATE INDEX idx_availability_slot ON user_availability(time_slot_id, date);
 
--- Booking System Table for scheduling pickup/return
-CREATE TABLE booking (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    requester_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    item_id UUID REFERENCES items(id) ON DELETE CASCADE,
-    availability_id UUID REFERENCES user_availability(id) ON DELETE CASCADE,
-    confirmed_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    pick_up_date TIMESTAMP NOT NULL,
-    pick_up_location TEXT NOT NULL,
-    return_date TIMESTAMP NOT NULL,
-    return_location TEXT NOT NULL,
-    status request_status NOT NULL DEFAULT 'pending',
-    CONSTRAINT valid_dates CHECK (return_date > pick_up_date)
-);
+-- Request booking reference index
+CREATE INDEX idx_requests_booking ON requests(booking_id);
 
 -- +goose Down
 DROP TABLE IF EXISTS booking;

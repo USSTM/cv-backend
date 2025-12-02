@@ -477,4 +477,69 @@ func TestServer_DeleteAvailability(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, api.DeleteAvailability403JSONResponse{}, response)
 	})
+
+	t.Run("approver cannot delete another approver's availability", func(t *testing.T) {
+		approver2 := testDB.NewUser(t).WithEmail("approver2@delete.test").AsApprover().Create()
+
+		// Create availability for approver2
+		availability, _ := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver2.ID,
+			TimeSlotID: &timeSlots[2].ID,
+			Date:       pgtype.Date{Time: targetDate, Valid: true},
+		})
+
+		// approver (different from owner) tries to delete
+		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, "view_all_data", nil, false, nil)
+
+		response, err := server.DeleteAvailability(ctx, api.DeleteAvailabilityRequestObject{
+			Id: availability.ID,
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.DeleteAvailability403JSONResponse{}, response)
+
+		resp := response.(api.DeleteAvailability403JSONResponse)
+		assert.Contains(t, resp.Message, "can only delete your own")
+	})
+
+	t.Run("global admin can delete any availability", func(t *testing.T) {
+		globalAdmin := testDB.NewUser(t).WithEmail("admin@delete.test").AsGlobalAdmin().Create()
+
+		// Create availability for approver
+		availability, _ := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver.ID,
+			TimeSlotID: &timeSlots[3].ID,
+			Date:       pgtype.Date{Time: targetDate, Valid: true},
+		})
+
+		// global admin tries to delete
+		adminCtx := testutil.ContextWithUser(context.Background(), globalAdmin, testDB.Queries())
+		mockAuth.ExpectCheckPermission(globalAdmin.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(globalAdmin.ID, "view_all_data", nil, true, nil)
+
+		response, err := server.DeleteAvailability(adminCtx, api.DeleteAvailabilityRequestObject{
+			Id: availability.ID,
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.DeleteAvailability204Response{}, response)
+
+		// Verify deleted
+		_, err = testDB.Queries().GetAvailabilityByID(adminCtx, availability.ID)
+		assert.Error(t, err)
+	})
+
+	t.Run("delete non-existent availability returns 404", func(t *testing.T) {
+		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+
+		response, err := server.DeleteAvailability(ctx, api.DeleteAvailabilityRequestObject{
+			Id: uuid.New(),
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.DeleteAvailability404JSONResponse{}, response)
+	})
 }

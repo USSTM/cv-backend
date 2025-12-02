@@ -39,11 +39,12 @@ const checkAvailabilityInUse = `-- name: CheckAvailabilityInUse :one
 SELECT EXISTS(
   SELECT 1 FROM booking
   WHERE availability_id = $1
-    AND status IN ('pending', 'approved')
+    AND status NOT IN ('cancelled', 'expired', 'no_show', 'fulfilled')
 ) AS in_use
 `
 
 // Check if availability is referenced by active bookings
+// Active bookings are those that haven't been cancelled, expired, fulfilled, or no-show
 func (q *Queries) CheckAvailabilityInUse(ctx context.Context, availabilityID *uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, checkAvailabilityInUse, availabilityID)
 	var in_use bool

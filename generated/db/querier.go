@@ -15,15 +15,19 @@ type Querier interface {
 	AddToCart(ctx context.Context, arg AddToCartParams) (AddToCartRow, error)
 	// this function creates a new borrowing record for a user borrowing an item
 	BorrowItem(ctx context.Context, arg BorrowItemParams) (Borrowing, error)
+	CancelBooking(ctx context.Context, id uuid.UUID) (Booking, error)
 	// Check if user already has availability for this slot/date
 	CheckAvailabilityConflict(ctx context.Context, arg CheckAvailabilityConflictParams) (bool, error)
 	// Check if availability is referenced by active bookings
+	// Active bookings are those that haven't been cancelled, expired, fulfilled, or no-show
 	CheckAvailabilityInUse(ctx context.Context, availabilityID *uuid.UUID) (bool, error)
 	// this function checks if an item is currently borrowed (i.e., not available) by looking for active borrowings without a return timestamp and returns true if the item is available
 	CheckBorrowingItemStatus(ctx context.Context, itemID *uuid.UUID) (bool, error)
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
 	ClearCart(ctx context.Context, arg ClearCartParams) error
+	ConfirmBooking(ctx context.Context, arg ConfirmBookingParams) (Booking, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (UserAvailability, error)
+	CreateBooking(ctx context.Context, arg CreateBookingParams) (Booking, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
@@ -53,15 +57,19 @@ type Querier interface {
 	GetAvailabilityCountByUser(ctx context.Context, arg GetAvailabilityCountByUserParams) (int64, error)
 	// Find all approvers available for a specific date/time slot
 	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]GetAvailableApproversForSlotRow, error)
+	GetBookingByID(ctx context.Context, id uuid.UUID) (GetBookingByIDRow, error)
+	GetBookingByIDForUpdate(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
 	GetCartByUser(ctx context.Context, arg GetCartByUserParams) ([]GetCartByUserRow, error)
 	GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error)
 	GetCartItemsForCheckout(ctx context.Context, arg GetCartItemsForCheckoutParams) ([]GetCartItemsForCheckoutRow, error)
+	GetExpiredBookings(ctx context.Context) ([]uuid.UUID, error)
 	GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error)
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error)
 	GetPendingRequests(ctx context.Context) ([]Request, error)
+	GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error)
 	GetRequestById(ctx context.Context, id uuid.UUID) (Request, error)
 	GetRequestByIdForUpdate(ctx context.Context, id uuid.UUID) (Request, error)
 	GetRequestsByUserId(ctx context.Context, userID *uuid.UUID) ([]Request, error)
@@ -82,6 +90,9 @@ type Querier interface {
 	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
 	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
 	ListAvailability(ctx context.Context, arg ListAvailabilityParams) ([]ListAvailabilityRow, error)
+	ListBookings(ctx context.Context, arg ListBookingsParams) ([]ListBookingsRow, error)
+	ListBookingsByUser(ctx context.Context, arg ListBookingsByUserParams) ([]ListBookingsByUserRow, error)
+	ListPendingConfirmation(ctx context.Context, groupID *uuid.UUID) ([]ListPendingConfirmationRow, error)
 	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
@@ -97,6 +108,7 @@ type Querier interface {
 	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
+	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 

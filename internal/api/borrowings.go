@@ -819,6 +819,73 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 		}, nil
 	}
 
+	// If approving HIGH item, create booking
+	var bookingID *uuid.UUID
+	if request.Body.Status == api.Approved && item.Type == db.ItemTypeHigh {
+		// Validate booking fields are provided
+		if request.Body.AvailabilityId == nil || request.Body.PickupLocation == nil || request.Body.ReturnLocation == nil {
+			return api.ReviewRequest400JSONResponse{
+				Code:    400,
+				Message: "Booking fields (availability_id, pickup_location, return_location) required when approving HIGH items",
+			}, nil
+		}
+
+		// Fetch availability to get date and approver
+		availability, err := qtx.GetAvailabilityByID(ctx, *request.Body.AvailabilityId)
+		if err != nil {
+			return api.ReviewRequest400JSONResponse{
+				Code:    400,
+				Message: "Invalid availability_id",
+			}, nil
+		}
+
+		// Calculate pickup date: availability date + time slot start time
+		pickupDate := availability.Date.Time
+		if availability.StartTime.Valid {
+			// Convert interval microseconds directly to duration (1 microsecond = 1000 nanoseconds)
+			pickupDate = pickupDate.Add(time.Duration(availability.StartTime.Microseconds) * time.Microsecond)
+		}
+
+		// Calculate return date: pickup + 7 days (default borrowing period)
+		returnDate := pickupDate.Add(7 * 24 * time.Hour)
+
+		// Create booking
+		newBookingID := uuid.New()
+		booking, err := qtx.CreateBooking(ctx, db.CreateBookingParams{
+			ID:             newBookingID,
+			RequesterID:    req.UserID,
+			ManagerID:      availability.UserID,
+			ItemID:         req.ItemID,
+			GroupID:        req.GroupID,
+			AvailabilityID: request.Body.AvailabilityId,
+			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
+			PickUpLocation: *request.Body.PickupLocation,
+			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
+			ReturnLocation: *request.Body.ReturnLocation,
+			Status:         db.RequestStatusPendingConfirmation,
+		})
+		if err != nil {
+			return api.ReviewRequest500JSONResponse{
+				Code:    500,
+				Message: "Failed to create booking",
+			}, nil
+		}
+
+		bookingID = &booking.ID
+
+		// Link request to booking
+		_, err = qtx.UpdateRequestWithBooking(ctx, db.UpdateRequestWithBookingParams{
+			ID:        request.RequestId,
+			BookingID: bookingID,
+		})
+		if err != nil {
+			return api.ReviewRequest500JSONResponse{
+				Code:    500,
+				Message: "Failed to link request to booking",
+			}, nil
+		}
+	}
+
 	params := db.ReviewRequestParams{
 		ID:         request.RequestId,
 		Status:     toDBRequestStatus(request.Body.Status),
