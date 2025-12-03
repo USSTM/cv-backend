@@ -66,9 +66,15 @@ const (
 
 // Defines values for RequestStatus.
 const (
-	Approved RequestStatus = "approved"
-	Denied   RequestStatus = "denied"
-	Pending  RequestStatus = "pending"
+	Approved            RequestStatus = "approved"
+	Cancelled           RequestStatus = "cancelled"
+	Confirmed           RequestStatus = "confirmed"
+	Denied              RequestStatus = "denied"
+	Expired             RequestStatus = "expired"
+	Fulfilled           RequestStatus = "fulfilled"
+	NoShow              RequestStatus = "no_show"
+	Pending             RequestStatus = "pending"
+	PendingConfirmation RequestStatus = "pending_confirmation"
 )
 
 // Defines values for UserRole.
@@ -84,6 +90,63 @@ type AddToCartRequest struct {
 	GroupId  UUID `json:"groupId"`
 	ItemId   UUID `json:"itemId"`
 	Quantity int  `json:"quantity"`
+}
+
+// AvailabilityResponse defines model for AvailabilityResponse.
+type AvailabilityResponse struct {
+	Date       openapi_types.Date  `json:"date"`
+	EndTime    string              `json:"end_time"`
+	Id         UUID                `json:"id"`
+	StartTime  string              `json:"start_time"`
+	TimeSlotId UUID                `json:"time_slot_id"`
+	UserEmail  openapi_types.Email `json:"user_email"`
+	UserId     UUID                `json:"user_id"`
+}
+
+// Booking defines model for Booking.
+type Booking struct {
+	AvailabilityId UUID       `json:"availability_id"`
+	ConfirmedAt    *time.Time `json:"confirmed_at"`
+	ConfirmedBy    *UUID      `json:"confirmed_by,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	Id             UUID       `json:"id"`
+	ItemId         UUID       `json:"item_id"`
+	ManagerId      *UUID      `json:"manager_id,omitempty"`
+	PickUpDate     time.Time  `json:"pick_up_date"`
+	PickUpLocation string     `json:"pick_up_location"`
+	RequesterId    UUID       `json:"requester_id"`
+	ReturnDate     time.Time  `json:"return_date"`
+	ReturnLocation string     `json:"return_location"`
+
+	// Status Status of a request or booking
+	Status RequestStatus `json:"status"`
+}
+
+// BookingResponse defines model for BookingResponse.
+type BookingResponse struct {
+	AvailabilityDate *openapi_types.Date `json:"availability_date,omitempty"`
+	AvailabilityId   UUID                `json:"availability_id"`
+	ConfirmedAt      *time.Time          `json:"confirmed_at"`
+	ConfirmedBy      *UUID               `json:"confirmed_by,omitempty"`
+	CreatedAt        time.Time           `json:"created_at"`
+	EndTime          *string             `json:"end_time,omitempty"`
+	GroupName        *string             `json:"group_name,omitempty"`
+	Id               UUID                `json:"id"`
+	ItemId           UUID                `json:"item_id"`
+	ItemName         *string             `json:"item_name,omitempty"`
+	ItemType         *ItemType           `json:"item_type,omitempty"`
+	ManagerEmail     *string             `json:"manager_email,omitempty"`
+	ManagerId        *UUID               `json:"manager_id,omitempty"`
+	PickUpDate       time.Time           `json:"pick_up_date"`
+	PickUpLocation   string              `json:"pick_up_location"`
+	RequesterEmail   *string             `json:"requester_email,omitempty"`
+	RequesterId      UUID                `json:"requester_id"`
+	ReturnDate       time.Time           `json:"return_date"`
+	ReturnLocation   string              `json:"return_location"`
+	StartTime        *string             `json:"start_time,omitempty"`
+
+	// Status Status of a request or booking
+	Status RequestStatus `json:"status"`
 }
 
 // BorrowingRequest defines model for BorrowingRequest.
@@ -124,6 +187,12 @@ type BorrowingResponse struct {
 	Quantity           int        `json:"quantity"`
 	ReturnedAt         *time.Time `json:"returned_at"`
 	UserId             UUID       `json:"user_id"`
+}
+
+// CancelBookingRequest defines model for CancelBookingRequest.
+type CancelBookingRequest struct {
+	// Reason Optional cancellation reason
+	Reason *string `json:"reason,omitempty"`
 }
 
 // CartItemResponse defines model for CartItemResponse.
@@ -185,6 +254,16 @@ type CheckoutItemResult struct {
 
 // CheckoutItemResultStatus defines model for CheckoutItemResult.Status.
 type CheckoutItemResultStatus string
+
+// ConfirmBookingRequest Empty request body for confirming a booking
+type ConfirmBookingRequest = map[string]interface{}
+
+// CreateAvailabilityRequest defines model for CreateAvailabilityRequest.
+type CreateAvailabilityRequest struct {
+	// Date Date in YYYY-MM-DD format
+	Date       openapi_types.Date `json:"date"`
+	TimeSlotId UUID               `json:"time_slot_id"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -313,12 +392,12 @@ type RequestItemResponse struct {
 	ReviewedAt *time.Time `json:"reviewed_at"`
 	ReviewedBy *UUID      `json:"reviewed_by,omitempty"`
 
-	// Status Status of a request for a high-value item
+	// Status Status of a request or booking
 	Status RequestStatus `json:"status"`
 	UserId UUID          `json:"user_id"`
 }
 
-// RequestStatus Status of a request for a high-value item
+// RequestStatus Status of a request or booking
 type RequestStatus string
 
 // ReturnBorrowingRequest defines model for ReturnBorrowingRequest.
@@ -329,7 +408,15 @@ type ReturnBorrowingRequest struct {
 
 // ReviewRequestRequest defines model for ReviewRequestRequest.
 type ReviewRequestRequest struct {
-	// Status Status of a request for a high-value item
+	AvailabilityId *UUID `json:"availability_id,omitempty"`
+
+	// PickupLocation Required when approving HIGH items - where to meet for pickup
+	PickupLocation *string `json:"pickup_location,omitempty"`
+
+	// ReturnLocation Required when approving HIGH items - where to return the item
+	ReturnLocation *string `json:"return_location,omitempty"`
+
+	// Status Status of a request or booking
 	Status RequestStatus `json:"status"`
 }
 
@@ -360,6 +447,16 @@ type TakingStatsResponse struct {
 	UniqueUsers int `json:"uniqueUsers"`
 }
 
+// TimeSlot defines model for TimeSlot.
+type TimeSlot struct {
+	// EndTime End time in HH:MM:SS format
+	EndTime string `json:"end_time"`
+	Id      UUID   `json:"id"`
+
+	// StartTime Start time in HH:MM:SS format
+	StartTime string `json:"start_time"`
+}
+
 // UUID defines model for UUID.
 type UUID = openapi_types.UUID
 
@@ -368,6 +465,16 @@ type User struct {
 	Email openapi_types.Email `json:"email"`
 	Id    UUID                `json:"id"`
 	Role  UserRole            `json:"role"`
+}
+
+// UserAvailabilityResponse defines model for UserAvailabilityResponse.
+type UserAvailabilityResponse struct {
+	Date       openapi_types.Date `json:"date"`
+	EndTime    string             `json:"end_time"`
+	Id         UUID               `json:"id"`
+	StartTime  string             `json:"start_time"`
+	TimeSlotId UUID               `json:"time_slot_id"`
+	UserId     UUID               `json:"user_id"`
 }
 
 // UserRole defines model for UserRole.
@@ -393,9 +500,54 @@ type GetUserTakingHistoryParams struct {
 	Offset  *int  `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListAvailabilityParams defines parameters for ListAvailability.
+type ListAvailabilityParams struct {
+	// Date Filter by specific date (YYYY-MM-DD)
+	Date *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+
+	// UserId Filter by user ID
+	UserId *openapi_types.UUID `form:"user_id,omitempty" json:"user_id,omitempty"`
+}
+
+// ListBookingsParams defines parameters for ListBookings.
+type ListBookingsParams struct {
+	// Status Filter by booking status
+	Status *RequestStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// GroupId Filter by group ID
+	GroupId *openapi_types.UUID `form:"group_id,omitempty" json:"group_id,omitempty"`
+
+	// FromDate Start date filter (YYYY-MM-DD)
+	FromDate *openapi_types.Date `form:"from_date,omitempty" json:"from_date,omitempty"`
+
+	// ToDate End date filter (YYYY-MM-DD)
+	ToDate *openapi_types.Date `form:"to_date,omitempty" json:"to_date,omitempty"`
+}
+
+// GetMyBookingsParams defines parameters for GetMyBookings.
+type GetMyBookingsParams struct {
+	// Status Filter by booking status
+	Status *RequestStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListPendingConfirmationParams defines parameters for ListPendingConfirmation.
+type ListPendingConfirmationParams struct {
+	// GroupId Filter by group ID
+	GroupId *openapi_types.UUID `form:"group_id,omitempty" json:"group_id,omitempty"`
+}
+
 // UpdateCartItemQuantityJSONBody defines parameters for UpdateCartItemQuantity.
 type UpdateCartItemQuantityJSONBody struct {
 	Quantity int `json:"quantity"`
+}
+
+// GetUserAvailabilityParams defines parameters for GetUserAvailability.
+type GetUserAvailabilityParams struct {
+	// FromDate Start date filter (YYYY-MM-DD)
+	FromDate *openapi_types.Date `form:"from_date,omitempty" json:"from_date,omitempty"`
+
+	// ToDate End date filter (YYYY-MM-DD)
+	ToDate *openapi_types.Date `form:"to_date,omitempty" json:"to_date,omitempty"`
 }
 
 // InviteUserJSONRequestBody defines body for InviteUser for application/json ContentType.
@@ -403,6 +555,15 @@ type InviteUserJSONRequestBody = InviteUserRequest
 
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
+
+// CreateAvailabilityJSONRequestBody defines body for CreateAvailability for application/json ContentType.
+type CreateAvailabilityJSONRequestBody = CreateAvailabilityRequest
+
+// CancelBookingJSONRequestBody defines body for CancelBooking for application/json ContentType.
+type CancelBookingJSONRequestBody = CancelBookingRequest
+
+// ConfirmBookingJSONRequestBody defines body for ConfirmBooking for application/json ContentType.
+type ConfirmBookingJSONRequestBody = ConfirmBookingRequest
 
 // BorrowItemJSONRequestBody defines body for BorrowItem for application/json ContentType.
 type BorrowItemJSONRequestBody = BorrowingRequest
@@ -463,6 +624,39 @@ type ServerInterface interface {
 	// Login User
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
+	// List availability
+	// (GET /availability)
+	ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams)
+	// Create availability
+	// (POST /availability)
+	CreateAvailability(w http.ResponseWriter, r *http.Request)
+	// Get availability by date
+	// (GET /availability/{date})
+	GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date)
+	// Delete availability
+	// (DELETE /availability/{id})
+	DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// Get availability by ID
+	// (GET /availability/{id})
+	GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// List bookings
+	// (GET /bookings)
+	ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams)
+	// Get my bookings
+	// (GET /bookings/my-bookings)
+	GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams)
+	// List pending confirmation
+	// (GET /bookings/pending-confirmation)
+	ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams)
+	// Get booking by ID
+	// (GET /bookings/{bookingId})
+	GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
+	// Cancel booking
+	// (PATCH /bookings/{bookingId}/cancel)
+	CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
+	// Confirm booking
+	// (PATCH /bookings/{bookingId}/confirm)
+	ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(w http.ResponseWriter, r *http.Request)
@@ -565,12 +759,18 @@ type ServerInterface interface {
 	// Review (approve/deny) a request
 	// (POST /requests/{requestId}/review)
 	ReviewRequest(w http.ResponseWriter, r *http.Request, requestId UUID)
+	// List all pre-defined time slots
+	// (GET /time-slots)
+	ListTimeSlots(w http.ResponseWriter, r *http.Request)
 	// Get user by email
 	// (GET /users/email/{email})
 	GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email)
 	// Get user by ID
 	// (GET /users/{userId})
 	GetUserById(w http.ResponseWriter, r *http.Request, userId UUID)
+	// Get user availability
+	// (GET /users/{userId}/availability)
+	GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -616,6 +816,72 @@ func (_ Unimplemented) GetUserTakingHistory(w http.ResponseWriter, r *http.Reque
 // Login User
 // (POST /auth/login)
 func (_ Unimplemented) LoginUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List availability
+// (GET /availability)
+func (_ Unimplemented) ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create availability
+// (POST /availability)
+func (_ Unimplemented) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get availability by date
+// (GET /availability/{date})
+func (_ Unimplemented) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete availability
+// (DELETE /availability/{id})
+func (_ Unimplemented) DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get availability by ID
+// (GET /availability/{id})
+func (_ Unimplemented) GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List bookings
+// (GET /bookings)
+func (_ Unimplemented) ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get my bookings
+// (GET /bookings/my-bookings)
+func (_ Unimplemented) GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List pending confirmation
+// (GET /bookings/pending-confirmation)
+func (_ Unimplemented) ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get booking by ID
+// (GET /bookings/{bookingId})
+func (_ Unimplemented) GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Cancel booking
+// (PATCH /bookings/{bookingId}/cancel)
+func (_ Unimplemented) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Confirm booking
+// (PATCH /bookings/{bookingId}/confirm)
+func (_ Unimplemented) ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -823,6 +1089,12 @@ func (_ Unimplemented) ReviewRequest(w http.ResponseWriter, r *http.Request, req
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// List all pre-defined time slots
+// (GET /time-slots)
+func (_ Unimplemented) ListTimeSlots(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get user by email
 // (GET /users/email/{email})
 func (_ Unimplemented) GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email) {
@@ -832,6 +1104,12 @@ func (_ Unimplemented) GetUserByEmail(w http.ResponseWriter, r *http.Request, em
 // Get user by ID
 // (GET /users/{userId})
 func (_ Unimplemented) GetUserById(w http.ResponseWriter, r *http.Request, userId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get user availability
+// (GET /users/{userId}/availability)
+func (_ Unimplemented) GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1104,6 +1382,380 @@ func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LoginUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAvailability operation middleware
+func (siw *ServerInterfaceWrapper) ListAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAvailabilityParams
+
+	// ------------- Optional query parameter "date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "date", r.URL.Query(), &params.Date)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "user_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "user_id", r.URL.Query(), &params.UserId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAvailability(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAvailability operation middleware
+func (siw *ServerInterfaceWrapper) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_time_slots"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAvailability(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAvailabilityByDate operation middleware
+func (siw *ServerInterfaceWrapper) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "date" -------------
+	var date openapi_types.Date
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", chi.URLParam(r, "date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "date", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAvailabilityByDate(w, r, date)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAvailability operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, OAuth2Scopes, []string{"manage_time_slots"})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAvailability(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAvailabilityByID operation middleware
+func (siw *ServerInterfaceWrapper) GetAvailabilityByID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAvailabilityByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBookings operation middleware
+func (siw *ServerInterfaceWrapper) ListBookings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBookingsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "group_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "group_id", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group_id", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "from_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "from_date", r.URL.Query(), &params.FromDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from_date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "to_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "to_date", r.URL.Query(), &params.ToDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to_date", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBookings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyBookings operation middleware
+func (siw *ServerInterfaceWrapper) GetMyBookings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyBookingsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyBookings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPendingConfirmation operation middleware
+func (siw *ServerInterfaceWrapper) ListPendingConfirmation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPendingConfirmationParams
+
+	// ------------- Optional query parameter "group_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "group_id", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPendingConfirmation(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBookingByID operation middleware
+func (siw *ServerInterfaceWrapper) GetBookingByID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBookingByID(w, r, bookingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelBooking operation middleware
+func (siw *ServerInterfaceWrapper) CancelBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelBooking(w, r, bookingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmBooking operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", chi.URLParam(r, "bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmBooking(w, r, bookingId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2111,6 +2763,26 @@ func (siw *ServerInterfaceWrapper) ReviewRequest(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListTimeSlots operation middleware
+func (siw *ServerInterfaceWrapper) ListTimeSlots(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTimeSlots(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetUserByEmail operation middleware
 func (siw *ServerInterfaceWrapper) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
 
@@ -2168,6 +2840,56 @@ func (siw *ServerInterfaceWrapper) GetUserById(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetUserById(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUserAvailability operation middleware
+func (siw *ServerInterfaceWrapper) GetUserAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUserAvailabilityParams
+
+	// ------------- Optional query parameter "from_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "from_date", r.URL.Query(), &params.FromDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from_date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "to_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "to_date", r.URL.Query(), &params.ToDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to_date", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserAvailability(w, r, userId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2312,6 +3034,39 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/login", wrapper.LoginUser)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability", wrapper.ListAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/availability", wrapper.CreateAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability/{date}", wrapper.GetAvailabilityByDate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/availability/{id}", wrapper.DeleteAvailability)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/availability/{id}", wrapper.GetAvailabilityByID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings", wrapper.ListBookings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/my-bookings", wrapper.GetMyBookings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/pending-confirmation", wrapper.ListPendingConfirmation)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/bookings/{bookingId}", wrapper.GetBookingByID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/bookings/{bookingId}/cancel", wrapper.CancelBooking)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/bookings/{bookingId}/confirm", wrapper.ConfirmBooking)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/borrowings/item", wrapper.BorrowItem)
 	})
 	r.Group(func(r chi.Router) {
@@ -2414,10 +3169,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/requests/{requestId}/review", wrapper.ReviewRequest)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/time-slots", wrapper.ListTimeSlots)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users/email/{email}", wrapper.GetUserByEmail)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/users/{userId}", wrapper.GetUserById)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/users/{userId}/availability", wrapper.GetUserAvailability)
 	})
 
 	return r
@@ -2745,6 +3506,572 @@ func (response LoginUser400JSONResponse) VisitLoginUserResponse(w http.ResponseW
 type LoginUser500JSONResponse Error
 
 func (response LoginUser500JSONResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailabilityRequestObject struct {
+	Params ListAvailabilityParams
+}
+
+type ListAvailabilityResponseObject interface {
+	VisitListAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type ListAvailability200JSONResponse []AvailabilityResponse
+
+func (response ListAvailability200JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability400JSONResponse Error
+
+func (response ListAvailability400JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability401JSONResponse Error
+
+func (response ListAvailability401JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAvailability500JSONResponse Error
+
+func (response ListAvailability500JSONResponse) VisitListAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailabilityRequestObject struct {
+	Body *CreateAvailabilityJSONRequestBody
+}
+
+type CreateAvailabilityResponseObject interface {
+	VisitCreateAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type CreateAvailability201JSONResponse AvailabilityResponse
+
+func (response CreateAvailability201JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability400JSONResponse Error
+
+func (response CreateAvailability400JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability401JSONResponse Error
+
+func (response CreateAvailability401JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability403JSONResponse Error
+
+func (response CreateAvailability403JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability409JSONResponse Error
+
+func (response CreateAvailability409JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAvailability500JSONResponse Error
+
+func (response CreateAvailability500JSONResponse) VisitCreateAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDateRequestObject struct {
+	Date openapi_types.Date `json:"date"`
+}
+
+type GetAvailabilityByDateResponseObject interface {
+	VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error
+}
+
+type GetAvailabilityByDate200JSONResponse []AvailabilityResponse
+
+func (response GetAvailabilityByDate200JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate400JSONResponse Error
+
+func (response GetAvailabilityByDate400JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate401JSONResponse Error
+
+func (response GetAvailabilityByDate401JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByDate500JSONResponse Error
+
+func (response GetAvailabilityByDate500JSONResponse) VisitGetAvailabilityByDateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailabilityRequestObject struct {
+	Id openapi_types.UUID `json:"id"`
+}
+
+type DeleteAvailabilityResponseObject interface {
+	VisitDeleteAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type DeleteAvailability204Response struct {
+}
+
+func (response DeleteAvailability204Response) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAvailability401JSONResponse Error
+
+func (response DeleteAvailability401JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability403JSONResponse Error
+
+func (response DeleteAvailability403JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability404JSONResponse Error
+
+func (response DeleteAvailability404JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability409JSONResponse Error
+
+func (response DeleteAvailability409JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteAvailability500JSONResponse Error
+
+func (response DeleteAvailability500JSONResponse) VisitDeleteAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByIDRequestObject struct {
+	Id openapi_types.UUID `json:"id"`
+}
+
+type GetAvailabilityByIDResponseObject interface {
+	VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error
+}
+
+type GetAvailabilityByID200JSONResponse AvailabilityResponse
+
+func (response GetAvailabilityByID200JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID401JSONResponse Error
+
+func (response GetAvailabilityByID401JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID404JSONResponse Error
+
+func (response GetAvailabilityByID404JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAvailabilityByID500JSONResponse Error
+
+func (response GetAvailabilityByID500JSONResponse) VisitGetAvailabilityByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookingsRequestObject struct {
+	Params ListBookingsParams
+}
+
+type ListBookingsResponseObject interface {
+	VisitListBookingsResponse(w http.ResponseWriter) error
+}
+
+type ListBookings200JSONResponse []BookingResponse
+
+func (response ListBookings200JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings401JSONResponse Error
+
+func (response ListBookings401JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings403JSONResponse Error
+
+func (response ListBookings403JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBookings500JSONResponse Error
+
+func (response ListBookings500JSONResponse) VisitListBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookingsRequestObject struct {
+	Params GetMyBookingsParams
+}
+
+type GetMyBookingsResponseObject interface {
+	VisitGetMyBookingsResponse(w http.ResponseWriter) error
+}
+
+type GetMyBookings200JSONResponse []BookingResponse
+
+func (response GetMyBookings200JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookings401JSONResponse Error
+
+func (response GetMyBookings401JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBookings500JSONResponse Error
+
+func (response GetMyBookings500JSONResponse) VisitGetMyBookingsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmationRequestObject struct {
+	Params ListPendingConfirmationParams
+}
+
+type ListPendingConfirmationResponseObject interface {
+	VisitListPendingConfirmationResponse(w http.ResponseWriter) error
+}
+
+type ListPendingConfirmation200JSONResponse []BookingResponse
+
+func (response ListPendingConfirmation200JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation400JSONResponse Error
+
+func (response ListPendingConfirmation400JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation401JSONResponse Error
+
+func (response ListPendingConfirmation401JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation403JSONResponse Error
+
+func (response ListPendingConfirmation403JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPendingConfirmation500JSONResponse Error
+
+func (response ListPendingConfirmation500JSONResponse) VisitListPendingConfirmationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByIDRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+}
+
+type GetBookingByIDResponseObject interface {
+	VisitGetBookingByIDResponse(w http.ResponseWriter) error
+}
+
+type GetBookingByID200JSONResponse BookingResponse
+
+func (response GetBookingByID200JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID401JSONResponse Error
+
+func (response GetBookingByID401JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID403JSONResponse Error
+
+func (response GetBookingByID403JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID404JSONResponse Error
+
+func (response GetBookingByID404JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBookingByID500JSONResponse Error
+
+func (response GetBookingByID500JSONResponse) VisitGetBookingByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBookingRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+	Body      *CancelBookingJSONRequestBody
+}
+
+type CancelBookingResponseObject interface {
+	VisitCancelBookingResponse(w http.ResponseWriter) error
+}
+
+type CancelBooking200JSONResponse BookingResponse
+
+func (response CancelBooking200JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking400JSONResponse Error
+
+func (response CancelBooking400JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking401JSONResponse Error
+
+func (response CancelBooking401JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking403JSONResponse Error
+
+func (response CancelBooking403JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking404JSONResponse Error
+
+func (response CancelBooking404JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CancelBooking500JSONResponse Error
+
+func (response CancelBooking500JSONResponse) VisitCancelBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBookingRequestObject struct {
+	BookingId openapi_types.UUID `json:"bookingId"`
+	Body      *ConfirmBookingJSONRequestBody
+}
+
+type ConfirmBookingResponseObject interface {
+	VisitConfirmBookingResponse(w http.ResponseWriter) error
+}
+
+type ConfirmBooking200JSONResponse BookingResponse
+
+func (response ConfirmBooking200JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking400JSONResponse Error
+
+func (response ConfirmBooking400JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking401JSONResponse Error
+
+func (response ConfirmBooking401JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking403JSONResponse Error
+
+func (response ConfirmBooking403JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking404JSONResponse Error
+
+func (response ConfirmBooking404JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConfirmBooking500JSONResponse Error
+
+func (response ConfirmBooking500JSONResponse) VisitConfirmBookingResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -4526,6 +5853,40 @@ func (response ReviewRequest500JSONResponse) VisitReviewRequestResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListTimeSlotsRequestObject struct {
+}
+
+type ListTimeSlotsResponseObject interface {
+	VisitListTimeSlotsResponse(w http.ResponseWriter) error
+}
+
+type ListTimeSlots200JSONResponse []TimeSlot
+
+func (response ListTimeSlots200JSONResponse) VisitListTimeSlotsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListTimeSlots401JSONResponse Error
+
+func (response ListTimeSlots401JSONResponse) VisitListTimeSlotsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListTimeSlots500JSONResponse Error
+
+func (response ListTimeSlots500JSONResponse) VisitListTimeSlotsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetUserByEmailRequestObject struct {
 	Email openapi_types.Email `json:"email"`
 }
@@ -4632,6 +5993,60 @@ func (response GetUserById500JSONResponse) VisitGetUserByIdResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUserAvailabilityRequestObject struct {
+	UserId openapi_types.UUID `json:"userId"`
+	Params GetUserAvailabilityParams
+}
+
+type GetUserAvailabilityResponseObject interface {
+	VisitGetUserAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type GetUserAvailability200JSONResponse []UserAvailabilityResponse
+
+func (response GetUserAvailability200JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability400JSONResponse Error
+
+func (response GetUserAvailability400JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability401JSONResponse Error
+
+func (response GetUserAvailability401JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability403JSONResponse Error
+
+func (response GetUserAvailability403JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUserAvailability500JSONResponse Error
+
+func (response GetUserAvailability500JSONResponse) VisitGetUserAvailabilityResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Invite user (admin only)
@@ -4655,6 +6070,39 @@ type StrictServerInterface interface {
 	// Login User
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
+	// List availability
+	// (GET /availability)
+	ListAvailability(ctx context.Context, request ListAvailabilityRequestObject) (ListAvailabilityResponseObject, error)
+	// Create availability
+	// (POST /availability)
+	CreateAvailability(ctx context.Context, request CreateAvailabilityRequestObject) (CreateAvailabilityResponseObject, error)
+	// Get availability by date
+	// (GET /availability/{date})
+	GetAvailabilityByDate(ctx context.Context, request GetAvailabilityByDateRequestObject) (GetAvailabilityByDateResponseObject, error)
+	// Delete availability
+	// (DELETE /availability/{id})
+	DeleteAvailability(ctx context.Context, request DeleteAvailabilityRequestObject) (DeleteAvailabilityResponseObject, error)
+	// Get availability by ID
+	// (GET /availability/{id})
+	GetAvailabilityByID(ctx context.Context, request GetAvailabilityByIDRequestObject) (GetAvailabilityByIDResponseObject, error)
+	// List bookings
+	// (GET /bookings)
+	ListBookings(ctx context.Context, request ListBookingsRequestObject) (ListBookingsResponseObject, error)
+	// Get my bookings
+	// (GET /bookings/my-bookings)
+	GetMyBookings(ctx context.Context, request GetMyBookingsRequestObject) (GetMyBookingsResponseObject, error)
+	// List pending confirmation
+	// (GET /bookings/pending-confirmation)
+	ListPendingConfirmation(ctx context.Context, request ListPendingConfirmationRequestObject) (ListPendingConfirmationResponseObject, error)
+	// Get booking by ID
+	// (GET /bookings/{bookingId})
+	GetBookingByID(ctx context.Context, request GetBookingByIDRequestObject) (GetBookingByIDResponseObject, error)
+	// Cancel booking
+	// (PATCH /bookings/{bookingId}/cancel)
+	CancelBooking(ctx context.Context, request CancelBookingRequestObject) (CancelBookingResponseObject, error)
+	// Confirm booking
+	// (PATCH /bookings/{bookingId}/confirm)
+	ConfirmBooking(ctx context.Context, request ConfirmBookingRequestObject) (ConfirmBookingResponseObject, error)
 	// Borrow an item (creating a borrowing record)
 	// (POST /borrowings/item)
 	BorrowItem(ctx context.Context, request BorrowItemRequestObject) (BorrowItemResponseObject, error)
@@ -4757,12 +6205,18 @@ type StrictServerInterface interface {
 	// Review (approve/deny) a request
 	// (POST /requests/{requestId}/review)
 	ReviewRequest(ctx context.Context, request ReviewRequestRequestObject) (ReviewRequestResponseObject, error)
+	// List all pre-defined time slots
+	// (GET /time-slots)
+	ListTimeSlots(ctx context.Context, request ListTimeSlotsRequestObject) (ListTimeSlotsResponseObject, error)
 	// Get user by email
 	// (GET /users/email/{email})
 	GetUserByEmail(ctx context.Context, request GetUserByEmailRequestObject) (GetUserByEmailResponseObject, error)
 	// Get user by ID
 	// (GET /users/{userId})
 	GetUserById(ctx context.Context, request GetUserByIdRequestObject) (GetUserByIdResponseObject, error)
+	// Get user availability
+	// (GET /users/{userId}/availability)
+	GetUserAvailability(ctx context.Context, request GetUserAvailabilityRequestObject) (GetUserAvailabilityResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -4980,6 +6434,311 @@ func (sh *strictHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LoginUserResponseObject); ok {
 		if err := validResponse.VisitLoginUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAvailability operation middleware
+func (sh *strictHandler) ListAvailability(w http.ResponseWriter, r *http.Request, params ListAvailabilityParams) {
+	var request ListAvailabilityRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAvailability(ctx, request.(ListAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAvailabilityResponseObject); ok {
+		if err := validResponse.VisitListAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAvailability operation middleware
+func (sh *strictHandler) CreateAvailability(w http.ResponseWriter, r *http.Request) {
+	var request CreateAvailabilityRequestObject
+
+	var body CreateAvailabilityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAvailability(ctx, request.(CreateAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAvailabilityResponseObject); ok {
+		if err := validResponse.VisitCreateAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAvailabilityByDate operation middleware
+func (sh *strictHandler) GetAvailabilityByDate(w http.ResponseWriter, r *http.Request, date openapi_types.Date) {
+	var request GetAvailabilityByDateRequestObject
+
+	request.Date = date
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAvailabilityByDate(ctx, request.(GetAvailabilityByDateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAvailabilityByDate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAvailabilityByDateResponseObject); ok {
+		if err := validResponse.VisitGetAvailabilityByDateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAvailability operation middleware
+func (sh *strictHandler) DeleteAvailability(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request DeleteAvailabilityRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAvailability(ctx, request.(DeleteAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAvailabilityResponseObject); ok {
+		if err := validResponse.VisitDeleteAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAvailabilityByID operation middleware
+func (sh *strictHandler) GetAvailabilityByID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request GetAvailabilityByIDRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAvailabilityByID(ctx, request.(GetAvailabilityByIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAvailabilityByID")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAvailabilityByIDResponseObject); ok {
+		if err := validResponse.VisitGetAvailabilityByIDResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListBookings operation middleware
+func (sh *strictHandler) ListBookings(w http.ResponseWriter, r *http.Request, params ListBookingsParams) {
+	var request ListBookingsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBookings(ctx, request.(ListBookingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBookings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBookingsResponseObject); ok {
+		if err := validResponse.VisitListBookingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyBookings operation middleware
+func (sh *strictHandler) GetMyBookings(w http.ResponseWriter, r *http.Request, params GetMyBookingsParams) {
+	var request GetMyBookingsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyBookings(ctx, request.(GetMyBookingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyBookings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyBookingsResponseObject); ok {
+		if err := validResponse.VisitGetMyBookingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPendingConfirmation operation middleware
+func (sh *strictHandler) ListPendingConfirmation(w http.ResponseWriter, r *http.Request, params ListPendingConfirmationParams) {
+	var request ListPendingConfirmationRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPendingConfirmation(ctx, request.(ListPendingConfirmationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPendingConfirmation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPendingConfirmationResponseObject); ok {
+		if err := validResponse.VisitListPendingConfirmationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBookingByID operation middleware
+func (sh *strictHandler) GetBookingByID(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request GetBookingByIDRequestObject
+
+	request.BookingId = bookingId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBookingByID(ctx, request.(GetBookingByIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBookingByID")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBookingByIDResponseObject); ok {
+		if err := validResponse.VisitGetBookingByIDResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelBooking operation middleware
+func (sh *strictHandler) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request CancelBookingRequestObject
+
+	request.BookingId = bookingId
+
+	var body CancelBookingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelBooking(ctx, request.(CancelBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelBookingResponseObject); ok {
+		if err := validResponse.VisitCancelBookingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmBooking operation middleware
+func (sh *strictHandler) ConfirmBooking(w http.ResponseWriter, r *http.Request, bookingId openapi_types.UUID) {
+	var request ConfirmBookingRequestObject
+
+	request.BookingId = bookingId
+
+	var body ConfirmBookingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmBooking(ctx, request.(ConfirmBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmBookingResponseObject); ok {
+		if err := validResponse.VisitConfirmBookingResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5933,6 +7692,30 @@ func (sh *strictHandler) ReviewRequest(w http.ResponseWriter, r *http.Request, r
 	}
 }
 
+// ListTimeSlots operation middleware
+func (sh *strictHandler) ListTimeSlots(w http.ResponseWriter, r *http.Request) {
+	var request ListTimeSlotsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTimeSlots(ctx, request.(ListTimeSlotsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTimeSlots")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTimeSlotsResponseObject); ok {
+		if err := validResponse.VisitListTimeSlotsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetUserByEmail operation middleware
 func (sh *strictHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request, email openapi_types.Email) {
 	var request GetUserByEmailRequestObject
@@ -5985,113 +7768,169 @@ func (sh *strictHandler) GetUserById(w http.ResponseWriter, r *http.Request, use
 	}
 }
 
+// GetUserAvailability operation middleware
+func (sh *strictHandler) GetUserAvailability(w http.ResponseWriter, r *http.Request, userId openapi_types.UUID, params GetUserAvailabilityParams) {
+	var request GetUserAvailabilityRequestObject
+
+	request.UserId = userId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserAvailability(ctx, request.(GetUserAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserAvailabilityResponseObject); ok {
+		if err := validResponse.VisitGetUserAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"ehDcf7n/vwAAAP//kQ2y+n73AAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

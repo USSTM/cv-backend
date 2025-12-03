@@ -103,9 +103,15 @@ func (ns NullItemType) Value() (driver.Value, error) {
 type RequestStatus string
 
 const (
-	RequestStatusPending  RequestStatus = "pending"
-	RequestStatusApproved RequestStatus = "approved"
-	RequestStatusDenied   RequestStatus = "denied"
+	RequestStatusPending             RequestStatus = "pending"
+	RequestStatusApproved            RequestStatus = "approved"
+	RequestStatusDenied              RequestStatus = "denied"
+	RequestStatusFulfilled           RequestStatus = "fulfilled"
+	RequestStatusPendingConfirmation RequestStatus = "pending_confirmation"
+	RequestStatusConfirmed           RequestStatus = "confirmed"
+	RequestStatusExpired             RequestStatus = "expired"
+	RequestStatusNoShow              RequestStatus = "no_show"
+	RequestStatusCancelled           RequestStatus = "cancelled"
 )
 
 func (e *RequestStatus) Scan(src interface{}) error {
@@ -190,13 +196,16 @@ type Booking struct {
 	RequesterID    *uuid.UUID       `json:"requester_id"`
 	ManagerID      *uuid.UUID       `json:"manager_id"`
 	ItemID         *uuid.UUID       `json:"item_id"`
+	GroupID        *uuid.UUID       `json:"group_id"`
 	AvailabilityID *uuid.UUID       `json:"availability_id"`
-	ConfirmedBy    *uuid.UUID       `json:"confirmed_by"`
 	PickUpDate     pgtype.Timestamp `json:"pick_up_date"`
 	PickUpLocation string           `json:"pick_up_location"`
 	ReturnDate     pgtype.Timestamp `json:"return_date"`
 	ReturnLocation string           `json:"return_location"`
 	Status         RequestStatus    `json:"status"`
+	ConfirmedAt    pgtype.Timestamp `json:"confirmed_at"`
+	ConfirmedBy    *uuid.UUID       `json:"confirmed_by"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
 }
 
 type Borrowing struct {
@@ -252,16 +261,18 @@ type Permission struct {
 }
 
 type Request struct {
-	ID          uuid.UUID         `json:"id"`
-	UserID      *uuid.UUID        `json:"user_id"`
-	GroupID     *uuid.UUID        `json:"group_id"`
-	ItemID      *uuid.UUID        `json:"item_id"`
-	Quantity    int32             `json:"quantity"`
-	Status      NullRequestStatus `json:"status"`
-	RequestedAt pgtype.Timestamp  `json:"requested_at"`
-	ReviewedBy  *uuid.UUID        `json:"reviewed_by"`
-	ReviewedAt  pgtype.Timestamp  `json:"reviewed_at"`
-	FulfilledAt pgtype.Timestamp  `json:"fulfilled_at"`
+	ID                      uuid.UUID         `json:"id"`
+	UserID                  *uuid.UUID        `json:"user_id"`
+	GroupID                 *uuid.UUID        `json:"group_id"`
+	ItemID                  *uuid.UUID        `json:"item_id"`
+	Quantity                int32             `json:"quantity"`
+	Status                  NullRequestStatus `json:"status"`
+	RequestedAt             pgtype.Timestamp  `json:"requested_at"`
+	ReviewedBy              *uuid.UUID        `json:"reviewed_by"`
+	ReviewedAt              pgtype.Timestamp  `json:"reviewed_at"`
+	FulfilledAt             pgtype.Timestamp  `json:"fulfilled_at"`
+	BookingID               *uuid.UUID        `json:"booking_id"`
+	PreferredAvailabilityID *uuid.UUID        `json:"preferred_availability_id"`
 }
 
 type Role struct {
@@ -288,9 +299,9 @@ type SignupCode struct {
 }
 
 type TimeSlot struct {
-	ID        uuid.UUID        `json:"id"`
-	StartTime pgtype.Timestamp `json:"start_time"`
-	EndTime   pgtype.Timestamp `json:"end_time"`
+	ID        uuid.UUID   `json:"id"`
+	StartTime pgtype.Time `json:"start_time"`
+	EndTime   pgtype.Time `json:"end_time"`
 }
 
 type User struct {
@@ -302,7 +313,6 @@ type User struct {
 type UserAvailability struct {
 	ID         uuid.UUID   `json:"id"`
 	UserID     *uuid.UUID  `json:"user_id"`
-	GroupID    *uuid.UUID  `json:"group_id"`
 	TimeSlotID *uuid.UUID  `json:"time_slot_id"`
 	Date       pgtype.Date `json:"date"`
 }

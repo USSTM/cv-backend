@@ -62,3 +62,13 @@ WHERE id = $1;
 SELECT * FROM requests
 WHERE id = $1
 FOR UPDATE;
+
+-- name: UpdateRequestWithBooking :one
+UPDATE requests
+SET booking_id = $2
+WHERE id = $1
+RETURNING *;
+
+-- name: GetRequestByBookingID :one
+SELECT * FROM requests
+WHERE booking_id = $1;
