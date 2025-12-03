@@ -9,7 +9,58 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createGroup = `-- name: CreateGroup :one
+INSERT INTO groups (name, description) VALUES ($1, $2)
+RETURNING id, name, description
+`
+
+type CreateGroupParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
+	row := q.db.QueryRow(ctx, createGroup, arg.Name, arg.Description)
+	var i Group
+	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	return i, err
+}
+
+const deleteGroup = `-- name: DeleteGroup :exec
+DELETE FROM groups WHERE id = $1
+`
+
+func (q *Queries) DeleteGroup(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteGroup, id)
+	return err
+}
+
+const getAllGroups = `-- name: GetAllGroups :many
+SELECT id, name, description FROM groups ORDER BY name
+`
+
+func (q *Queries) GetAllGroups(ctx context.Context) ([]Group, error) {
+	rows, err := q.db.Query(ctx, getAllGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Group{}
+	for rows.Next() {
+		var i Group
+		if err := rows.Scan(&i.ID, &i.Name, &i.Description); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const getGroupByID = `-- name: GetGroupByID :one
 SELECT id, name, description FROM groups WHERE id = $1
@@ -17,6 +68,24 @@ SELECT id, name, description FROM groups WHERE id = $1
 
 func (q *Queries) GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error) {
 	row := q.db.QueryRow(ctx, getGroupByID, id)
+	var i Group
+	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	return i, err
+}
+
+const updateGroup = `-- name: UpdateGroup :one
+UPDATE groups SET name = $2, description = $3 WHERE id = $1
+RETURNING id, name, description
+`
+
+type UpdateGroupParams struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error) {
+	row := q.db.QueryRow(ctx, updateGroup, arg.ID, arg.Name, arg.Description)
 	var i Group
 	err := row.Scan(&i.ID, &i.Name, &i.Description)
 	return i, err
