@@ -53,8 +53,8 @@ const (
 
 // Defines values for InviteUserRequestScope.
 const (
-	Global InviteUserRequestScope = "global"
-	Group  InviteUserRequestScope = "group"
+	InviteUserRequestScopeGlobal InviteUserRequestScope = "global"
+	InviteUserRequestScopeGroup  InviteUserRequestScope = "group"
 )
 
 // Defines values for ItemType.
@@ -194,6 +194,25 @@ type Error struct {
 
 // GetItemByTypeResponse defines model for GetItemByTypeResponse.
 type GetItemByTypeResponse = []ItemResponse
+
+// Group defines model for Group.
+type Group struct {
+	Description *string `json:"description,omitempty"`
+	Id          UUID    `json:"id"`
+	Name        string  `json:"name"`
+}
+
+// GroupCreateRequest defines model for GroupCreateRequest.
+type GroupCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// GroupUpdateRequest defines model for GroupUpdateRequest.
+type GroupUpdateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
 
 // GroupUser defines model for GroupUser.
 type GroupUser struct {
@@ -400,6 +419,12 @@ type UpdateCartItemQuantityJSONRequestBody UpdateCartItemQuantityJSONBody
 // CheckoutCartJSONRequestBody defines body for CheckoutCart for application/json ContentType.
 type CheckoutCartJSONRequestBody = CheckoutCartRequest
 
+// CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
+type CreateGroupJSONRequestBody = GroupCreateRequest
+
+// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
+type UpdateGroupJSONRequestBody = GroupUpdateRequest
+
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = ItemPostRequest
 
@@ -483,6 +508,21 @@ type ServerInterface interface {
 	// Checkout cart
 	// (POST /checkout)
 	CheckoutCart(w http.ResponseWriter, r *http.Request)
+	// Get all groups
+	// (GET /groups)
+	GetAllGroups(w http.ResponseWriter, r *http.Request)
+	// Create a new group
+	// (POST /groups)
+	CreateGroup(w http.ResponseWriter, r *http.Request)
+	// Delete group
+	// (DELETE /groups/{id})
+	DeleteGroup(w http.ResponseWriter, r *http.Request, id UUID)
+	// Get group by ID
+	// (GET /groups/{id})
+	GetGroupByID(w http.ResponseWriter, r *http.Request, id UUID)
+	// Update group
+	// (PUT /groups/{id})
+	UpdateGroup(w http.ResponseWriter, r *http.Request, id UUID)
 	// Get all items
 	// (GET /items)
 	GetItems(w http.ResponseWriter, r *http.Request)
@@ -666,6 +706,36 @@ func (_ Unimplemented) UpdateCartItemQuantity(w http.ResponseWriter, r *http.Req
 // Checkout cart
 // (POST /checkout)
 func (_ Unimplemented) CheckoutCart(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all groups
+// (GET /groups)
+func (_ Unimplemented) GetAllGroups(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a new group
+// (POST /groups)
+func (_ Unimplemented) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete group
+// (DELETE /groups/{id})
+func (_ Unimplemented) DeleteGroup(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get group by ID
+// (GET /groups/{id})
+func (_ Unimplemented) GetGroupByID(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update group
+// (PUT /groups/{id})
+func (_ Unimplemented) UpdateGroup(w http.ResponseWriter, r *http.Request, id UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1512,6 +1582,139 @@ func (siw *ServerInterfaceWrapper) CheckoutCart(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// GetAllGroups operation middleware
+func (siw *ServerInterfaceWrapper) GetAllGroups(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAllGroups(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGroup operation middleware
+func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGroup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGroup(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGroupByID operation middleware
+func (siw *ServerInterfaceWrapper) GetGroupByID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGroupByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGroup operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGroup(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetItems operation middleware
 func (siw *ServerInterfaceWrapper) GetItems(w http.ResponseWriter, r *http.Request) {
 
@@ -2152,6 +2355,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/checkout", wrapper.CheckoutCart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/groups", wrapper.GetAllGroups)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/groups", wrapper.CreateGroup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/groups/{id}", wrapper.DeleteGroup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/groups/{id}", wrapper.GetGroupByID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/groups/{id}", wrapper.UpdateGroup)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/items", wrapper.GetItems)
@@ -3322,6 +3540,279 @@ func (response CheckoutCart500JSONResponse) VisitCheckoutCartResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetAllGroupsRequestObject struct {
+}
+
+type GetAllGroupsResponseObject interface {
+	VisitGetAllGroupsResponse(w http.ResponseWriter) error
+}
+
+type GetAllGroups200JSONResponse []Group
+
+func (response GetAllGroups200JSONResponse) VisitGetAllGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllGroups401JSONResponse Error
+
+func (response GetAllGroups401JSONResponse) VisitGetAllGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllGroups403JSONResponse Error
+
+func (response GetAllGroups403JSONResponse) VisitGetAllGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllGroups404JSONResponse Error
+
+func (response GetAllGroups404JSONResponse) VisitGetAllGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetAllGroups500JSONResponse Error
+
+func (response GetAllGroups500JSONResponse) VisitGetAllGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroupRequestObject struct {
+	Body *CreateGroupJSONRequestBody
+}
+
+type CreateGroupResponseObject interface {
+	VisitCreateGroupResponse(w http.ResponseWriter) error
+}
+
+type CreateGroup201JSONResponse Group
+
+func (response CreateGroup201JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroup400JSONResponse Error
+
+func (response CreateGroup400JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroup401JSONResponse Error
+
+func (response CreateGroup401JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroup403JSONResponse Error
+
+func (response CreateGroup403JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroup500JSONResponse Error
+
+func (response CreateGroup500JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroupRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type DeleteGroupResponseObject interface {
+	VisitDeleteGroupResponse(w http.ResponseWriter) error
+}
+
+type DeleteGroup204Response struct {
+}
+
+func (response DeleteGroup204Response) VisitDeleteGroupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteGroup401JSONResponse Error
+
+func (response DeleteGroup401JSONResponse) VisitDeleteGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroup403JSONResponse Error
+
+func (response DeleteGroup403JSONResponse) VisitDeleteGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroup404JSONResponse Error
+
+func (response DeleteGroup404JSONResponse) VisitDeleteGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteGroup500JSONResponse Error
+
+func (response DeleteGroup500JSONResponse) VisitDeleteGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupByIDRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type GetGroupByIDResponseObject interface {
+	VisitGetGroupByIDResponse(w http.ResponseWriter) error
+}
+
+type GetGroupByID200JSONResponse Group
+
+func (response GetGroupByID200JSONResponse) VisitGetGroupByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupByID401JSONResponse Error
+
+func (response GetGroupByID401JSONResponse) VisitGetGroupByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupByID403JSONResponse Error
+
+func (response GetGroupByID403JSONResponse) VisitGetGroupByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupByID404JSONResponse Error
+
+func (response GetGroupByID404JSONResponse) VisitGetGroupByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetGroupByID500JSONResponse Error
+
+func (response GetGroupByID500JSONResponse) VisitGetGroupByIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroupRequestObject struct {
+	Id   UUID `json:"id"`
+	Body *UpdateGroupJSONRequestBody
+}
+
+type UpdateGroupResponseObject interface {
+	VisitUpdateGroupResponse(w http.ResponseWriter) error
+}
+
+type UpdateGroup200JSONResponse Group
+
+func (response UpdateGroup200JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroup400JSONResponse Error
+
+func (response UpdateGroup400JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroup401JSONResponse Error
+
+func (response UpdateGroup401JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroup403JSONResponse Error
+
+func (response UpdateGroup403JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroup404JSONResponse Error
+
+func (response UpdateGroup404JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateGroup500JSONResponse Error
+
+func (response UpdateGroup500JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetItemsRequestObject struct {
 }
 
@@ -4209,6 +4700,21 @@ type StrictServerInterface interface {
 	// Checkout cart
 	// (POST /checkout)
 	CheckoutCart(ctx context.Context, request CheckoutCartRequestObject) (CheckoutCartResponseObject, error)
+	// Get all groups
+	// (GET /groups)
+	GetAllGroups(ctx context.Context, request GetAllGroupsRequestObject) (GetAllGroupsResponseObject, error)
+	// Create a new group
+	// (POST /groups)
+	CreateGroup(ctx context.Context, request CreateGroupRequestObject) (CreateGroupResponseObject, error)
+	// Delete group
+	// (DELETE /groups/{id})
+	DeleteGroup(ctx context.Context, request DeleteGroupRequestObject) (DeleteGroupResponseObject, error)
+	// Get group by ID
+	// (GET /groups/{id})
+	GetGroupByID(ctx context.Context, request GetGroupByIDRequestObject) (GetGroupByIDResponseObject, error)
+	// Update group
+	// (PUT /groups/{id})
+	UpdateGroup(ctx context.Context, request UpdateGroupRequestObject) (UpdateGroupResponseObject, error)
 	// Get all items
 	// (GET /items)
 	GetItems(ctx context.Context, request GetItemsRequestObject) (GetItemsResponseObject, error)
@@ -4900,6 +5406,146 @@ func (sh *strictHandler) CheckoutCart(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetAllGroups operation middleware
+func (sh *strictHandler) GetAllGroups(w http.ResponseWriter, r *http.Request) {
+	var request GetAllGroupsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAllGroups(ctx, request.(GetAllGroupsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAllGroups")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAllGroupsResponseObject); ok {
+		if err := validResponse.VisitGetAllGroupsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateGroup operation middleware
+func (sh *strictHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	var request CreateGroupRequestObject
+
+	var body CreateGroupJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateGroup(ctx, request.(CreateGroupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateGroup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateGroupResponseObject); ok {
+		if err := validResponse.VisitCreateGroupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteGroup operation middleware
+func (sh *strictHandler) DeleteGroup(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request DeleteGroupRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGroup(ctx, request.(DeleteGroupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGroup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteGroupResponseObject); ok {
+		if err := validResponse.VisitDeleteGroupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetGroupByID operation middleware
+func (sh *strictHandler) GetGroupByID(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request GetGroupByIDRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGroupByID(ctx, request.(GetGroupByIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGroupByID")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGroupByIDResponseObject); ok {
+		if err := validResponse.VisitGetGroupByIDResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateGroup operation middleware
+func (sh *strictHandler) UpdateGroup(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request UpdateGroupRequestObject
+
+	request.Id = id
+
+	var body UpdateGroupJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateGroup(ctx, request.(UpdateGroupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateGroup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateGroupResponseObject); ok {
+		if err := validResponse.VisitUpdateGroupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetItems operation middleware
 func (sh *strictHandler) GetItems(w http.ResponseWriter, r *http.Request) {
 	var request GetItemsRequestObject
@@ -5342,105 +5988,110 @@ func (sh *strictHandler) GetUserById(w http.ResponseWriter, r *http.Request, use
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AAA=",
+	"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",
+	"ehDcf7n/vwAAAP//kQ2y+n73AAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
