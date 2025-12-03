@@ -46,6 +46,3 @@ INSERT INTO role_permissions (role_name, permission_name) VALUES ($1, $2);
 -- name: CreateUserRole :exec
 INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4);
 
--- name: CreateGroup :one
-INSERT INTO groups (name, description) VALUES ($1, $2) RETURNING id, name, description;
-

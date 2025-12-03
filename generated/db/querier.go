@@ -39,12 +39,14 @@ type Querier interface {
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
 	DeleteAvailability(ctx context.Context, id uuid.UUID) error
+	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
 	GetActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
 	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, dueDate pgtype.Timestamp) ([]Borrowing, error)
 	// this function gets an active borrowing by item_id and user_id, used to validate ownership before return
 	GetActiveBorrowingByItemAndUser(ctx context.Context, arg GetActiveBorrowingByItemAndUserParams) (Borrowing, error)
 	GetAllActiveBorrowedItems(ctx context.Context) ([]Borrowing, error)
+	GetAllGroups(ctx context.Context) ([]Group, error)
 	GetAllItems(ctx context.Context) ([]Item, error)
 	GetAllRequests(ctx context.Context) ([]Request, error)
 	GetAllReturnedItems(ctx context.Context) ([]Borrowing, error)
@@ -107,6 +109,7 @@ type Querier interface {
 	// this function updates the status of a request (approve or deny) and records who reviewed it and when
 	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
+	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error

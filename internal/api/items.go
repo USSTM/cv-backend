@@ -2,11 +2,12 @@ package api
 
 import (
 	"context"
+	"log"
+
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/jackc/pgx/v5/pgtype"
-	"log"
 )
 
 func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
