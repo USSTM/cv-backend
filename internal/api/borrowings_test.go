@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1312,9 +1314,27 @@ func TestServer_ReviewRequest(t *testing.T) {
 			WithStock(2).
 			Create()
 
+		// Create request context
+		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
+
+		// Get a time slot from seed data
+		timeSlots, err := testDB.Queries().ListTimeSlots(requestCtx)
+		require.NoError(t, err)
+		require.NotEmpty(t, timeSlots)
+		timeSlotID := timeSlots[0].ID
+
+		// Create availability for booking
+		futureDate := time.Now().Add(24 * time.Hour) // Tomorrow
+		availability, err := testDB.Queries().CreateAvailability(requestCtx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &requestUser.ID,
+			TimeSlotID: &timeSlotID,
+			Date:       pgtype.Date{Time: futureDate, Valid: true},
+		})
+		require.NoError(t, err)
+
 		// Create request
 		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
-		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -1327,14 +1347,20 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.NoError(t, err)
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
-		// Approve request
+		// Approve request with booking fields
 		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
+
+		pickupLocation := "Main Office"
+		returnLocation := "Equipment Room"
 
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
 			RequestId: createdRequest.Id,
 			Body: &api.ReviewRequestJSONRequestBody{
-				Status: api.Approved,
+				Status:         api.Approved,
+				AvailabilityId: &availability.ID,
+				PickupLocation: &pickupLocation,
+				ReturnLocation: &returnLocation,
 			},
 		})
 
@@ -1545,9 +1571,27 @@ func TestServer_ReviewRequest(t *testing.T) {
 			WithStock(2).
 			Create()
 
+		// Create request context
+		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
+
+		// Get a time slot from seed data
+		timeSlots, err := testDB.Queries().ListTimeSlots(requestCtx)
+		require.NoError(t, err)
+		require.NotEmpty(t, timeSlots)
+		timeSlotID := timeSlots[0].ID
+
+		// Create availability for booking
+		futureDate := time.Now().Add(48 * time.Hour) // 2 days from now
+		availability, err := testDB.Queries().CreateAvailability(requestCtx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &requestUser.ID,
+			TimeSlotID: &timeSlotID,
+			Date:       pgtype.Date{Time: futureDate, Valid: true},
+		})
+		require.NoError(t, err)
+
 		// Create request
 		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
-		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -1560,14 +1604,20 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.NoError(t, err)
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
-		// First approval
+		// First approval with booking fields
 		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
+
+		pickupLocation := "Main Office"
+		returnLocation := "Equipment Room"
 
 		_, err = server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
 			RequestId: createdRequest.Id,
 			Body: &api.ReviewRequestJSONRequestBody{
-				Status: api.Approved,
+				Status:         api.Approved,
+				AvailabilityId: &availability.ID,
+				PickupLocation: &pickupLocation,
+				ReturnLocation: &returnLocation,
 			},
 		})
 		require.NoError(t, err)
@@ -2025,4 +2075,163 @@ func TestServer_GetRequestById(t *testing.T) {
 		assert.Equal(t, int32(404), errorResp.Code)
 		assert.Contains(t, errorResp.Message, "not found")
 	})
+}
+
+func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration tests in short mode")
+	}
+
+	testDB := getSharedTestDatabase(t)
+	mockJWT := testutil.NewMockJWTService(t)
+	mockAuth := testutil.NewMockAuthenticator(t)
+	server := NewServer(testDB, mockJWT, mockAuth)
+
+	t.Run("success - approve HIGH item creates booking", func(t *testing.T) {
+		testDB.CleanupDatabase(t)
+
+		// test data
+		user := testDB.NewUser(t).WithEmail("user@reviewbooking.test").AsMember().Create()
+		approver := testDB.NewUser(t).WithEmail("approver@reviewbooking.test").AsApprover().Create()
+		group := testDB.NewGroup(t).WithName("Test Group").Create()
+		item := testDB.NewItem(t).WithName("Laptop").WithType("high").WithStock(5).Create()
+
+		// Add user to group
+		testDB.AssignUserToGroup(t, user.ID, group.ID, "member")
+
+		userCtx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
+		approverCtx := testutil.ContextWithUser(context.Background(), approver, testDB.Queries())
+
+		// Get a time slot
+		timeSlots, _ := testDB.Queries().ListTimeSlots(userCtx)
+		require.NotEmpty(t, timeSlots)
+		timeSlotID := timeSlots[0].ID
+
+		// Create availability (7 days in future)
+		futureDate := time.Now().AddDate(0, 0, 7)
+		availability, err := testDB.Queries().CreateAvailability(approverCtx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver.ID,
+			TimeSlotID: &timeSlotID,
+			Date:       pgtype.Date{Time: futureDate, Valid: true},
+		})
+		require.NoError(t, err)
+
+		// Create request via RequestItem endpoint
+		mockAuth.ExpectCheckPermission(user.ID, "request_items", &group.ID, true, nil)
+
+		requestResp, err := server.RequestItem(userCtx, api.RequestItemRequestObject{
+			Body: &api.RequestItemJSONRequestBody{
+				UserId:   user.ID,
+				GroupId:  group.ID,
+				ItemId:   item.ID,
+				Quantity: 1,
+			},
+		})
+		require.NoError(t, err)
+		createdRequest := requestResp.(api.RequestItem201JSONResponse)
+
+		// Test: Approver approves with booking fields
+		mockAuth.ExpectCheckPermission(approver.ID, "approve_all_requests", nil, true, nil)
+
+		pickupLoc := "Main Office Lobby"
+		returnLoc := "Main Office Return Desk"
+
+		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
+			RequestId: createdRequest.Id,
+			Body: &api.ReviewRequestJSONRequestBody{
+				Status:         api.Approved,
+				AvailabilityId: &availability.ID,
+				PickupLocation: &pickupLoc,
+				ReturnLocation: &returnLoc,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.ReviewRequest200JSONResponse{}, response)
+
+		resp := response.(api.ReviewRequest200JSONResponse)
+		assert.Equal(t, api.Approved, resp.Status)
+
+		// Verify booking was created by checking the request has a booking_id
+		request, err := testDB.Queries().GetRequestById(approverCtx, createdRequest.Id)
+		require.NoError(t, err)
+		assert.NotNil(t, request.BookingID, "Request should have a booking_id")
+
+		// Verify booking details
+		booking, err := testDB.Queries().GetBookingByID(approverCtx, *request.BookingID)
+		require.NoError(t, err)
+		assert.Equal(t, user.ID, *booking.RequesterID)
+		assert.Equal(t, approver.ID, *booking.ManagerID)
+		assert.Equal(t, item.ID, *booking.ItemID)
+		assert.Equal(t, availability.ID, *booking.AvailabilityID)
+		assert.Equal(t, pickupLoc, booking.PickUpLocation)
+		assert.Equal(t, returnLoc, booking.ReturnLocation)
+		assert.Equal(t, db.RequestStatusPendingConfirmation, booking.Status)
+
+		// Verify pickup date calculation (availability.date + time_slot.start_time)
+		timeSlot, err := testDB.Queries().GetTimeSlotByID(approverCtx, timeSlotID)
+		require.NoError(t, err)
+
+		expectedPickupTime := futureDate.Add(time.Duration(timeSlot.StartTime.Microseconds) * time.Microsecond)
+		assert.True(t, booking.PickUpDate.Time.Equal(expectedPickupTime) || booking.PickUpDate.Time.Sub(expectedPickupTime) < time.Second,
+			"Pickup date should match availability date + time slot start time")
+
+		// Verify return date calculation (pickup + 7 days)
+		expectedReturnTime := expectedPickupTime.Add(7 * 24 * time.Hour)
+		assert.True(t, booking.ReturnDate.Time.Equal(expectedReturnTime) || booking.ReturnDate.Time.Sub(expectedReturnTime) < time.Second,
+			"Return date should be 7 days after pickup")
+	})
+
+	t.Run("bad request - approve HIGH item missing availability_id", func(t *testing.T) {
+		testDB.CleanupDatabase(t)
+
+		user := testDB.NewUser(t).WithEmail("user@reviewbooking.test").AsMember().Create()
+		approver := testDB.NewUser(t).WithEmail("approver@reviewbooking.test").AsApprover().Create()
+		group := testDB.NewGroup(t).WithName("Test Group").Create()
+		item := testDB.NewItem(t).WithName("Laptop").WithType("high").WithStock(5).Create()
+
+		testDB.AssignUserToGroup(t, user.ID, group.ID, "member")
+
+		userCtx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
+		approverCtx := testutil.ContextWithUser(context.Background(), approver, testDB.Queries())
+
+		// Create request via RequestItem endpoint
+		mockAuth.ExpectCheckPermission(user.ID, "request_items", &group.ID, true, nil)
+
+		requestResp, err := server.RequestItem(userCtx, api.RequestItemRequestObject{
+			Body: &api.RequestItemJSONRequestBody{
+				UserId:   user.ID,
+				GroupId:  group.ID,
+				ItemId:   item.ID,
+				Quantity: 1,
+			},
+		})
+		require.NoError(t, err)
+		createdRequest := requestResp.(api.RequestItem201JSONResponse)
+
+		// Approve without availability_id
+		mockAuth.ExpectCheckPermission(approver.ID, "approve_all_requests", nil, true, nil)
+
+		pickupLoc := "Main Office"
+		returnLoc := "Main Office"
+
+		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
+			RequestId: createdRequest.Id,
+			Body: &api.ReviewRequestJSONRequestBody{
+				Status:         api.Approved,
+				PickupLocation: &pickupLoc,
+				ReturnLocation: &returnLoc,
+				// Missing AvailabilityId
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.ReviewRequest400JSONResponse{}, response)
+
+		resp := response.(api.ReviewRequest400JSONResponse)
+		assert.Equal(t, int32(400), resp.Code)
+		assert.Contains(t, resp.Message, "availability_id")
+	})
+
 }
