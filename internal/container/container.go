@@ -1,12 +1,11 @@
 package container
 
 import (
-	"log"
-
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
+	"github.com/USSTM/cv-backend/internal/logging"
 )
 
 type Container struct {
@@ -34,7 +33,9 @@ func New() (*Container, error) {
 
 	server := api.NewServer(db, jwtService, authenticator)
 
-	log.Printf("Connected to database: %s:%s", cfg.Database.Host, cfg.Database.Port)
+	logging.Info("Connected to database",
+		"host", cfg.Database.Host,
+		"port", cfg.Database.Port)
 
 	return &Container{
 		Config:        cfg,
@@ -48,6 +49,6 @@ func New() (*Container, error) {
 func (c *Container) Cleanup() {
 	if c.Database != nil {
 		c.Database.Close()
-		log.Println("Database connection closed")
+		logging.Info("Database connection closed")
 	}
 }

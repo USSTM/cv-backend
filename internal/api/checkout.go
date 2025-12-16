@@ -7,6 +7,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -20,6 +21,8 @@ type CheckoutResult struct {
 }
 
 func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartRequestObject) (api.CheckoutCartResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.CheckoutCart401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
@@ -28,6 +31,11 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 	// Check permission
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
+		logger.Error("Failed to check request_items permission",
+			"user_id", user.ID,
+			"group_id", request.Body.GroupId,
+			"permission", rbac.RequestItems,
+			"error", err)
 		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
 	if !hasPermission {
@@ -37,6 +45,10 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 	// transaction
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
+		logger.Error("Failed to begin checkout transaction",
+			"user_id", user.ID,
+			"group_id", request.Body.GroupId,
+			"error", err)
 		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to start transaction"}, nil
 	}
 	defer tx.Rollback(ctx)
@@ -49,6 +61,10 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		UserID:  user.ID,
 	})
 	if err != nil {
+		logger.Error("Failed to get cart items for checkout",
+			"user_id", user.ID,
+			"group_id", request.Body.GroupId,
+			"error", err)
 		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to get cart items"}, nil
 	}
 
@@ -69,6 +85,11 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		case db.ItemTypeLow:
 			err := s.processLowItem(ctx, qtx, cartItem, request.Body.GroupId, user.ID, &result)
 			if err != nil {
+				logger.Warn("Failed to process LOW item in checkout",
+					"item_id", cartItem.ItemID,
+					"item_name", cartItem.Name,
+					"user_id", user.ID,
+					"error", err)
 				itemName := cartItem.Name
 				result.Errors = append(result.Errors, api.CheckoutError{
 					ItemId:   cartItem.ItemID,
@@ -80,6 +101,11 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		case db.ItemTypeMedium:
 			err := s.processMediumItem(ctx, qtx, cartItem, request.Body, user.ID, &result)
 			if err != nil {
+				logger.Warn("Failed to process MEDIUM item in checkout",
+					"item_id", cartItem.ItemID,
+					"item_name", cartItem.Name,
+					"user_id", user.ID,
+					"error", err)
 				itemName := cartItem.Name
 				result.Errors = append(result.Errors, api.CheckoutError{
 					ItemId:   cartItem.ItemID,
@@ -91,6 +117,11 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		case db.ItemTypeHigh:
 			err := s.processHighItem(ctx, qtx, cartItem, request.Body.GroupId, user.ID, &result)
 			if err != nil {
+				logger.Warn("Failed to process HIGH item in checkout",
+					"item_id", cartItem.ItemID,
+					"item_name", cartItem.Name,
+					"user_id", user.ID,
+					"error", err)
 				itemName := cartItem.Name
 				result.Errors = append(result.Errors, api.CheckoutError{
 					ItemId:   cartItem.ItemID,

@@ -1,20 +1,22 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
-	"log"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRequestObject) (api.GetBookingByIDResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetBookingByID401JSONResponse{
@@ -26,7 +28,9 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 	// Fetch booking with joined data
 	booking, err := s.db.Queries().GetBookingByID(ctx, request.BookingId)
 	if err != nil {
-		log.Printf("Failed to get booking: %v", err)
+		logger.Warn("Failed to get booking",
+			"booking_id", request.BookingId,
+			"error", err)
 		return api.GetBookingByID404JSONResponse{
 			Code:    404,
 			Message: "Booking not found",
@@ -37,7 +41,10 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 	isOwner := booking.RequesterID != nil && *booking.RequesterID == user.ID
 	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		log.Printf("Failed to check permission: %v", err)
+		logger.Error("Failed to check permission",
+			"user_id", user.ID,
+			"permission", rbac.ViewAllData,
+			"error", err)
 		return api.GetBookingByID500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -237,6 +244,8 @@ func convertToBookingResponseFromPendingRow(booking db.ListPendingConfirmationRo
 }
 
 func (s Server) ListBookings(ctx context.Context, request api.ListBookingsRequestObject) (api.ListBookingsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.ListBookings401JSONResponse{
@@ -248,7 +257,10 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 	// Check permissions to determine what user can view
 	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		log.Printf("Failed to check view_all_data permission: %v", err)
+		logger.Error("Failed to check view_all_data permission",
+			"user_id", user.ID,
+			"permission", rbac.ViewAllData,
+			"error", err)
 		return api.ListBookings500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -280,7 +292,9 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 			ToDate:   toDate,
 		})
 		if err != nil {
-			log.Printf("Failed to list bookings: %v", err)
+			logger.Error("Failed to list bookings",
+				"status", status,
+				"error", err)
 			return api.ListBookings500JSONResponse{
 				Code:    500,
 				Message: "An unexpected error occurred",
@@ -300,7 +314,10 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 		Status:      status,
 	})
 	if err != nil {
-		log.Printf("Failed to list bookings for user: %v", err)
+		logger.Error("Failed to list bookings for user",
+			"user_id", user.ID,
+			"status", status,
+			"error", err)
 		return api.ListBookings500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -315,6 +332,8 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 }
 
 func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequestObject) (api.GetMyBookingsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetMyBookings401JSONResponse{
@@ -338,7 +357,10 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 		Status:      status,
 	})
 	if err != nil {
-		log.Printf("Failed to list bookings for user %s: %v", user.ID, err)
+		logger.Error("Failed to list bookings for user",
+			"user_id", user.ID,
+			"status", status,
+			"error", err)
 		return api.GetMyBookings500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -355,6 +377,8 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 
 // Permission: manage_all_bookings or manage_group_bookings
 func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPendingConfirmationRequestObject) (api.ListPendingConfirmationResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.ListPendingConfirmation401JSONResponse{
@@ -366,7 +390,10 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 	// need manage_all_bookings or manage_group_bookings
 	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageAllBookings, nil)
 	if err != nil {
-		log.Printf("Failed to check manage_all_bookings permission: %v", err)
+		logger.Error("Failed to check manage_all_bookings permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageAllBookings,
+			"error", err)
 		return api.ListPendingConfirmation500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -382,7 +409,11 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 			// manage_group_bookings for request group id?
 			hasManageGroup, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupBookings, request.Params.GroupId)
 			if err != nil {
-				log.Printf("Failed to check manage_group_bookings permission: %v", err)
+				logger.Error("Failed to check manage_group_bookings permission",
+					"user_id", user.ID,
+					"permission", rbac.ManageGroupBookings,
+					"group_id", request.Params.GroupId,
+					"error", err)
 				return api.ListPendingConfirmation500JSONResponse{
 					Code:    500,
 					Message: "An unexpected error occurred",
@@ -411,7 +442,9 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 	// Fetch pending confirmation bookings
 	bookings, err := s.db.Queries().ListPendingConfirmation(ctx, groupID)
 	if err != nil {
-		log.Printf("Failed to list pending confirmation bookings: %v", err)
+		logger.Error("Failed to list pending confirmation bookings",
+			"group_id", groupID,
+			"error", err)
 		return api.ListPendingConfirmation500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -428,6 +461,8 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 
 // Validates: requester ownership, pending status, 48h window, before pickup
 func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRequestObject) (api.ConfirmBookingResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.ConfirmBooking401JSONResponse{
@@ -439,7 +474,9 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 	// Fetch booking to validate
 	booking, err := s.db.Queries().GetBookingByID(ctx, request.BookingId)
 	if err != nil {
-		log.Printf("Failed to get booking %s: %v", request.BookingId, err)
+		logger.Warn("Failed to get booking for confirmation",
+			"booking_id", request.BookingId,
+			"error", err)
 		return api.ConfirmBooking404JSONResponse{
 			Code:    404,
 			Message: "Booking not found",
@@ -484,7 +521,10 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 		ConfirmedBy: &user.ID,
 	})
 	if err != nil {
-		log.Printf("Failed to confirm booking: %v", err)
+		logger.Error("Failed to confirm booking",
+			"booking_id", request.BookingId,
+			"user_id", user.ID,
+			"error", err)
 		return api.ConfirmBooking500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -494,7 +534,9 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 	// complete response
 	updatedBooking, err := s.db.Queries().GetBookingByID(ctx, confirmedBooking.ID)
 	if err != nil {
-		log.Printf("Failed to fetch confirmed booking: %v", err)
+		logger.Error("Failed to fetch confirmed booking",
+			"booking_id", confirmedBooking.ID,
+			"error", err)
 		return api.ConfirmBooking500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -507,6 +549,8 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 
 // Requesters can cancel before pickup, managers/admins can cancel anytime
 func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequestObject) (api.CancelBookingResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.CancelBooking401JSONResponse{
@@ -518,7 +562,9 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 	// Fetch booking
 	booking, err := s.db.Queries().GetBookingByID(ctx, request.BookingId)
 	if err != nil {
-		log.Printf("Failed to get booking %s: %v", request.BookingId, err)
+		logger.Warn("Failed to get booking for cancellation",
+			"booking_id", request.BookingId,
+			"error", err)
 		return api.CancelBooking404JSONResponse{
 			Code:    404,
 			Message: "Booking not found",
@@ -530,7 +576,10 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 
 	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageAllBookings, nil)
 	if err != nil {
-		log.Printf("Failed to check manage_all_bookings permission: %v", err)
+		logger.Error("Failed to check manage_all_bookings permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageAllBookings,
+			"error", err)
 		return api.CancelBooking500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -561,7 +610,10 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 	// Cancel the booking
 	_, err = s.db.Queries().CancelBooking(ctx, request.BookingId)
 	if err != nil {
-		log.Printf("Failed to cancel booking: %v", err)
+		logger.Error("Failed to cancel booking",
+			"booking_id", request.BookingId,
+			"user_id", user.ID,
+			"error", err)
 		return api.CancelBooking500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -571,7 +623,9 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 	// complete response
 	updatedBooking, err := s.db.Queries().GetBookingByID(ctx, request.BookingId)
 	if err != nil {
-		log.Printf("Failed to fetch cancelled booking: %v", err)
+		logger.Error("Failed to fetch cancelled booking",
+			"booking_id", request.BookingId,
+			"error", err)
 		return api.CancelBooking500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
