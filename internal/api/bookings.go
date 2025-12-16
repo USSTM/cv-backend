@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"log"
 	"time"
@@ -34,7 +35,7 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 
 	// user can view own booking, or has view_all_data permission
 	isOwner := booking.RequesterID != nil && *booking.RequesterID == user.ID
-	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		log.Printf("Failed to check permission: %v", err)
 		return api.GetBookingByID500JSONResponse{
@@ -245,7 +246,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 	}
 
 	// Check permissions to determine what user can view
-	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasViewAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		log.Printf("Failed to check view_all_data permission: %v", err)
 		return api.ListBookings500JSONResponse{
@@ -363,7 +364,7 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 	}
 
 	// need manage_all_bookings or manage_group_bookings
-	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_all_bookings", nil)
+	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageAllBookings, nil)
 	if err != nil {
 		log.Printf("Failed to check manage_all_bookings permission: %v", err)
 		return api.ListPendingConfirmation500JSONResponse{
@@ -379,7 +380,7 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 		// Check group-scoped permission
 		if request.Params.GroupId != nil {
 			// manage_group_bookings for request group id?
-			hasManageGroup, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_bookings", request.Params.GroupId)
+			hasManageGroup, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupBookings, request.Params.GroupId)
 			if err != nil {
 				log.Printf("Failed to check manage_group_bookings permission: %v", err)
 				return api.ListPendingConfirmation500JSONResponse{
@@ -527,7 +528,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 	// Check permissions
 	isRequester := booking.RequesterID != nil && *booking.RequesterID == user.ID
 
-	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_all_bookings", nil)
+	hasManageAll, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageAllBookings, nil)
 	if err != nil {
 		log.Printf("Failed to check manage_all_bookings permission: %v", err)
 		return api.CancelBooking500JSONResponse{

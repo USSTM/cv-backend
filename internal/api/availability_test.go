@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 
 		futureDate := toOpenAPIDate(time.Now().AddDate(0, 0, 7))
 
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
 
 		response, err := server.CreateAvailability(ctx, api.CreateAvailabilityRequestObject{
 			Body: &api.CreateAvailabilityRequest{
@@ -69,7 +70,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 		timeSlotID := timeSlots[0].ID
 		futureDate := toOpenAPIDate(time.Now().AddDate(0, 0, 7))
 
-		mockAuth.ExpectCheckPermission(member.ID, "manage_time_slots", nil, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageTimeSlots, nil, false, nil)
 
 		response, err := server.CreateAvailability(ctx, api.CreateAvailabilityRequestObject{
 			Body: &api.CreateAvailabilityRequest{
@@ -91,7 +92,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 		timeSlotID := timeSlots[0].ID
 		pastDate := toOpenAPIDate(time.Now().AddDate(0, 0, -7))
 
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
 
 		response, err := server.CreateAvailability(ctx, api.CreateAvailabilityRequestObject{
 			Body: &api.CreateAvailabilityRequest{
@@ -126,7 +127,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 		require.NoError(t, err)
 
 		// duplicate
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
 
 		response, err := server.CreateAvailability(ctx, api.CreateAvailabilityRequestObject{
 			Body: &api.CreateAvailabilityRequest{
@@ -445,7 +446,7 @@ func TestServer_DeleteAvailability(t *testing.T) {
 			Date:       pgtype.Date{Time: targetDate, Valid: true},
 		})
 
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
 
 		response, err := server.DeleteAvailability(ctx, api.DeleteAvailabilityRequestObject{
 			Id: availability.ID,
@@ -468,7 +469,7 @@ func TestServer_DeleteAvailability(t *testing.T) {
 		})
 
 		memberCtx := testutil.ContextWithUser(context.Background(), member, testDB.Queries())
-		mockAuth.ExpectCheckPermission(member.ID, "manage_time_slots", nil, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageTimeSlots, nil, false, nil)
 
 		response, err := server.DeleteAvailability(memberCtx, api.DeleteAvailabilityRequestObject{
 			Id: availability.ID,
@@ -490,8 +491,8 @@ func TestServer_DeleteAvailability(t *testing.T) {
 		})
 
 		// approver (different from owner) tries to delete
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
-		mockAuth.ExpectCheckPermission(approver.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.DeleteAvailability(ctx, api.DeleteAvailabilityRequestObject{
 			Id: availability.ID,
@@ -517,8 +518,8 @@ func TestServer_DeleteAvailability(t *testing.T) {
 
 		// global admin tries to delete
 		adminCtx := testutil.ContextWithUser(context.Background(), globalAdmin, testDB.Queries())
-		mockAuth.ExpectCheckPermission(globalAdmin.ID, "manage_time_slots", nil, true, nil)
-		mockAuth.ExpectCheckPermission(globalAdmin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(globalAdmin.ID, rbac.ManageTimeSlots, nil, true, nil)
+		mockAuth.ExpectCheckPermission(globalAdmin.ID, rbac.ViewAllData, nil, true, nil)
 
 		response, err := server.DeleteAvailability(adminCtx, api.DeleteAvailabilityRequestObject{
 			Id: availability.ID,
@@ -533,7 +534,7 @@ func TestServer_DeleteAvailability(t *testing.T) {
 	})
 
 	t.Run("delete non-existent availability returns 404", func(t *testing.T) {
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_time_slots", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageTimeSlots, nil, true, nil)
 
 		response, err := server.DeleteAvailability(ctx, api.DeleteAvailabilityRequestObject{
 			Id: uuid.New(),

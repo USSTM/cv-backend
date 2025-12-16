@@ -7,6 +7,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -99,15 +100,15 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 func (s Server) canViewUserTakingHistory(ctx context.Context, authenticatedUserID, targetUserID uuid.UUID, groupIDFilter *uuid.UUID) (bool, error) {
 	// Case 1: User viewing their own data
 	if authenticatedUserID == targetUserID {
-		hasPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, "view_own_data", nil)
+		hasPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, rbac.ViewOwnData, nil)
 		if err != nil {
 			return false, err
 		}
 		return hasPermission, nil
 	}
 
-	// Case 2: User has global view_all_data permission
-	hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, "view_all_data", nil)
+	// Case 2: User has global rbac.ViewAllData permission
+	hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, rbac.ViewAllData, nil)
 	if err != nil {
 		return false, err
 	}
@@ -115,10 +116,10 @@ func (s Server) canViewUserTakingHistory(ctx context.Context, authenticatedUserI
 		return true, nil
 	}
 
-	// Case 3: Group admin with view_group_data permission
+	// Case 3: Group admin with rbac.ViewGroupData permission
 	// Requires groupId parameter to specify which group's data to view
 	if groupIDFilter != nil {
-		hasGroupPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, "view_group_data", groupIDFilter)
+		hasGroupPermission, err := s.authenticator.CheckPermission(ctx, authenticatedUserID, rbac.ViewGroupData, groupIDFilter)
 		if err != nil {
 			return false, err
 		}
@@ -136,7 +137,7 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 		return api.GetItemTakingHistory401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetItemTakingHistory500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -190,7 +191,7 @@ func (s Server) GetItemTakingStats(ctx context.Context, request api.GetItemTakin
 		return api.GetItemTakingStats401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetItemTakingStats500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -25,7 +26,7 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "request_items", &request.Body.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
 		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -156,7 +157,7 @@ func (s Server) processLowItem(ctx context.Context, qtx *db.Queries, cartItem db
 		ItemId:   cartItem.ItemID,
 		ItemName: cartItem.Name,
 		Quantity: int(cartItem.Quantity),
-		Status:   "completed",
+		Status:   rbac.CheckoutStatusCompleted,
 		TakingId: &taking.ID,
 	})
 
@@ -200,7 +201,7 @@ func (s Server) processMediumItem(ctx context.Context, qtx *db.Queries, cartItem
 		ItemId:      cartItem.ItemID,
 		ItemName:    cartItem.Name,
 		Quantity:    int(cartItem.Quantity),
-		Status:      "borrowed",
+		Status:      rbac.CheckoutStatusBorrowed,
 		BorrowingId: &borrowing.ID,
 	})
 
@@ -226,7 +227,7 @@ func (s Server) processHighItem(ctx context.Context, qtx *db.Queries, cartItem d
 		ItemId:    cartItem.ItemID,
 		ItemName:  cartItem.Name,
 		Quantity:  int(cartItem.Quantity),
-		Status:    "pending_approval",
+		Status:    rbac.CheckoutStatusPendingApproval,
 		RequestId: &request.ID,
 	})
 

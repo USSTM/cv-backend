@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 
@@ -69,7 +70,7 @@ func TestServer_GetItems(t *testing.T) {
 			WithStock(7).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetItems(ctx, api.GetItemsRequestObject{})
@@ -88,7 +89,7 @@ func TestServer_GetItems(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		item := testDB.NewItem(t).
@@ -121,7 +122,7 @@ func TestServer_GetItems(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		item := testDB.NewItem(t).
@@ -157,7 +158,7 @@ func TestServer_CreateItem(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		desc := "This is a new item"
@@ -189,7 +190,7 @@ func TestServer_CreateItem(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		desc := "This is a new item"
@@ -230,7 +231,7 @@ func TestServer_UpdateItem(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		item := testDB.NewItem(t).
@@ -280,7 +281,7 @@ func TestServer_PatchItem(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		item := testDB.NewItem(t).
@@ -325,7 +326,7 @@ func TestServer_DeleteItem(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		item := testDB.NewItem(t).
@@ -358,7 +359,7 @@ func TestServer_ErrorItems(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetItemById(ctx, api.GetItemByIdRequestObject{
@@ -379,7 +380,7 @@ func TestServer_ErrorItems(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CreateItem(ctx, api.CreateItemRequestObject{
@@ -400,7 +401,7 @@ func TestServer_ErrorItems(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_items", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageItems, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CreateItem(ctx, api.CreateItemRequestObject{

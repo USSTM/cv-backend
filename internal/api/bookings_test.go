@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func TestServer_GetBookingByID(t *testing.T) {
 
 		// User retrieves their own booking
 		// Handler checks view_all_data permission even for owners
-		mockAuth.ExpectCheckPermission(user.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
 			BookingId: bookingID,
@@ -138,7 +139,7 @@ func TestServer_GetBookingByID(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin retrieves another user's booking
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
 			BookingId: bookingID,
@@ -199,7 +200,7 @@ func TestServer_GetBookingByID(t *testing.T) {
 		require.NoError(t, err)
 
 		// user2 tries to view user1's booking
-		mockAuth.ExpectCheckPermission(user2.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user2.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
 			BookingId: bookingID,
@@ -512,7 +513,7 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 		require.NoError(t, err)
 
 		// Approver views pending confirmations
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_all_bookings", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageAllBookings, nil, true, nil)
 
 		response, err := server.ListPendingConfirmation(ctx, api.ListPendingConfirmationRequestObject{})
 
@@ -569,8 +570,8 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 		require.NoError(t, err)
 
 		// User with manage_group_bookings permission can view (must provide group_id)
-		mockAuth.ExpectCheckPermission(manager.ID, "manage_all_bookings", nil, false, nil)
-		mockAuth.ExpectCheckPermission(manager.ID, "manage_group_bookings", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(manager.ID, rbac.ManageAllBookings, nil, false, nil)
+		mockAuth.ExpectCheckPermission(manager.ID, rbac.ManageGroupBookings, &group.ID, true, nil)
 
 		response, err := server.ListPendingConfirmation(ctx, api.ListPendingConfirmationRequestObject{
 			Params: api.ListPendingConfirmationParams{
@@ -594,8 +595,8 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 		ctx := testutil.ContextWithUser(context.Background(), member, testDB.Queries())
 
 		// Member lacks permissions (even with group_id)
-		mockAuth.ExpectCheckPermission(member.ID, "manage_all_bookings", nil, false, nil)
-		mockAuth.ExpectCheckPermission(member.ID, "manage_group_bookings", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageAllBookings, nil, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageGroupBookings, &group.ID, false, nil)
 
 		response, err := server.ListPendingConfirmation(ctx, api.ListPendingConfirmationRequestObject{
 			Params: api.ListPendingConfirmationParams{
@@ -613,7 +614,7 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 		approver := testDB.NewUser(t).WithEmail("approver@test.com").AsApprover().Create()
 		ctx := testutil.ContextWithUser(context.Background(), approver, testDB.Queries())
 
-		mockAuth.ExpectCheckPermission(approver.ID, "manage_all_bookings", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageAllBookings, nil, true, nil)
 
 		response, err := server.ListPendingConfirmation(ctx, api.ListPendingConfirmationRequestObject{})
 
@@ -704,7 +705,7 @@ func TestServer_ListBookings(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin views all bookings
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		response, err := server.ListBookings(ctx, api.ListBookingsRequestObject{})
 
@@ -774,7 +775,7 @@ func TestServer_ListBookings(t *testing.T) {
 		require.NoError(t, err)
 
 		// User only sees their own booking
-		mockAuth.ExpectCheckPermission(user.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.ListBookings(ctx, api.ListBookingsRequestObject{})
 
@@ -1252,7 +1253,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// User cancels booking before pickup
-		mockAuth.ExpectCheckPermission(user.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
@@ -1317,7 +1318,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Manager cancels user's booking
-		mockAuth.ExpectCheckPermission(manager.ID, "manage_all_bookings", nil, true, nil)
+		mockAuth.ExpectCheckPermission(manager.ID, rbac.ManageAllBookings, nil, true, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
@@ -1377,7 +1378,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin cancels booking after pickup date (admin override)
-		mockAuth.ExpectCheckPermission(admin.ID, "manage_all_bookings", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ManageAllBookings, nil, true, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
@@ -1437,7 +1438,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// User tries to cancel after pickup date
-		mockAuth.ExpectCheckPermission(user.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
@@ -1498,7 +1499,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// user2 tries to cancel user1's booking
-		mockAuth.ExpectCheckPermission(user2.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user2.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
@@ -1591,7 +1592,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cancel once
-		mockAuth.ExpectCheckPermission(user.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 		response1, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
 		})
@@ -1599,7 +1600,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking200JSONResponse{}, response1)
 
 		// Cancel again
-		mockAuth.ExpectCheckPermission(user.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 		response2, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
 		})
@@ -1657,7 +1658,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.NoError(t, err)
 
 		// user2 (not requester, no permissions) tries to cancel
-		mockAuth.ExpectCheckPermission(user2.ID, "manage_all_bookings", nil, false, nil)
+		mockAuth.ExpectCheckPermission(user2.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
 			BookingId: bookingID,
