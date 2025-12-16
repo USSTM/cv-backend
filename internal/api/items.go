@@ -2,16 +2,18 @@ package api
 
 import (
 	"context"
-	"log"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject) (api.GetItemsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetItems401JSONResponse{
@@ -22,7 +24,7 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ViewItems permission: %v", err)
+		logger.Error("Error checking rbac.ViewItems permission", "error", err)
 		return api.GetItems500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -37,7 +39,7 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 
 	items, err := s.db.Queries().GetAllItems(ctx)
 	if err != nil {
-		log.Printf("Failed to get items: %v", err)
+		logger.Error("Failed to get items", "error", err)
 		return api.GetItems500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -69,6 +71,8 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 }
 
 func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRequestObject) (api.GetItemsByTypeResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetItemsByType401JSONResponse{
@@ -79,7 +83,7 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ViewItems permission: %v", err)
+		logger.Error("Error checking rbac.ViewItems permission", "error", err)
 		return api.GetItemsByType500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -94,7 +98,7 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 
 	items, err := s.db.Queries().GetItemsByType(ctx, db.ItemType(request.Type))
 	if err != nil {
-		log.Printf("Failed to get items by type: %v", err)
+		logger.Error("Failed to get items by type", "error", err)
 		return api.GetItemsByType500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -126,6 +130,8 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 }
 
 func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestObject) (api.GetItemByIdResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetItemById401JSONResponse{
@@ -136,7 +142,7 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ViewItems permission: %v", err)
+		logger.Error("Error checking rbac.ViewItems permission", "error", err)
 		return api.GetItemById500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -175,6 +181,8 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 }
 
 func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObject) (api.CreateItemResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.CreateItem401JSONResponse{
@@ -185,7 +193,7 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ManageItems permission: %v", err)
+		logger.Error("Error checking rbac.ManageItems permission", "error", err)
 		return api.CreateItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -228,7 +236,7 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 
 	item, err := s.db.Queries().CreateItem(ctx, params)
 	if err != nil {
-		log.Printf("Failed to create item: %v", err)
+		logger.Error("Failed to create item", "error", err)
 		return api.CreateItem500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -252,6 +260,8 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 }
 
 func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObject) (api.UpdateItemResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.UpdateItem401JSONResponse{
@@ -262,7 +272,7 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ManageItems permission: %v", err)
+		logger.Error("Error checking rbac.ManageItems permission", "error", err)
 		return api.UpdateItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -306,7 +316,7 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 
 	item, err := s.db.Queries().UpdateItem(ctx, params)
 	if err != nil {
-		log.Printf("Failed to update item: %v", err)
+		logger.Error("Failed to update item", "error", err)
 		return api.UpdateItem404JSONResponse{
 			Code:    404,
 			Message: "Item not found",
@@ -330,6 +340,8 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 }
 
 func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObject) (api.PatchItemResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.PatchItem401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
@@ -337,7 +349,7 @@ func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObjec
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ManageItems permission: %v", err)
+		logger.Error("Error checking rbac.ManageItems permission", "error", err)
 		return api.PatchItem500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
 	if !hasPermission {
@@ -398,6 +410,8 @@ func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObjec
 }
 
 func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObject) (api.DeleteItemResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.DeleteItem401JSONResponse{
@@ -408,7 +422,7 @@ func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObj
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking rbac.ManageItems permission: %v", err)
+		logger.Error("Error checking rbac.ManageItems permission", "error", err)
 		return api.DeleteItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -423,7 +437,7 @@ func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObj
 
 	err = s.db.Queries().DeleteItem(ctx, request.Id)
 	if err != nil {
-		log.Printf("Failed to delete item: %v", err)
+		logger.Error("Failed to delete item", "error", err)
 		return api.DeleteItem404JSONResponse{
 			Code:    404,
 			Message: "Item not found",

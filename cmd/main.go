@@ -10,6 +10,8 @@ import (
 
 	genapi "github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/container"
+	"github.com/USSTM/cv-backend/internal/logging"
+	appmiddleware "github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
@@ -22,13 +24,26 @@ func main() {
 	}
 	defer c.Cleanup()
 
+	// Initialize structured logging
+	if err := logging.Init(&c.Config.Logging); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	logging.Info("Logger initialized successfully",
+		"level", c.Config.Logging.Level,
+		"format", c.Config.Logging.Format,
+		"filename", c.Config.Logging.Filename)
+
 	r := chi.NewMux()
 
 	// Get the embedded OpenAPI spec
 	spec, err := genapi.GetSwagger()
 	if err != nil {
-		log.Fatalf("Failed to load OpenAPI spec: %v", err)
+		logging.Error("Failed to load OpenAPI spec", "error", err)
 	}
+
+	// Add request context and logging middlewares BEFORE validator
+	r.Use(appmiddleware.RequestContext)
+	r.Use(appmiddleware.LoggingMiddleware)
 
 	// Add authentication middleware
 	validator := middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
@@ -53,11 +68,14 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
-		log.Println("Shutting down server...")
+		logging.Info("Shutting down server...")
 		c.Cleanup()
 		os.Exit(0)
 	}()
 
-	log.Printf("Server starting on %s", addr)
-	log.Fatal(s.ListenAndServe())
+	logging.Info("Server starting", "address", addr)
+	if err := s.ListenAndServe(); err != nil {
+		logging.Error("Server failed", "error", err)
+		log.Fatal(err)
+	}
 }
