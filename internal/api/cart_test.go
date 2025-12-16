@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 
@@ -47,7 +48,7 @@ func TestServer_AddToCart(t *testing.T) {
 			WithStock(10).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -88,7 +89,7 @@ func TestServer_AddToCart(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		// Add item first time
@@ -103,7 +104,7 @@ func TestServer_AddToCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Add same item again (should increment)
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
@@ -140,7 +141,7 @@ func TestServer_AddToCart(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -172,7 +173,7 @@ func TestServer_AddToCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -208,7 +209,7 @@ func TestServer_AddToCart(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -247,7 +248,7 @@ func TestServer_AddToCart(t *testing.T) {
 			WithStock(20).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -300,7 +301,7 @@ func TestServer_GetCart(t *testing.T) {
 			Create()
 
 		// Add items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -313,7 +314,7 @@ func TestServer_GetCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -325,7 +326,7 @@ func TestServer_GetCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		response, err := server.GetCart(ctx, api.GetCartRequestObject{
 			GroupId: group.ID,
 		})
@@ -349,7 +350,7 @@ func TestServer_GetCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetCart(ctx, api.GetCartRequestObject{
@@ -374,7 +375,7 @@ func TestServer_GetCart(t *testing.T) {
 			WithName("Restricted Get Cart Group").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetCart(ctx, api.GetCartRequestObject{
@@ -416,7 +417,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 			Create()
 
 		// Add item to cart first
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -430,7 +431,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 		require.NoError(t, err)
 
 		// Update quantity
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		response, err := server.UpdateCartItemQuantity(ctx, api.UpdateCartItemQuantityRequestObject{
 			GroupId: group.ID,
 			ItemId:  item.ID,
@@ -466,7 +467,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 			Create()
 
 		// Add item first
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -480,7 +481,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 		require.NoError(t, err)
 
 		// update to zero
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		response, err := server.UpdateCartItemQuantity(ctx, api.UpdateCartItemQuantityRequestObject{
 			GroupId: group.ID,
 			ItemId:  item.ID,
@@ -516,7 +517,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 			WithStock(3).
 			Create()
 
-		mockAuth.ExpectCheckPermission(userA.ID, "manage_cart", &groupA.ID, true, nil)
+		mockAuth.ExpectCheckPermission(userA.ID, rbac.ManageCart, &groupA.ID, true, nil)
 		ctxA := testutil.ContextWithUser(context.Background(), userA, testDB.Queries())
 
 		_, err := server.AddToCart(ctxA, api.AddToCartRequestObject{
@@ -535,7 +536,7 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(userB.ID, "manage_cart", &groupA.ID, false, nil)
+		mockAuth.ExpectCheckPermission(userB.ID, rbac.ManageCart, &groupA.ID, false, nil)
 		ctxB := testutil.ContextWithUser(context.Background(), userB, testDB.Queries())
 
 		response, err := server.UpdateCartItemQuantity(ctxB, api.UpdateCartItemQuantityRequestObject{
@@ -581,7 +582,7 @@ func TestServer_RemoveFromCart(t *testing.T) {
 			Create()
 
 		// Add item first
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -595,7 +596,7 @@ func TestServer_RemoveFromCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Remove item
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		response, err := server.RemoveFromCart(ctx, api.RemoveFromCartRequestObject{
 			GroupId: group.ID,
 			ItemId:  item.ID,
@@ -605,7 +606,7 @@ func TestServer_RemoveFromCart(t *testing.T) {
 		require.IsType(t, api.RemoveFromCart204Response{}, response)
 
 		// Verify item was removed
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		getResp, err := server.GetCart(ctx, api.GetCartRequestObject{
 			GroupId: group.ID,
 		})
@@ -627,7 +628,7 @@ func TestServer_RemoveFromCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RemoveFromCart(ctx, api.RemoveFromCartRequestObject{
@@ -650,7 +651,7 @@ func TestServer_RemoveFromCart(t *testing.T) {
 			WithName("Restricted Remove Group").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RemoveFromCart(ctx, api.RemoveFromCartRequestObject{
@@ -699,7 +700,7 @@ func TestServer_ClearCart(t *testing.T) {
 			Create()
 
 		// Add items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -712,7 +713,7 @@ func TestServer_ClearCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -724,7 +725,7 @@ func TestServer_ClearCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Clear cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		response, err := server.ClearCart(ctx, api.ClearCartRequestObject{
 			GroupId: group.ID,
 		})
@@ -733,7 +734,7 @@ func TestServer_ClearCart(t *testing.T) {
 		require.IsType(t, api.ClearCart204Response{}, response)
 
 		// Verify cart is empty
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		getResp, err := server.GetCart(ctx, api.GetCartRequestObject{
 			GroupId: group.ID,
 		})
@@ -755,7 +756,7 @@ func TestServer_ClearCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.ClearCart(ctx, api.ClearCartRequestObject{
@@ -776,7 +777,7 @@ func TestServer_ClearCart(t *testing.T) {
 			WithName("Restricted Clear Group").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.ClearCart(ctx, api.ClearCartRequestObject{

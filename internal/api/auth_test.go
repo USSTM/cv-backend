@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"errors"
 	"testing"
@@ -132,7 +133,7 @@ func TestServer_PingProtected(t *testing.T) {
 			Create()
 
 		// Mock permission check
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		// Create context with authenticated user
 		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
@@ -174,7 +175,7 @@ func TestServer_PingProtected(t *testing.T) {
 			Create()
 
 		// Mock permission check to return false
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, false, nil)
 
 		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
 			ID:    testUser.ID,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
@@ -52,7 +53,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -110,7 +111,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			Create()
 
 		// First borrow
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -131,7 +132,7 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to borrow again
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		response, err := server.BorrowItem(ctx, api.BorrowItemRequestObject{
 			Body: &api.BorrowItemJSONRequestBody{
@@ -174,7 +175,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -214,7 +215,7 @@ func TestServer_BorrowItem(t *testing.T) {
 		// Assign user to group
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		nonExistentItemID := uuid.New()
@@ -258,7 +259,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			WithStock(2).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -305,7 +306,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			WithStock(2).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -351,7 +352,7 @@ func TestServer_BorrowItem(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -407,7 +408,7 @@ func TestServer_ReturnItem(t *testing.T) {
 			Create()
 
 		// First borrow the item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -434,7 +435,7 @@ func TestServer_ReturnItem(t *testing.T) {
 		assert.Equal(t, int32(4), itemAfterBorrow.Stock, "Stock should be 4 after borrowing 1 item")
 
 		// Now return the item
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		afterCondition := "decent"
 		afterConditionURL := "http://example.com/after.jpg"
@@ -475,7 +476,7 @@ func TestServer_ReturnItem(t *testing.T) {
 			WithStock(10).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		afterCondition := "good"
@@ -518,7 +519,7 @@ func TestServer_ReturnItem(t *testing.T) {
 			Create()
 
 		// First borrow
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -539,7 +540,7 @@ func TestServer_ReturnItem(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to return without permission
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, false, nil)
 
 		afterCondition := "good"
 		afterConditionURL := "http://example.com/after.jpg"
@@ -581,7 +582,7 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 			WithStock(10).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CheckBorrowingItemStatus(ctx, api.CheckBorrowingItemStatusRequestObject{
@@ -617,7 +618,7 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 			Create()
 
 		// Borrow the item first
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -638,7 +639,7 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Now check status
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, nil, true, nil)
 
 		response, err := server.CheckBorrowingItemStatus(ctx, api.CheckBorrowingItemStatusRequestObject{
 			ItemId: item.ID,
@@ -665,7 +666,7 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 			WithStock(5).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CheckBorrowingItemStatus(ctx, api.CheckBorrowingItemStatusRequestObject{
@@ -720,7 +721,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 			{item1.ID},
 			{item2.ID},
 		} {
-			mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+			mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 			dueDate := time.Now().Add(7 * 24 * time.Hour)
 			beforeCondition := "good"
 			beforeConditionURL := "http://example.com/before.jpg"
@@ -740,7 +741,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		}
 
 		// Return one item
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		afterCondition := "good"
 		afterConditionURL := "http://example.com/after.jpg"
 
@@ -754,7 +755,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get full history
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		response, err := server.GetBorrowedItemHistoryByUserId(ctx, api.GetBorrowedItemHistoryByUserIdRequestObject{
 			UserId: testUser.ID,
@@ -778,7 +779,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetBorrowedItemHistoryByUserId(ctx, api.GetBorrowedItemHistoryByUserIdRequestObject{
@@ -815,7 +816,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		// Borrow item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 		beforeCondition := "good"
 		beforeConditionURL := "http://example.com/before.jpg"
@@ -834,7 +835,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get active borrowings
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		response, err := server.GetActiveBorrowedItemsByUserId(ctx, api.GetActiveBorrowedItemsByUserIdRequestObject{
 			UserId: testUser.ID,
@@ -870,7 +871,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		// Borrow and return item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 		beforeCondition := "good"
 		beforeConditionURL := "http://example.com/before.jpg"
@@ -888,7 +889,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		afterCondition := "good"
 		afterConditionURL := "http://example.com/after.jpg"
 
@@ -902,7 +903,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get returned items
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		response, err := server.GetReturnedItemsByUserId(ctx, api.GetReturnedItemsByUserIdRequestObject{
 			UserId: testUser.ID,
@@ -949,7 +950,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 			Create()
 
 		// Member borrows item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		memberCtx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
@@ -970,7 +971,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin views all active
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
 		adminCtx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetAllActiveBorrowedItems(adminCtx, api.GetAllActiveBorrowedItemsRequestObject{})
@@ -988,7 +989,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(memberUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(memberUser.ID, rbac.ViewAllData, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), memberUser, testDB.Queries())
 
 		response, err := server.GetAllActiveBorrowedItems(ctx, api.GetAllActiveBorrowedItemsRequestObject{})
@@ -1007,7 +1008,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetAllReturnedItems(ctx, api.GetAllReturnedItemsRequestObject{})
@@ -1044,7 +1045,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 			Create()
 
 		// Member borrows item with specific due date
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		memberCtx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		dueDate := time.Now().Add(3 * 24 * time.Hour)
@@ -1065,7 +1066,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin views items due by a future date
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
 		adminCtx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		futureDate := time.Now().Add(7 * 24 * time.Hour)
@@ -1108,7 +1109,7 @@ func TestServer_RequestItem(t *testing.T) {
 			WithStock(3).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1153,7 +1154,7 @@ func TestServer_RequestItem(t *testing.T) {
 			WithStock(10).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1186,7 +1187,7 @@ func TestServer_RequestItem(t *testing.T) {
 		// Assign user to group
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1225,7 +1226,7 @@ func TestServer_RequestItem(t *testing.T) {
 			WithStock(2).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1262,7 +1263,7 @@ func TestServer_RequestItem(t *testing.T) {
 			WithStock(3).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1334,7 +1335,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -1348,7 +1349,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Approve request with booking fields
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
 		pickupLocation := "Main Office"
@@ -1399,7 +1400,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1414,7 +1415,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Deny request
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
@@ -1457,7 +1458,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1472,7 +1473,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Try to approve request
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
@@ -1515,7 +1516,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1530,7 +1531,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Member tries to approve
-		mockAuth.ExpectCheckPermission(memberUser.ID, "approve_all_requests", nil, false, nil)
+		mockAuth.ExpectCheckPermission(memberUser.ID, rbac.ApproveAllRequests, nil, false, nil)
 		memberCtx := testutil.ContextWithUser(context.Background(), memberUser, testDB.Queries())
 
 		response, err := server.ReviewRequest(memberCtx, api.ReviewRequestRequestObject{
@@ -1591,7 +1592,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -1605,7 +1606,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// First approval with booking fields
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
 		pickupLocation := "Main Office"
@@ -1623,7 +1624,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		// Try to review again
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
 			RequestId: createdRequest.Id,
@@ -1673,7 +1674,7 @@ func TestServer_GetAllRequests(t *testing.T) {
 			Create()
 
 		// Create a request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		_, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1687,7 +1688,7 @@ func TestServer_GetAllRequests(t *testing.T) {
 		require.NoError(t, err)
 
 		// Admin views all requests
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
 		adminCtx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetAllRequests(adminCtx, api.GetAllRequestsRequestObject{})
@@ -1705,7 +1706,7 @@ func TestServer_GetAllRequests(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(memberUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(memberUser.ID, rbac.ViewAllData, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), memberUser, testDB.Queries())
 
 		response, err := server.GetAllRequests(ctx, api.GetAllRequestsRequestObject{})
@@ -1750,7 +1751,7 @@ func TestServer_GetPendingRequests(t *testing.T) {
 			Create()
 
 		// Create a pending request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		_, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1764,7 +1765,7 @@ func TestServer_GetPendingRequests(t *testing.T) {
 		require.NoError(t, err)
 
 		// Approver views pending requests
-		mockAuth.ExpectCheckPermission(approverUser.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
 		response, err := server.GetPendingRequests(approverCtx, api.GetPendingRequestsRequestObject{})
@@ -1787,7 +1788,7 @@ func TestServer_GetPendingRequests(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(memberUser.ID, "approve_all_requests", nil, false, nil)
+		mockAuth.ExpectCheckPermission(memberUser.ID, rbac.ApproveAllRequests, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), memberUser, testDB.Queries())
 
 		response, err := server.GetPendingRequests(ctx, api.GetPendingRequestsRequestObject{})
@@ -1827,7 +1828,7 @@ func TestServer_GetRequestsByUserId(t *testing.T) {
 			Create()
 
 		// Create requests
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1841,7 +1842,7 @@ func TestServer_GetRequestsByUserId(t *testing.T) {
 		require.NoError(t, err)
 
 		// View own requests
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		response, err := server.GetRequestsByUserId(ctx, api.GetRequestsByUserIdRequestObject{
 			UserId: testUser.ID,
@@ -1870,7 +1871,7 @@ func TestServer_GetRequestsByUserId(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetRequestsByUserId(ctx, api.GetRequestsByUserIdRequestObject{
@@ -1913,7 +1914,7 @@ func TestServer_GetRequestById(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(ctx, api.RequestItemRequestObject{
@@ -1928,8 +1929,8 @@ func TestServer_GetRequestById(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// View request by ID
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.GetRequestById(ctx, api.GetRequestByIdRequestObject{
 			RequestId: createdRequest.Id,
@@ -1968,7 +1969,7 @@ func TestServer_GetRequestById(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -1983,8 +1984,8 @@ func TestServer_GetRequestById(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Admin views request
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(adminUser.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
 		adminCtx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetRequestById(adminCtx, api.GetRequestByIdRequestObject{
@@ -2024,7 +2025,7 @@ func TestServer_GetRequestById(t *testing.T) {
 			Create()
 
 		// Create request
-		mockAuth.ExpectCheckPermission(requestUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(requestUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		requestCtx := testutil.ContextWithUser(context.Background(), requestUser, testDB.Queries())
 
 		requestResp, err := server.RequestItem(requestCtx, api.RequestItemRequestObject{
@@ -2039,8 +2040,8 @@ func TestServer_GetRequestById(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Different user tries to view
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewAllData, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetRequestById(ctx, api.GetRequestByIdRequestObject{
@@ -2061,7 +2062,7 @@ func TestServer_GetRequestById(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetRequestById(ctx, api.GetRequestByIdRequestObject{
@@ -2118,7 +2119,7 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create request via RequestItem endpoint
-		mockAuth.ExpectCheckPermission(user.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		requestResp, err := server.RequestItem(userCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -2132,7 +2133,7 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Test: Approver approves with booking fields
-		mockAuth.ExpectCheckPermission(approver.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ApproveAllRequests, nil, true, nil)
 
 		pickupLoc := "Main Office Lobby"
 		returnLoc := "Main Office Return Desk"
@@ -2197,7 +2198,7 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		approverCtx := testutil.ContextWithUser(context.Background(), approver, testDB.Queries())
 
 		// Create request via RequestItem endpoint
-		mockAuth.ExpectCheckPermission(user.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(user.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		requestResp, err := server.RequestItem(userCtx, api.RequestItemRequestObject{
 			Body: &api.RequestItemJSONRequestBody{
@@ -2211,7 +2212,7 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		createdRequest := requestResp.(api.RequestItem201JSONResponse)
 
 		// Approve without availability_id
-		mockAuth.ExpectCheckPermission(approver.ID, "approve_all_requests", nil, true, nil)
+		mockAuth.ExpectCheckPermission(approver.ID, rbac.ApproveAllRequests, nil, true, nil)
 
 		pickupLoc := "Main Office"
 		returnLoc := "Main Office"

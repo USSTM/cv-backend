@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"log"
 	"time"
@@ -64,7 +65,7 @@ func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequ
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		log.Printf("Error checking view_own_data permission: %v", err)
 		return api.PingProtected500JSONResponse{

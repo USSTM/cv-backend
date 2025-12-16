@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"crypto/rand"
 	"log"
@@ -23,7 +24,7 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_users", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
 	if err != nil {
 		log.Printf("Error checking manage_users permission: %v", err)
 		return api.GetUsers500JSONResponse{
@@ -87,7 +88,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 	if !ok {
 		return api.InviteUser401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", request.Body.ScopeId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, request.Body.ScopeId)
 	if err != nil || !hasPermission {
 		return api.InviteUser403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
 	}
@@ -160,7 +161,7 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, &request.GroupId)
 	if err != nil {
 		log.Printf("Error checking manage_group_users permission: %v", err)
 		return api.GetUsersByGroup500JSONResponse{
@@ -231,7 +232,7 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 	// Users can view their own data, or admins can view any user
 	canView := currentUser.ID == request.UserId
 	if !canView {
-		hasPermission, err := s.authenticator.CheckPermission(ctx, currentUser.ID, "manage_users", nil)
+		hasPermission, err := s.authenticator.CheckPermission(ctx, currentUser.ID, rbac.ManageUsers, nil)
 		if err != nil {
 			log.Printf("Error checking manage_users permission: %v", err)
 			return api.GetUserById500JSONResponse{
@@ -280,7 +281,7 @@ func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_users", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
 	if err != nil {
 		log.Printf("Error checking manage_users permission: %v", err)
 		return api.GetUserByEmail500JSONResponse{

@@ -7,6 +7,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -19,9 +20,9 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking view_items permission: %v", err)
+		log.Printf("Error checking rbac.ViewItems permission: %v", err)
 		return api.GetItems500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -76,9 +77,9 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking view_items permission: %v", err)
+		log.Printf("Error checking rbac.ViewItems permission: %v", err)
 		return api.GetItemsByType500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -133,9 +134,9 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
-		log.Printf("Error checking view_items permission: %v", err)
+		log.Printf("Error checking rbac.ViewItems permission: %v", err)
 		return api.GetItemById500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -182,9 +183,9 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking manage_items permission: %v", err)
+		log.Printf("Error checking rbac.ManageItems permission: %v", err)
 		return api.CreateItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -259,9 +260,9 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking manage_items permission: %v", err)
+		log.Printf("Error checking rbac.ManageItems permission: %v", err)
 		return api.UpdateItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -334,9 +335,9 @@ func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObjec
 		return api.PatchItem401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking manage_items permission: %v", err)
+		log.Printf("Error checking rbac.ManageItems permission: %v", err)
 		return api.PatchItem500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
 	if !hasPermission {
@@ -405,9 +406,9 @@ func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObj
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
-		log.Printf("Error checking manage_items permission: %v", err)
+		log.Printf("Error checking rbac.ManageItems permission: %v", err)
 		return api.DeleteItem500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
