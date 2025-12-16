@@ -3,12 +3,12 @@ package api
 import (
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
-	"log"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -16,6 +16,8 @@ import (
 
 // approvers set availability schedule
 func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvailabilityRequestObject) (api.CreateAvailabilityResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.CreateAvailability401JSONResponse{
@@ -27,7 +29,7 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 	// manage time slots (approvers only)
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
-		log.Printf("Failed to check permission: %v", err)
+		logger.Error("Failed to check permission", "error", err)
 		return api.CreateAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -60,7 +62,7 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 		},
 	})
 	if err != nil {
-		log.Printf("Failed to check availability conflict: %v", err)
+		logger.Error("Failed to check availability conflict", "error", err)
 		return api.CreateAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -85,7 +87,7 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 		},
 	})
 	if err != nil {
-		log.Printf("Failed to create availability: %v", err)
+		logger.Error("Failed to create availability", "error", err)
 		return api.CreateAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -95,7 +97,7 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 	// fetch time slot
 	timeSlot, err := s.db.Queries().GetTimeSlotByID(ctx, *availability.TimeSlotID)
 	if err != nil {
-		log.Printf("Failed to fetch time slot: %v", err)
+		logger.Error("Failed to fetch time slot", "error", err)
 		return api.CreateAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -114,6 +116,8 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 
 // filter availability
 func (s Server) ListAvailability(ctx context.Context, request api.ListAvailabilityRequestObject) (api.ListAvailabilityResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.ListAvailability401JSONResponse{
@@ -140,7 +144,7 @@ func (s Server) ListAvailability(ctx context.Context, request api.ListAvailabili
 		FilterUserID: userIDParam,
 	})
 	if err != nil {
-		log.Printf("Failed to list availability: %v", err)
+		logger.Error("Failed to list availability", "error", err)
 		return api.ListAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -166,6 +170,8 @@ func (s Server) ListAvailability(ctx context.Context, request api.ListAvailabili
 
 // returns approvers available on date
 func (s Server) GetAvailabilityByDate(ctx context.Context, request api.GetAvailabilityByDateRequestObject) (api.GetAvailabilityByDateResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetAvailabilityByDate401JSONResponse{
@@ -181,7 +187,7 @@ func (s Server) GetAvailabilityByDate(ctx context.Context, request api.GetAvaila
 		Valid: true,
 	})
 	if err != nil {
-		log.Printf("Failed to fetch availability by date: %v", err)
+		logger.Error("Failed to fetch availability by date", "error", err)
 		return api.GetAvailabilityByDate500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -205,6 +211,8 @@ func (s Server) GetAvailabilityByDate(ctx context.Context, request api.GetAvaila
 }
 
 func (s Server) GetAvailabilityByID(ctx context.Context, request api.GetAvailabilityByIDRequestObject) (api.GetAvailabilityByIDResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetAvailabilityByID401JSONResponse{
@@ -221,7 +229,7 @@ func (s Server) GetAvailabilityByID(ctx context.Context, request api.GetAvailabi
 				Message: "Availability not found",
 			}, nil
 		}
-		log.Printf("Failed to fetch availability: %v", err)
+		logger.Error("Failed to fetch availability", "error", err)
 		return api.GetAvailabilityByID500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -241,6 +249,8 @@ func (s Server) GetAvailabilityByID(ctx context.Context, request api.GetAvailabi
 
 // returns user's schedule
 func (s Server) GetUserAvailability(ctx context.Context, request api.GetUserAvailabilityRequestObject) (api.GetUserAvailabilityResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetUserAvailability401JSONResponse{
@@ -265,7 +275,7 @@ func (s Server) GetUserAvailability(ctx context.Context, request api.GetUserAvai
 		ToDate:   toDate,
 	})
 	if err != nil {
-		log.Printf("Failed to fetch user availability: %v", err)
+		logger.Error("Failed to fetch user availability", "error", err)
 		return api.GetUserAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -289,6 +299,8 @@ func (s Server) GetUserAvailability(ctx context.Context, request api.GetUserAvai
 
 // removes an availability entry
 func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvailabilityRequestObject) (api.DeleteAvailabilityResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.DeleteAvailability401JSONResponse{
@@ -300,7 +312,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	// user has permission (approvers only)
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
-		log.Printf("Failed to check permission: %v", err)
+		logger.Error("Failed to check permission", "error", err)
 		return api.DeleteAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -323,7 +335,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 				Message: "Availability not found",
 			}, nil
 		}
-		log.Printf("Failed to fetch availability: %v", err)
+		logger.Error("Failed to fetch availability", "error", err)
 		return api.DeleteAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -334,7 +346,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	if availability.UserID != nil && *availability.UserID != user.ID {
 		hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 		if err != nil {
-			log.Printf("Failed to check global permission: %v", err)
+			logger.Error("Failed to check global permission", "error", err)
 			return api.DeleteAvailability500JSONResponse{
 				Code:    500,
 				Message: "An unexpected error occurred",
@@ -351,7 +363,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	// referenced by bookings table?
 	inUse, err := s.db.Queries().CheckAvailabilityInUse(ctx, &request.Id)
 	if err != nil {
-		log.Printf("Failed to check if availability is in use: %v", err)
+		logger.Error("Failed to check if availability is in use", "error", err)
 		return api.DeleteAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
@@ -368,7 +380,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	// delete
 	err = s.db.Queries().DeleteAvailability(ctx, request.Id)
 	if err != nil {
-		log.Printf("Failed to delete availability: %v", err)
+		logger.Error("Failed to delete availability", "error", err)
 		return api.DeleteAvailability500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",

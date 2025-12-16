@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
-	"log"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -24,6 +24,8 @@ func formatPgTime(t pgtype.Time) string {
 }
 
 func (s Server) ListTimeSlots(ctx context.Context, request api.ListTimeSlotsRequestObject) (api.ListTimeSlotsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.ListTimeSlots401JSONResponse{
@@ -34,7 +36,7 @@ func (s Server) ListTimeSlots(ctx context.Context, request api.ListTimeSlotsRequ
 
 	timeSlots, err := s.db.Queries().ListTimeSlots(ctx)
 	if err != nil {
-		log.Printf("Failed to list time slots: %v", err)
+		logger.Error("Failed to list time slots", "error", err)
 		return api.ListTimeSlots500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred",
