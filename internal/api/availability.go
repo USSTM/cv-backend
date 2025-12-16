@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"log"
 	"time"
@@ -24,7 +25,7 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 	}
 
 	// manage time slots (approvers only)
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_time_slots", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
 		log.Printf("Failed to check permission: %v", err)
 		return api.CreateAvailability500JSONResponse{
@@ -297,7 +298,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	}
 
 	// user has permission (approvers only)
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_time_slots", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
 		log.Printf("Failed to check permission: %v", err)
 		return api.DeleteAvailability500JSONResponse{
@@ -331,7 +332,7 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 
 	// check ownership: users can only delete their own availability unless they have view_all_data permission
 	if availability.UserID != nil && *availability.UserID != user.ID {
-		hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+		hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 		if err != nil {
 			log.Printf("Failed to check global permission: %v", err)
 			return api.DeleteAvailability500JSONResponse{

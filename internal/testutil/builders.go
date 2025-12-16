@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"strings"
 	"testing"
@@ -132,7 +133,7 @@ func (ub *UserBuilder) WithEmail(email string) *UserBuilder {
 // AsMember adds the member role with global scope
 func (ub *UserBuilder) AsMember() *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
-		RoleName: "member",
+		RoleName: rbac.RoleMember,
 		Scope:    "global",
 		GroupID:  nil,
 	})
@@ -142,7 +143,7 @@ func (ub *UserBuilder) AsMember() *UserBuilder {
 // AsMemberOf adds the member role scoped to a specific group
 func (ub *UserBuilder) AsMemberOf(group *TestGroup) *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
-		RoleName: "member",
+		RoleName: rbac.RoleMember,
 		Scope:    "group",
 		GroupID:  &group.ID,
 	})
@@ -152,7 +153,7 @@ func (ub *UserBuilder) AsMemberOf(group *TestGroup) *UserBuilder {
 // AsGroupAdminOf adds the group_admin role scoped to a specific group
 func (ub *UserBuilder) AsGroupAdminOf(group *TestGroup) *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
-		RoleName: "group_admin",
+		RoleName: rbac.RoleGroupAdmin,
 		Scope:    "group",
 		GroupID:  &group.ID,
 	})
@@ -162,7 +163,7 @@ func (ub *UserBuilder) AsGroupAdminOf(group *TestGroup) *UserBuilder {
 // AsApprover adds the approver role with global scope
 func (ub *UserBuilder) AsApprover() *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
-		RoleName: "approver",
+		RoleName: rbac.RoleApprover,
 		Scope:    "global",
 		GroupID:  nil,
 	})
@@ -172,7 +173,7 @@ func (ub *UserBuilder) AsApprover() *UserBuilder {
 // AsGlobalAdmin adds the global_admin role with global scope
 func (ub *UserBuilder) AsGlobalAdmin() *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
-		RoleName: "global_admin",
+		RoleName: rbac.RoleGlobalAdmin,
 		Scope:    "global",
 		GroupID:  nil,
 	})

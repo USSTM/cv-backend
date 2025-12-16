@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
@@ -53,7 +54,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -66,7 +67,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -78,7 +79,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
@@ -107,7 +108,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		assert.Equal(t, int32(45), item2.Stock)
 
 		// Verify cart cleared
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		cartResp, err := server.GetCart(ctx, api.GetCartRequestObject{
 			GroupId: group.ID,
 		})
@@ -141,7 +142,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -154,7 +155,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -166,7 +167,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 		beforeCondition := api.CheckoutCartRequestBeforeCondition("good")
 		beforeConditionURL := "http://example.com/before.jpg"
@@ -224,7 +225,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -237,7 +238,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -249,7 +250,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
 			Body: &api.CheckoutCartJSONRequestBody{
@@ -307,7 +308,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add mixed items to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -320,7 +321,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -331,7 +332,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -343,7 +344,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 		beforeCondition := api.CheckoutCartRequestBeforeCondition("good")
 		beforeConditionURL := "http://example.com/before.jpg"
@@ -386,7 +387,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add more than available to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -400,7 +401,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout should error for this item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
 			Body: &api.CheckoutCartJSONRequestBody{
@@ -435,7 +436,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		// Add more than available to cart
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -449,7 +450,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout should return error for item
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		dueDate := time.Now().Add(7 * 24 * time.Hour)
 		beforeCondition := api.CheckoutCartRequestBeforeCondition("good")
 		beforeConditionURL := "http://example.com/before.jpg"
@@ -483,7 +484,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
@@ -510,7 +511,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			WithName("Restricted Checkout Group").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
@@ -539,7 +540,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 
 		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
@@ -582,7 +583,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 			WithStock(1).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
@@ -595,7 +596,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		_, err = server.AddToCart(ctx, api.AddToCartRequestObject{
 			GroupId: group.ID,
 			Body: &api.AddToCartJSONRequestBody{
@@ -607,7 +608,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.NoError(t, err)
 
 		// Checkout
-		mockAuth.ExpectCheckPermission(testUser.ID, "request_items", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
 			Body: &api.CheckoutCartJSONRequestBody{
@@ -623,7 +624,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 		assert.Len(t, checkoutResp.Errors, 1)            // Bad item failed
 
 		// Verify cart is cleared even with partial failure
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_cart", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
 		cartResp, err := server.GetCart(ctx, api.GetCartRequestObject{
 			GroupId: group.ID,
 		})

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"log"
 
@@ -19,7 +20,7 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_group_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
 	if err != nil {
 		log.Printf("Error checking view_group_data permission: %v", err)
 		return api.GetAllGroups500JSONResponse{
@@ -67,7 +68,7 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_group_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
 	if err != nil {
 		log.Printf("Error checking view_group_data permission: %v", err)
 		return api.GetGroupByID500JSONResponse{
@@ -112,7 +113,7 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
 		log.Printf("Error checking manage_groups permission: %v", err)
 		return api.CreateGroup500JSONResponse{
@@ -163,7 +164,7 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
 		log.Printf("Error checking manage_groups permission: %v", err)
 		return api.UpdateGroup500JSONResponse{
@@ -215,7 +216,7 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
 		log.Printf("Error checking manage_groups permission: %v", err)
 		return api.DeleteGroup500JSONResponse{

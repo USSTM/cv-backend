@@ -6,6 +6,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -16,7 +17,7 @@ func (s Server) AddToCart(ctx context.Context, request api.AddToCartRequestObjec
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_cart", &request.Body.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageCart, &request.Body.GroupId)
 	if err != nil {
 		return api.AddToCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -68,7 +69,7 @@ func (s Server) RemoveFromCart(ctx context.Context, request api.RemoveFromCartRe
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_cart", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageCart, &request.GroupId)
 	if err != nil {
 		return api.RemoveFromCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -95,7 +96,7 @@ func (s Server) GetCart(ctx context.Context, request api.GetCartRequestObject) (
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_cart", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageCart, &request.GroupId)
 	if err != nil {
 		return api.GetCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -140,7 +141,7 @@ func (s Server) UpdateCartItemQuantity(ctx context.Context, request api.UpdateCa
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_cart", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageCart, &request.GroupId)
 	if err != nil {
 		return api.UpdateCartItemQuantity500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
@@ -190,7 +191,7 @@ func (s Server) ClearCart(ctx context.Context, request api.ClearCartRequestObjec
 	}
 
 	// Check permission
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_cart", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageCart, &request.GroupId)
 	if err != nil {
 		return api.ClearCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
 	}
