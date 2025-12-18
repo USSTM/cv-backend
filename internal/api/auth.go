@@ -2,11 +2,12 @@ package api
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,10 +19,14 @@ func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObjec
 		}, nil
 	}
 
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	req := *request.Body
 	user, err := s.db.Queries().GetUserByEmail(ctx, string(req.Email))
 	if err != nil {
-		log.Printf("User not found: %v", err)
+		logger.Warn("User not found during login",
+			"email", req.Email,
+			"error", err)
 		return api.LoginUser400JSONResponse{
 			Code:    400,
 			Message: "Invalid email or password.",
@@ -31,7 +36,9 @@ func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObjec
 	// TODO: Add password field to LoginRequest schema
 	// For now, validate against a hardcoded password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("password")); err != nil {
-		log.Printf("Invalid password: %v", err)
+		logger.Warn("Invalid password during login",
+			"email", req.Email,
+			"error", err)
 		return api.LoginUser400JSONResponse{
 			Code:    400,
 			Message: "Invalid email or password.",
@@ -42,20 +49,25 @@ func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObjec
 
 	token, err := s.jwtService.GenerateToken(ctx, userUUID)
 	if err != nil {
-		log.Printf("Failed to generate token: %v", err)
+		logger.Error("Failed to generate token",
+			"email", user.Email,
+			"user_id", userUUID,
+			"error", err)
 		return api.LoginUser500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
 		}, nil
 	}
 
-	log.Printf("User logged in: %s", user.Email)
+	logger.Info("User logged in successfully", "email", user.Email)
 	return api.LoginUser200JSONResponse{
 		Token: &token,
 	}, nil
 }
 
 func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequestObject) (api.PingProtectedResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.PingProtected401JSONResponse{
@@ -64,9 +76,12 @@ func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequ
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		log.Printf("Error checking view_own_data permission: %v", err)
+		logger.Error("Error checking view_own_data permission",
+			"user_id", user.ID,
+			"permission", rbac.ViewOwnData,
+			"error", err)
 		return api.PingProtected500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",

@@ -7,6 +7,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -35,7 +36,7 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 	}
 
 	// Check permission with group scope (validates both permission and group membership)
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "request_items", &request.Body.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
 		return api.BorrowItem500JSONResponse{
 			Code:    500,
@@ -207,7 +208,7 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.ReturnItem500JSONResponse{
 			Code:    500,
@@ -322,7 +323,7 @@ func (s Server) CheckBorrowingItemStatus(ctx context.Context, request api.CheckB
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "request_items", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, nil)
 	if err != nil {
 		return api.CheckBorrowingItemStatus500JSONResponse{
 			Code:    500,
@@ -358,7 +359,7 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.GetBorrowedItemHistoryByUserId500JSONResponse{
 			Code:    500,
@@ -408,7 +409,7 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.GetActiveBorrowedItemsByUserId500JSONResponse{
 			Code:    500,
@@ -458,7 +459,7 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.GetReturnedItemsByUserId500JSONResponse{
 			Code:    500,
@@ -508,7 +509,7 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetAllActiveBorrowedItems500JSONResponse{
 			Code:    500,
@@ -550,7 +551,7 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetAllReturnedItems500JSONResponse{
 			Code:    500,
@@ -592,7 +593,7 @@ func (s Server) GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, re
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse{
 			Code:    500,
@@ -685,7 +686,7 @@ func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestO
 	}
 
 	// Check permission with group
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "request_items", &request.Body.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
 		return api.RequestItem500JSONResponse{
 			Code:    500,
@@ -762,7 +763,7 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "approve_all_requests", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ApproveAllRequests, nil)
 	if err != nil {
 		return api.ReviewRequest500JSONResponse{
 			Code:    500,
@@ -937,7 +938,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetAllRequests500JSONResponse{
 			Code:    500,
@@ -972,7 +973,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "approve_all_requests", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ApproveAllRequests, nil)
 	if err != nil {
 		return api.GetPendingRequests500JSONResponse{
 			Code:    500,
@@ -1007,7 +1008,7 @@ func (s Server) GetRequestsByUserId(ctx context.Context, request api.GetRequests
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.GetRequestsByUserId500JSONResponse{
 			Code:    500,
@@ -1050,7 +1051,7 @@ func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_own_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
 		return api.GetRequestById500JSONResponse{
 			Code:    500,
@@ -1078,8 +1079,8 @@ func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRe
 		}, nil
 	}
 
-	// User can only view own requests (unless they have view_all_data permission)
-	hasViewAllPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_all_data", nil)
+	// User can only view own requests (unless they have rbac.ViewAllData permission)
+	hasViewAllPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
 		return api.GetRequestById500JSONResponse{
 			Code:    500,

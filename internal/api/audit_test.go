@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 
@@ -63,7 +64,7 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		createTaking(t, testDB, testUser.ID, group.ID, item.ID, 2)
 		createTaking(t, testDB, testUser.ID, group.ID, item.ID, 3)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
@@ -109,8 +110,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		createTaking(t, testDB, targetUser.ID, group.ID, item.ID, 5)
 
 		// requesting user does NOT have view_all_data
-		mockAuth.ExpectCheckPermission(requestingUser.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(requestingUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(requestingUser.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(requestingUser.ID, rbac.ViewAllData, nil, false, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), requestingUser, testDB.Queries())
 
@@ -156,8 +157,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		createTaking(t, testDB, targetUser.ID, group.ID, item.ID, 2)
 
 		// admin has view_all_data
-		mockAuth.ExpectCheckPermission(admin.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -204,9 +205,9 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		// Create taking record for member
 		createTaking(t, testDB, memberUser.ID, group.ID, item.ID, 1)
 
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_all_data", nil, false, nil)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_group_data", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewAllData, nil, false, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewGroupData, &group.ID, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
 
@@ -257,8 +258,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		createTaking(t, testDB, memberUser.ID, groupA.ID, item.ID, 1)
 
 		// group admin tries WITHOUT filter
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewAllData, nil, false, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
 
@@ -309,9 +310,9 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		createTaking(t, testDB, memberUser.ID, groupY.ID, item.ID, 1)
 
 		// admin tries to access Group Y (not their group)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_own_data", nil, true, nil)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_all_data", nil, false, nil)
-		mockAuth.ExpectCheckPermission(groupAdmin.ID, "view_group_data", &groupY.ID, false, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewOwnData, nil, true, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewAllData, nil, false, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewGroupData, &groupY.ID, false, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
 
@@ -352,7 +353,7 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 			createTaking(t, testDB, testUser.ID, group.ID, item.ID, int32(i+1))
 		}
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
@@ -381,7 +382,7 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_own_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
@@ -439,7 +440,7 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		createTaking(t, testDB, user2.ID, group.ID, item.ID, 3)
 		createTaking(t, testDB, user1.ID, group.ID, item.ID, 1)
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -479,7 +480,7 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		createTaking(t, testDB, regularUser.ID, group.ID, item.ID, 5)
 
 		// user does NOT have view_all_data
-		mockAuth.ExpectCheckPermission(regularUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(regularUser.ID, rbac.ViewAllData, nil, false, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), regularUser, testDB.Queries())
 
@@ -525,7 +526,7 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 			createTaking(t, testDB, user.ID, group.ID, item.ID, int32(i+1))
 		}
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -561,7 +562,7 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 			WithStock(10).
 			Create()
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -620,7 +621,7 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 		createTaking(t, testDB, user2.ID, group.ID, item.ID, 3)
 		createTaking(t, testDB, user1.ID, group.ID, item.ID, 2)
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -663,7 +664,7 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 		createTaking(t, testDB, regularUser.ID, group.ID, item.ID, 2)
 
 		// user does NOT have view_all_data
-		mockAuth.ExpectCheckPermission(regularUser.ID, "view_all_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(regularUser.ID, rbac.ViewAllData, nil, false, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), regularUser, testDB.Queries())
 
@@ -694,7 +695,7 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 			WithStock(15).
 			Create()
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
@@ -745,7 +746,7 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 		createTaking(t, testDB, user.ID, group.ID, item.ID, 10)
 		createTaking(t, testDB, user.ID, group.ID, item.ID, 5)
 
-		mockAuth.ExpectCheckPermission(admin.ID, "view_all_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 

@@ -2,15 +2,18 @@ package api
 
 import (
 	"context"
-	"log"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsRequestObject) (api.GetAllGroupsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetAllGroups401JSONResponse{
@@ -19,9 +22,12 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_group_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
 	if err != nil {
-		log.Printf("Error checking view_group_data permission: %v", err)
+		logger.Error("Error checking view_group_data permission",
+			"user_id", user.ID,
+			"permission", rbac.ViewGroupData,
+			"error", err)
 		return api.GetAllGroups500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -59,6 +65,8 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 }
 
 func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDRequestObject) (api.GetGroupByIDResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetGroupByID401JSONResponse{
@@ -67,9 +75,12 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "view_group_data", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
 	if err != nil {
-		log.Printf("Error checking view_group_data permission: %v", err)
+		logger.Error("Error checking view_group_data permission",
+			"user_id", user.ID,
+			"permission", rbac.ViewGroupData,
+			"error", err)
 		return api.GetGroupByID500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -104,6 +115,8 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 }
 
 func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) (api.CreateGroupResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.CreateGroup401JSONResponse{
@@ -112,9 +125,12 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
-		log.Printf("Error checking manage_groups permission: %v", err)
+		logger.Error("Error checking manage_groups permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageGroups,
+			"error", err)
 		return api.CreateGroup500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -134,7 +150,9 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 
 	group, err := s.db.Queries().CreateGroup(ctx, groupParams)
 	if err != nil {
-		log.Printf("Failed to create group: %v", err)
+		logger.Error("Failed to create group",
+			"group_name", request.Body.Name,
+			"error", err)
 		return api.CreateGroup500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -155,6 +173,8 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 }
 
 func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) (api.UpdateGroupResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.UpdateGroup401JSONResponse{
@@ -163,9 +183,12 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
-		log.Printf("Error checking manage_groups permission: %v", err)
+		logger.Error("Error checking manage_groups permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageGroups,
+			"error", err)
 		return api.UpdateGroup500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -186,7 +209,9 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 
 	group, err := s.db.Queries().UpdateGroup(ctx, groupParams)
 	if err != nil {
-		log.Printf("Failed to update group: %v", err)
+		logger.Error("Failed to update group",
+			"group_id", request.Id,
+			"error", err)
 		return api.UpdateGroup500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -207,6 +232,8 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 }
 
 func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.DeleteGroup401JSONResponse{
@@ -215,9 +242,12 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_groups", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
 	if err != nil {
-		log.Printf("Error checking manage_groups permission: %v", err)
+		logger.Error("Error checking manage_groups permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageGroups,
+			"error", err)
 		return api.DeleteGroup500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -232,7 +262,9 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 
 	err = s.db.Queries().DeleteGroup(ctx, request.Id)
 	if err != nil {
-		log.Printf("Failed to delete group: %v", err)
+		logger.Error("Failed to delete group",
+			"group_id", request.Id,
+			"error", err)
 		return api.DeleteGroup500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",

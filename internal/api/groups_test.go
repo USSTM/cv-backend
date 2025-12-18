@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 
@@ -50,7 +51,7 @@ func TestServer_GetAllGroups(t *testing.T) {
 			WithDescription("TMU Algorithms Club").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_group_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewGroupData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetAllGroups(ctx, api.GetAllGroupsRequestObject{})
@@ -69,7 +70,7 @@ func TestServer_GetAllGroups(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_group_data", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewGroupData, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetAllGroups(ctx, api.GetAllGroupsRequestObject{})
@@ -97,7 +98,7 @@ func TestServer_GetGroupByID(t *testing.T) {
 			WithDescription("Specific Description").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_group_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewGroupData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetGroupByID(ctx, api.GetGroupByIDRequestObject{
@@ -119,7 +120,7 @@ func TestServer_GetGroupByID(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_group_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewGroupData, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetGroupByID(ctx, api.GetGroupByIDRequestObject{
@@ -144,7 +145,7 @@ func TestServer_CreateGroup(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_groups", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroups, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		desc := "New Group Description"
@@ -172,7 +173,7 @@ func TestServer_CreateGroup(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_groups", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroups, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		desc := "Unauthorized Group"
@@ -206,7 +207,7 @@ func TestServer_UpdateGroup(t *testing.T) {
 			WithDescription("Old Description").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_groups", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroups, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		newName := "Updated Name"
@@ -235,7 +236,7 @@ func TestServer_UpdateGroup(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_groups", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroups, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		newName := "Ghost Group"
@@ -271,7 +272,7 @@ func TestServer_DeleteGroup(t *testing.T) {
 			WithName("Delete Me").
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_groups", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroups, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.DeleteGroup(ctx, api.DeleteGroupRequestObject{
@@ -281,7 +282,7 @@ func TestServer_DeleteGroup(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, api.DeleteGroup204Response{}, response)
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "view_group_data", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewGroupData, nil, true, nil)
 		getResp, err := server.GetGroupByID(ctx, api.GetGroupByIDRequestObject{Id: group.ID})
 		require.NoError(t, err)
 		require.IsType(t, api.GetGroupByID404JSONResponse{}, getResp)

@@ -1,19 +1,22 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"crypto/rand"
-	"log"
 	"strings"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime/types"
 )
 
 func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject) (api.GetUsersResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	// Check permission
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
@@ -23,9 +26,12 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_users", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
 	if err != nil {
-		log.Printf("Error checking manage_users permission: %v", err)
+		logger.Error("Error checking manage_users permission",
+			"user_id", user.ID,
+			"permission", rbac.ManageUsers,
+			"error", err)
 		return api.GetUsers500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -40,7 +46,7 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 
 	users, err := s.db.Queries().GetAllUsers(ctx)
 	if err != nil {
-		log.Printf("Failed to get users: %v", err)
+		logger.Error("Failed to get users", "error", err)
 		return api.GetUsers500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -55,7 +61,9 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 		// Get user roles from database
 		roles, err := s.db.Queries().GetUserRoles(ctx, &user.ID)
 		if err != nil {
-			log.Printf("Failed to get user roles: %v", err)
+			logger.Error("Failed to get user roles",
+				"user_id", user.ID,
+				"error", err)
 		}
 
 		// Default to member role, upgrade if user has higher roles
@@ -87,7 +95,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 	if !ok {
 		return api.InviteUser401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
 	}
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", request.Body.ScopeId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, request.Body.ScopeId)
 	if err != nil || !hasPermission {
 		return api.InviteUser403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
 	}
@@ -152,6 +160,8 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 }
 
 func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroupRequestObject) (api.GetUsersByGroupResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetUsersByGroup401JSONResponse{
@@ -160,9 +170,9 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_group_users", &request.GroupId)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, &request.GroupId)
 	if err != nil {
-		log.Printf("Error checking manage_group_users permission: %v", err)
+		logger.Error("Error checking manage_group_users permission", "error", err)
 		return api.GetUsersByGroup500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -185,7 +195,7 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 
 	users, err := s.db.Queries().GetUsersByGroup(ctx, &request.GroupId)
 	if err != nil {
-		log.Printf("Failed to get users by group: %v", err)
+		logger.Error("Failed to get users by group", "error", err)
 		return api.GetUsersByGroup500JSONResponse{
 			Code:    500,
 			Message: "An unexpected error occurred.",
@@ -219,6 +229,8 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 }
 
 func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestObject) (api.GetUserByIdResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	// Check authentication
 	currentUser, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
@@ -231,9 +243,9 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 	// Users can view their own data, or admins can view any user
 	canView := currentUser.ID == request.UserId
 	if !canView {
-		hasPermission, err := s.authenticator.CheckPermission(ctx, currentUser.ID, "manage_users", nil)
+		hasPermission, err := s.authenticator.CheckPermission(ctx, currentUser.ID, rbac.ManageUsers, nil)
 		if err != nil {
-			log.Printf("Error checking manage_users permission: %v", err)
+			logger.Error("Error checking manage_users permission", "error", err)
 			return api.GetUserById500JSONResponse{
 				Code:    500,
 				Message: "Internal server error",
@@ -259,7 +271,7 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 
 	roles, err := s.db.Queries().GetUserRoles(ctx, &user.ID)
 	if err != nil {
-		log.Printf("Failed to get user roles: %v", err)
+		logger.Error("Failed to get user roles", "error", err)
 	}
 
 	userResponse := api.User{
@@ -272,6 +284,8 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 }
 
 func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRequestObject) (api.GetUserByEmailResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.GetUserByEmail401JSONResponse{
@@ -280,9 +294,9 @@ func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRe
 		}, nil
 	}
 
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, "manage_users", nil)
+	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
 	if err != nil {
-		log.Printf("Error checking manage_users permission: %v", err)
+		logger.Error("Error checking manage_users permission", "error", err)
 		return api.GetUserByEmail500JSONResponse{
 			Code:    500,
 			Message: "Internal server error",
@@ -305,7 +319,7 @@ func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRe
 
 	roles, err := s.db.Queries().GetUserRoles(ctx, &foundUser.ID)
 	if err != nil {
-		log.Printf("Failed to get user roles: %v", err)
+		logger.Error("Failed to get user roles", "error", err)
 	}
 
 	userResponse := api.User{

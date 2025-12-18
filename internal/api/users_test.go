@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestServer_Users(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetUsers(ctx, api.GetUsersRequestObject{})
@@ -46,7 +47,7 @@ func TestServer_Users(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_group_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
@@ -75,7 +76,7 @@ func TestServer_Users(t *testing.T) {
 			AsGroupAdminOf(group).
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_group_users", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
@@ -100,7 +101,7 @@ func TestServer_Users(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_group_users", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
@@ -125,7 +126,7 @@ func TestServer_Users(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_users", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetUsers(ctx, api.GetUsersRequestObject{})
@@ -160,7 +161,7 @@ func TestServer_GetUserById(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUserById(ctx, api.GetUserByIdRequestObject{
@@ -208,7 +209,7 @@ func TestServer_GetUserById(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_users", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetUserById(ctx, api.GetUserByIdRequestObject{
@@ -229,7 +230,7 @@ func TestServer_GetUserById(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		nonExistentID := uuid.New()
@@ -269,7 +270,7 @@ func TestServer_GetUserByEmail(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUserByEmail(ctx, api.GetUserByEmailRequestObject{
@@ -291,7 +292,7 @@ func TestServer_GetUserByEmail(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_users", nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetUserByEmail(ctx, api.GetUserByEmailRequestObject{
@@ -312,7 +313,7 @@ func TestServer_GetUserByEmail(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_users", nil, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUserByEmail(ctx, api.GetUserByEmailRequestObject{
@@ -360,7 +361,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 			AsGroupAdminOf(group).
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_group_users", &group.ID, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageGroupUsers, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUsersByGroup(ctx, api.GetUsersByGroupRequestObject{
@@ -393,7 +394,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, "manage_group_users", &group.ID, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, &group.ID, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.GetUsersByGroup(ctx, api.GetUsersByGroupRequestObject{
@@ -415,7 +416,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 			Create()
 
 		nonExistentGroupID := uuid.New()
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_group_users", &nonExistentGroupID, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageGroupUsers, &nonExistentGroupID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUsersByGroup(ctx, api.GetUsersByGroupRequestObject{
@@ -441,7 +442,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(adminUser.ID, "manage_group_users", &emptyGroup.ID, true, nil)
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageGroupUsers, &emptyGroup.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
 		response, err := server.GetUsersByGroup(ctx, api.GetUsersByGroupRequestObject{
