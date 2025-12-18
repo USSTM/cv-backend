@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/auth"
@@ -22,12 +23,15 @@ func TestServer_LoginUser(t *testing.T) {
 	// Get test database
 	testDB := getSharedTestDatabase(t)
 
+	// Get test Redis Queue
+	testQueue := testutil.NewTestQueue(t)
+
 	// Create mock services
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
 	// Create server with real database and mocked services
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful login", func(t *testing.T) {
 		// Create test user in database using builder
@@ -121,10 +125,12 @@ func TestServer_PingProtected(t *testing.T) {
 
 	testDB := getSharedTestDatabase(t)
 
+	testQueue := testutil.NewTestQueue(t)
+
 	mockJWT := &testutil.MockJWTService{}
 	mockAuth := &testutil.MockAuthenticator{}
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful ping with authenticated user", func(t *testing.T) {
 		testUser := testDB.NewUser(t).

@@ -6,6 +6,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,4 +26,9 @@ type JWTService interface {
 // AuthenticatorService defines the interface for authentication operations
 type AuthenticatorService interface {
 	CheckPermission(ctx context.Context, userID uuid.UUID, permission string, scopeID *uuid.UUID) (bool, error)
+}
+
+// RedisQueueService defines the interface for Redis (asynq) queue operations
+type RedisQueueService interface {
+	Enqueue(taskType string, data interface{}) (*asynq.TaskInfo, error)
 }

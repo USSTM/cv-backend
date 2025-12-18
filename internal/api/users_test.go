@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/testutil"
@@ -19,10 +20,11 @@ func TestServer_Users(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful view users", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -145,10 +147,11 @@ func TestServer_GetUserById(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful get user by id as admin", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -254,10 +257,11 @@ func TestServer_GetUserByEmail(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful get user by email as admin", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -335,10 +339,11 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful get users by group", func(t *testing.T) {
 		group := testDB.NewGroup(t).

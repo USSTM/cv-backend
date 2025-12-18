@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/testutil"
@@ -14,10 +15,11 @@ import (
 
 func testItemServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	return server, testDB, mockAuth
 }

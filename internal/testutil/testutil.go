@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/USSTM/cv-backend/generated/db"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/USSTM/cv-backend/generated/db"
 
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ import (
 type TestServer struct {
 	*httptest.Server
 	DB       *TestDatabase
+	Queue    *TestQueue
 	MockJWT  *MockJWTService
 	MockAuth *MockAuthenticator
 }
@@ -25,6 +27,7 @@ type TestServer struct {
 // NewTestServer creates a test server with real database and service mocks
 func NewTestServer(t *testing.T, handler http.Handler) *TestServer {
 	testDB := NewTestDatabase(t)
+	queue := NewTestQueue(t)
 	mockJWT := NewMockJWTService(t)
 	mockAuth := NewMockAuthenticator(t)
 
@@ -32,6 +35,7 @@ func NewTestServer(t *testing.T, handler http.Handler) *TestServer {
 	return &TestServer{
 		Server:   server,
 		DB:       testDB,
+		Queue:    queue,
 		MockJWT:  mockJWT,
 		MockAuth: mockAuth,
 	}
