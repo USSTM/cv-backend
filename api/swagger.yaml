@@ -802,6 +802,41 @@ components:
           type: string
           description: Optional cancellation reason
 
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-12-22T10:30:00Z"
+      required:
+        - status
+        - timestamp
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+          example: "ready"
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            database: "ok"
+      required:
+        - status
+        - timestamp
+        - checks
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -830,6 +865,44 @@ components:
 security:
   - BearerAuth: []
 paths:
+  /health:
+    get:
+      tags:
+        - Health
+      security: []
+      summary: Health Check
+      description: Returns server health status (liveness probe)
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /ready:
+    get:
+      tags:
+        - Health
+      security: []
+      summary: Readiness Check
+      description: Returns server readiness status (checks database connectivity)
+      operationId: readinessCheck
+      responses:
+        "200":
+          description: Server is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Server is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+
   /auth/login:
     post:
       tags:
