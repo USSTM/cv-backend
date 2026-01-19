@@ -100,6 +100,97 @@ func (ns NullItemType) Value() (driver.Value, error) {
 	return string(ns.ItemType), nil
 }
 
+type NotificationPriority string
+
+const (
+	NotificationPriorityLow    NotificationPriority = "low"
+	NotificationPriorityNormal NotificationPriority = "normal"
+	NotificationPriorityHigh   NotificationPriority = "high"
+)
+
+func (e *NotificationPriority) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationPriority(s)
+	case string:
+		*e = NotificationPriority(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationPriority: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationPriority struct {
+	NotificationPriority NotificationPriority `json:"notification_priority"`
+	Valid                bool                 `json:"valid"` // Valid is true if NotificationPriority is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationPriority) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationPriority, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationPriority.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationPriority) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationPriority), nil
+}
+
+type NotificationType string
+
+const (
+	NotificationTypeBookingConfirmation NotificationType = "booking_confirmation"
+	NotificationTypeBookingReminder     NotificationType = "booking_reminder"
+	NotificationTypeRequestApproved     NotificationType = "request_approved"
+	NotificationTypeRequestDenied       NotificationType = "request_denied"
+	NotificationTypeItemOverdue         NotificationType = "item_overdue"
+	NotificationTypeItemReturned        NotificationType = "item_returned"
+	NotificationTypeSystemAnnouncement  NotificationType = "system_announcement"
+	NotificationTypeInvitationReceived  NotificationType = "invitation_received"
+)
+
+func (e *NotificationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationType(s)
+	case string:
+		*e = NotificationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationType: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationType struct {
+	NotificationType NotificationType `json:"notification_type"`
+	Valid            bool             `json:"valid"` // Valid is true if NotificationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationType), nil
+}
+
 type RequestStatus string
 
 const (
@@ -253,6 +344,23 @@ type ItemTaking struct {
 	ItemID   uuid.UUID        `json:"item_id"`
 	Quantity int32            `json:"quantity"`
 	TakenAt  pgtype.Timestamp `json:"taken_at"`
+}
+
+type Notification struct {
+	ID               uuid.UUID            `json:"id"`
+	UserID           uuid.UUID            `json:"user_id"`
+	Type             NotificationType     `json:"type"`
+	Title            string               `json:"title"`
+	Message          string               `json:"message"`
+	Priority         NotificationPriority `json:"priority"`
+	ReadAt           pgtype.Timestamp     `json:"read_at"`
+	CreatedAt        pgtype.Timestamp     `json:"created_at"`
+	ExpiresAt        pgtype.Timestamp     `json:"expires_at"`
+	RelatedBookingID *uuid.UUID           `json:"related_booking_id"`
+	RelatedRequestID *uuid.UUID           `json:"related_request_id"`
+	RelatedItemID    *uuid.UUID           `json:"related_item_id"`
+	RelatedUserID    *uuid.UUID           `json:"related_user_id"`
+	Metadata         []byte               `json:"metadata"`
 }
 
 type Permission struct {

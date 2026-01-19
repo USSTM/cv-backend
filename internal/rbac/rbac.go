@@ -20,6 +20,9 @@ const (
 
 	RequestItems       = "request_items"        // Request/borrow items
 	ApproveAllRequests = "approve_all_requests" // Approve high-value item requests
+
+	ViewNotifications   = "view_notifications"   // View own notifications
+	ManageNotifications = "manage_notifications" // Create/manage all notifications
 )
 
 // Checkout statuses

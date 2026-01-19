@@ -15,6 +15,7 @@ type Querier interface {
 	AddToCart(ctx context.Context, arg AddToCartParams) (AddToCartRow, error)
 	// this function creates a new borrowing record for a user borrowing an item
 	BorrowItem(ctx context.Context, arg BorrowItemParams) (Borrowing, error)
+	BulkCreateNotifications(ctx context.Context, arg []BulkCreateNotificationsParams) (int64, error)
 	CancelBooking(ctx context.Context, id uuid.UUID) (Booking, error)
 	// Check if user already has availability for this slot/date
 	CheckAvailabilityConflict(ctx context.Context, arg CheckAvailabilityConflictParams) (bool, error)
@@ -26,10 +27,13 @@ type Querier interface {
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
 	ClearCart(ctx context.Context, arg ClearCartParams) error
 	ConfirmBooking(ctx context.Context, arg ConfirmBookingParams) (Booking, error)
+	CountNotificationsByType(ctx context.Context, arg CountNotificationsByTypeParams) (int64, error)
+	CountUnreadNotifications(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (UserAvailability, error)
 	CreateBooking(ctx context.Context, arg CreateBookingParams) (Booking, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
+	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
@@ -39,8 +43,11 @@ type Querier interface {
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
 	DeleteAvailability(ctx context.Context, id uuid.UUID) error
+	DeleteExpiredNotifications(ctx context.Context) error
 	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
+	DeleteNotification(ctx context.Context, arg DeleteNotificationParams) error
+	DeleteReadNotifications(ctx context.Context, userID uuid.UUID) error
 	GetActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error)
 	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, dueDate pgtype.Timestamp) ([]Borrowing, error)
 	// this function gets an active borrowing by item_id and user_id, used to validate ownership before return
@@ -70,7 +77,12 @@ type Querier interface {
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error)
+	GetNotification(ctx context.Context, id uuid.UUID) (Notification, error)
+	GetNotificationStats(ctx context.Context, userID uuid.UUID) (GetNotificationStatsRow, error)
+	GetNotificationsByPriority(ctx context.Context, arg GetNotificationsByPriorityParams) ([]Notification, error)
+	GetNotificationsByType(ctx context.Context, arg GetNotificationsByTypeParams) ([]Notification, error)
 	GetPendingRequests(ctx context.Context) ([]Request, error)
+	GetRecentNotifications(ctx context.Context, arg GetRecentNotificationsParams) ([]Notification, error)
 	GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error)
 	GetRequestById(ctx context.Context, id uuid.UUID) (Request, error)
 	GetRequestByIdForUpdate(ctx context.Context, id uuid.UUID) (Request, error)
@@ -81,11 +93,13 @@ type Querier interface {
 	GetTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg GetTakingHistoryByUserIdWithGroupFilterParams) ([]GetTakingHistoryByUserIdWithGroupFilterRow, error)
 	GetTakingStats(ctx context.Context, arg GetTakingStatsParams) (GetTakingStatsRow, error)
 	GetTimeSlotByID(ctx context.Context, id uuid.UUID) (TimeSlot, error)
+	GetUnreadUserNotifications(ctx context.Context, arg GetUnreadUserNotificationsParams) ([]Notification, error)
 	// Get a specific user's availability schedule
 	GetUserAvailability(ctx context.Context, arg GetUserAvailabilityParams) ([]GetUserAvailabilityRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
+	GetUserNotifications(ctx context.Context, arg GetUserNotificationsParams) ([]Notification, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
@@ -96,6 +110,9 @@ type Querier interface {
 	ListBookingsByUser(ctx context.Context, arg ListBookingsByUserParams) ([]ListBookingsByUserRow, error)
 	ListPendingConfirmation(ctx context.Context, groupID *uuid.UUID) ([]ListPendingConfirmationRow, error)
 	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
+	MarkAllNotificationsAsRead(ctx context.Context, userID uuid.UUID) error
+	MarkNotificationAsRead(ctx context.Context, arg MarkNotificationAsReadParams) (Notification, error)
+	MarkNotificationsByTypeAsRead(ctx context.Context, arg MarkNotificationsByTypeAsReadParams) error
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
 	RecordItemTaking(ctx context.Context, arg RecordItemTakingParams) (ItemTaking, error)
@@ -111,6 +128,7 @@ type Querier interface {
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
+	UpdateNotificationMetadata(ctx context.Context, arg UpdateNotificationMetadataParams) (Notification, error)
 	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }

@@ -64,6 +64,25 @@ const (
 	ItemTypeMedium ItemType = "medium"
 )
 
+// Defines values for NotificationPriority.
+const (
+	High   NotificationPriority = "high"
+	Low    NotificationPriority = "low"
+	Normal NotificationPriority = "normal"
+)
+
+// Defines values for NotificationType.
+const (
+	BookingConfirmation NotificationType = "booking_confirmation"
+	BookingReminder     NotificationType = "booking_reminder"
+	InvitationReceived  NotificationType = "invitation_received"
+	ItemOverdue         NotificationType = "item_overdue"
+	ItemReturned        NotificationType = "item_returned"
+	RequestApproved     NotificationType = "request_approved"
+	RequestDenied       NotificationType = "request_denied"
+	SystemAnnouncement  NotificationType = "system_announcement"
+)
+
 // Defines values for RequestStatus.
 const (
 	Approved            RequestStatus = "approved"
@@ -362,6 +381,65 @@ type LoginResponse struct {
 	Token *string `json:"token,omitempty"`
 }
 
+// MarkAsReadRequest defines model for MarkAsReadRequest.
+type MarkAsReadRequest struct {
+	// NotificationIds Optional list of specific notification IDs to mark as read. If empty, marks all as read.
+	NotificationIds *[]UUID `json:"notification_ids,omitempty"`
+}
+
+// NotificationCreateRequest defines model for NotificationCreateRequest.
+type NotificationCreateRequest struct {
+	ExpiresAt        *time.Time              `json:"expires_at"`
+	Message          string                  `json:"message"`
+	Metadata         *map[string]interface{} `json:"metadata"`
+	Priority         *NotificationPriority   `json:"priority,omitempty"`
+	RelatedBookingId *UUID                   `json:"related_booking_id,omitempty"`
+	RelatedItemId    *UUID                   `json:"related_item_id,omitempty"`
+	RelatedRequestId *UUID                   `json:"related_request_id,omitempty"`
+	RelatedUserId    *UUID                   `json:"related_user_id,omitempty"`
+	Title            string                  `json:"title"`
+	Type             NotificationType        `json:"type"`
+}
+
+// NotificationPriority defines model for NotificationPriority.
+type NotificationPriority string
+
+// NotificationResponse defines model for NotificationResponse.
+type NotificationResponse struct {
+	CreatedAt        time.Time               `json:"created_at"`
+	ExpiresAt        *time.Time              `json:"expires_at"`
+	Id               UUID                    `json:"id"`
+	Message          string                  `json:"message"`
+	Metadata         *map[string]interface{} `json:"metadata"`
+	Priority         NotificationPriority    `json:"priority"`
+	ReadAt           *time.Time              `json:"read_at"`
+	RelatedBookingId *UUID                   `json:"related_booking_id,omitempty"`
+	RelatedItemId    *UUID                   `json:"related_item_id,omitempty"`
+	RelatedRequestId *UUID                   `json:"related_request_id,omitempty"`
+	RelatedUserId    *UUID                   `json:"related_user_id,omitempty"`
+	Title            string                  `json:"title"`
+	Type             NotificationType        `json:"type"`
+	UserId           UUID                    `json:"user_id"`
+}
+
+// NotificationStats defines model for NotificationStats.
+type NotificationStats struct {
+	// HighPriorityCount Number of high priority notifications
+	HighPriorityCount int `json:"high_priority_count"`
+
+	// TotalNotifications Total number of notifications
+	TotalNotifications int `json:"total_notifications"`
+
+	// UnreadCount Number of unread notifications
+	UnreadCount int `json:"unread_count"`
+
+	// UnreadHighPriorityCount Number of unread high priority notifications
+	UnreadHighPriorityCount int `json:"unread_high_priority_count"`
+}
+
+// NotificationType defines model for NotificationType.
+type NotificationType string
+
 // PingResponse defines model for PingResponse.
 type PingResponse struct {
 	Message   string    `json:"message"`
@@ -480,6 +558,21 @@ type UserAvailabilityResponse struct {
 // UserRole defines model for UserRole.
 type UserRole string
 
+// CreateNotificationJSONBody defines parameters for CreateNotification.
+type CreateNotificationJSONBody struct {
+	ExpiresAt        *time.Time              `json:"expires_at"`
+	Message          string                  `json:"message"`
+	Metadata         *map[string]interface{} `json:"metadata"`
+	Priority         *NotificationPriority   `json:"priority,omitempty"`
+	RelatedBookingId *UUID                   `json:"related_booking_id,omitempty"`
+	RelatedItemId    *UUID                   `json:"related_item_id,omitempty"`
+	RelatedRequestId *UUID                   `json:"related_request_id,omitempty"`
+	RelatedUserId    *UUID                   `json:"related_user_id,omitempty"`
+	Title            string                  `json:"title"`
+	Type             NotificationType        `json:"type"`
+	UserId           UUID                    `json:"user_id"`
+}
+
 // GetItemTakingHistoryParams defines parameters for GetItemTakingHistory.
 type GetItemTakingHistoryParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
@@ -541,6 +634,24 @@ type UpdateCartItemQuantityJSONBody struct {
 	Quantity int `json:"quantity"`
 }
 
+// GetNotificationsParams defines parameters for GetNotifications.
+type GetNotificationsParams struct {
+	// UnreadOnly Filter to unread notifications only
+	UnreadOnly *bool `form:"unread_only,omitempty" json:"unread_only,omitempty"`
+
+	// Type Filter by notification type
+	Type *NotificationType `form:"type,omitempty" json:"type,omitempty"`
+
+	// Priority Filter by notification priority
+	Priority *NotificationPriority `form:"priority,omitempty" json:"priority,omitempty"`
+
+	// Limit Maximum number of notifications to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of notifications to skip for pagination
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
 // GetUserAvailabilityParams defines parameters for GetUserAvailability.
 type GetUserAvailabilityParams struct {
 	// FromDate Start date filter (YYYY-MM-DD)
@@ -552,6 +663,9 @@ type GetUserAvailabilityParams struct {
 
 // InviteUserJSONRequestBody defines body for InviteUser for application/json ContentType.
 type InviteUserJSONRequestBody = InviteUserRequest
+
+// CreateNotificationJSONRequestBody defines body for CreateNotification for application/json ContentType.
+type CreateNotificationJSONRequestBody CreateNotificationJSONBody
 
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
@@ -595,6 +709,9 @@ type PatchItemJSONRequestBody = ItemResponse
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemPostRequest
 
+// MarkNotificationsAsReadJSONRequestBody defines body for MarkNotificationsAsRead for application/json ContentType.
+type MarkNotificationsAsReadJSONRequestBody = MarkAsReadRequest
+
 // RequestItemJSONRequestBody defines body for RequestItem for application/json ContentType.
 type RequestItemJSONRequestBody = RequestItemRequest
 
@@ -606,6 +723,9 @@ type ServerInterface interface {
 	// Invite user (admin only)
 	// (POST /admin/invite)
 	InviteUser(w http.ResponseWriter, r *http.Request)
+	// Create notification (admin only)
+	// (POST /admin/notifications)
+	CreateNotification(w http.ResponseWriter, r *http.Request)
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(w http.ResponseWriter, r *http.Request)
@@ -738,6 +858,21 @@ type ServerInterface interface {
 	// Update item
 	// (PUT /items/{id})
 	UpdateItem(w http.ResponseWriter, r *http.Request, id UUID)
+	// Get user notifications
+	// (GET /notifications)
+	GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams)
+	// Mark notifications as read
+	// (PATCH /notifications/mark-read)
+	MarkNotificationsAsRead(w http.ResponseWriter, r *http.Request)
+	// Get notification statistics
+	// (GET /notifications/stats)
+	GetNotificationStats(w http.ResponseWriter, r *http.Request)
+	// Delete notification
+	// (DELETE /notifications/{id})
+	DeleteNotification(w http.ResponseWriter, r *http.Request, id UUID)
+	// Get notification by ID
+	// (GET /notifications/{id})
+	GetNotification(w http.ResponseWriter, r *http.Request, id UUID)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
@@ -780,6 +915,12 @@ type Unimplemented struct{}
 // Invite user (admin only)
 // (POST /admin/invite)
 func (_ Unimplemented) InviteUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create notification (admin only)
+// (POST /admin/notifications)
+func (_ Unimplemented) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1047,6 +1188,36 @@ func (_ Unimplemented) UpdateItem(w http.ResponseWriter, r *http.Request, id UUI
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get user notifications
+// (GET /notifications)
+func (_ Unimplemented) GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Mark notifications as read
+// (PATCH /notifications/mark-read)
+func (_ Unimplemented) MarkNotificationsAsRead(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get notification statistics
+// (GET /notifications/stats)
+func (_ Unimplemented) GetNotificationStats(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete notification
+// (DELETE /notifications/{id})
+func (_ Unimplemented) DeleteNotification(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get notification by ID
+// (GET /notifications/{id})
+func (_ Unimplemented) GetNotification(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Protected ping endpoint
 // (GET /ping)
 func (_ Unimplemented) PingProtected(w http.ResponseWriter, r *http.Request) {
@@ -1135,6 +1306,26 @@ func (siw *ServerInterfaceWrapper) InviteUser(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InviteUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateNotification operation middleware
+func (siw *ServerInterfaceWrapper) CreateNotification(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateNotification(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2576,6 +2767,173 @@ func (siw *ServerInterfaceWrapper) UpdateItem(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// GetNotifications operation middleware
+func (siw *ServerInterfaceWrapper) GetNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetNotificationsParams
+
+	// ------------- Optional query parameter "unread_only" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "unread_only", r.URL.Query(), &params.UnreadOnly)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "unread_only", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "type" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "type", r.URL.Query(), &params.Type)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "type", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "priority" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "priority", r.URL.Query(), &params.Priority)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "priority", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotifications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkNotificationsAsRead operation middleware
+func (siw *ServerInterfaceWrapper) MarkNotificationsAsRead(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkNotificationsAsRead(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNotificationStats operation middleware
+func (siw *ServerInterfaceWrapper) GetNotificationStats(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotificationStats(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteNotification operation middleware
+func (siw *ServerInterfaceWrapper) DeleteNotification(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteNotification(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNotification operation middleware
+func (siw *ServerInterfaceWrapper) GetNotification(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotification(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PingProtected operation middleware
 func (siw *ServerInterfaceWrapper) PingProtected(w http.ResponseWriter, r *http.Request) {
 
@@ -3016,6 +3374,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/invite", wrapper.InviteUser)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/notifications", wrapper.CreateNotification)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/users", wrapper.GetUsers)
 	})
 	r.Group(func(r chi.Router) {
@@ -3148,6 +3509,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/items/{id}", wrapper.UpdateItem)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notifications", wrapper.GetNotifications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/notifications/mark-read", wrapper.MarkNotificationsAsRead)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notifications/stats", wrapper.GetNotificationStats)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/notifications/{id}", wrapper.DeleteNotification)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notifications/{id}", wrapper.GetNotification)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
 	})
 	r.Group(func(r chi.Router) {
@@ -3240,6 +3616,59 @@ func (response InviteUser404JSONResponse) VisitInviteUserResponse(w http.Respons
 type InviteUser500JSONResponse Error
 
 func (response InviteUser500JSONResponse) VisitInviteUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateNotificationRequestObject struct {
+	Body *CreateNotificationJSONRequestBody
+}
+
+type CreateNotificationResponseObject interface {
+	VisitCreateNotificationResponse(w http.ResponseWriter) error
+}
+
+type CreateNotification201JSONResponse NotificationResponse
+
+func (response CreateNotification201JSONResponse) VisitCreateNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateNotification400JSONResponse Error
+
+func (response CreateNotification400JSONResponse) VisitCreateNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateNotification401JSONResponse Error
+
+func (response CreateNotification401JSONResponse) VisitCreateNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateNotification403JSONResponse Error
+
+func (response CreateNotification403JSONResponse) VisitCreateNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateNotification500JSONResponse Error
+
+func (response CreateNotification500JSONResponse) VisitCreateNotificationResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -5520,6 +5949,254 @@ func (response UpdateItem500JSONResponse) VisitUpdateItemResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetNotificationsRequestObject struct {
+	Params GetNotificationsParams
+}
+
+type GetNotificationsResponseObject interface {
+	VisitGetNotificationsResponse(w http.ResponseWriter) error
+}
+
+type GetNotifications200JSONResponse []NotificationResponse
+
+func (response GetNotifications200JSONResponse) VisitGetNotificationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotifications401JSONResponse Error
+
+func (response GetNotifications401JSONResponse) VisitGetNotificationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotifications403JSONResponse Error
+
+func (response GetNotifications403JSONResponse) VisitGetNotificationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotifications500JSONResponse Error
+
+func (response GetNotifications500JSONResponse) VisitGetNotificationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkNotificationsAsReadRequestObject struct {
+	Body *MarkNotificationsAsReadJSONRequestBody
+}
+
+type MarkNotificationsAsReadResponseObject interface {
+	VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error
+}
+
+type MarkNotificationsAsRead200JSONResponse struct {
+	// MarkedCount Number of notifications marked as read
+	MarkedCount *int `json:"marked_count,omitempty"`
+}
+
+func (response MarkNotificationsAsRead200JSONResponse) VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkNotificationsAsRead400JSONResponse Error
+
+func (response MarkNotificationsAsRead400JSONResponse) VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkNotificationsAsRead401JSONResponse Error
+
+func (response MarkNotificationsAsRead401JSONResponse) VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkNotificationsAsRead403JSONResponse Error
+
+func (response MarkNotificationsAsRead403JSONResponse) VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkNotificationsAsRead500JSONResponse Error
+
+func (response MarkNotificationsAsRead500JSONResponse) VisitMarkNotificationsAsReadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotificationStatsRequestObject struct {
+}
+
+type GetNotificationStatsResponseObject interface {
+	VisitGetNotificationStatsResponse(w http.ResponseWriter) error
+}
+
+type GetNotificationStats200JSONResponse NotificationStats
+
+func (response GetNotificationStats200JSONResponse) VisitGetNotificationStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotificationStats401JSONResponse Error
+
+func (response GetNotificationStats401JSONResponse) VisitGetNotificationStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotificationStats403JSONResponse Error
+
+func (response GetNotificationStats403JSONResponse) VisitGetNotificationStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotificationStats500JSONResponse Error
+
+func (response GetNotificationStats500JSONResponse) VisitGetNotificationStatsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNotificationRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type DeleteNotificationResponseObject interface {
+	VisitDeleteNotificationResponse(w http.ResponseWriter) error
+}
+
+type DeleteNotification204Response struct {
+}
+
+func (response DeleteNotification204Response) VisitDeleteNotificationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteNotification401JSONResponse Error
+
+func (response DeleteNotification401JSONResponse) VisitDeleteNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNotification403JSONResponse Error
+
+func (response DeleteNotification403JSONResponse) VisitDeleteNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNotification404JSONResponse Error
+
+func (response DeleteNotification404JSONResponse) VisitDeleteNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteNotification500JSONResponse Error
+
+func (response DeleteNotification500JSONResponse) VisitDeleteNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotificationRequestObject struct {
+	Id UUID `json:"id"`
+}
+
+type GetNotificationResponseObject interface {
+	VisitGetNotificationResponse(w http.ResponseWriter) error
+}
+
+type GetNotification200JSONResponse NotificationResponse
+
+func (response GetNotification200JSONResponse) VisitGetNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotification401JSONResponse Error
+
+func (response GetNotification401JSONResponse) VisitGetNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotification403JSONResponse Error
+
+func (response GetNotification403JSONResponse) VisitGetNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotification404JSONResponse Error
+
+func (response GetNotification404JSONResponse) VisitGetNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetNotification500JSONResponse Error
+
+func (response GetNotification500JSONResponse) VisitGetNotificationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type PingProtectedRequestObject struct {
 }
 
@@ -6052,6 +6729,9 @@ type StrictServerInterface interface {
 	// Invite user (admin only)
 	// (POST /admin/invite)
 	InviteUser(ctx context.Context, request InviteUserRequestObject) (InviteUserResponseObject, error)
+	// Create notification (admin only)
+	// (POST /admin/notifications)
+	CreateNotification(ctx context.Context, request CreateNotificationRequestObject) (CreateNotificationResponseObject, error)
 	// Get all users (admin only)
 	// (GET /admin/users)
 	GetUsers(ctx context.Context, request GetUsersRequestObject) (GetUsersResponseObject, error)
@@ -6184,6 +6864,21 @@ type StrictServerInterface interface {
 	// Update item
 	// (PUT /items/{id})
 	UpdateItem(ctx context.Context, request UpdateItemRequestObject) (UpdateItemResponseObject, error)
+	// Get user notifications
+	// (GET /notifications)
+	GetNotifications(ctx context.Context, request GetNotificationsRequestObject) (GetNotificationsResponseObject, error)
+	// Mark notifications as read
+	// (PATCH /notifications/mark-read)
+	MarkNotificationsAsRead(ctx context.Context, request MarkNotificationsAsReadRequestObject) (MarkNotificationsAsReadResponseObject, error)
+	// Get notification statistics
+	// (GET /notifications/stats)
+	GetNotificationStats(ctx context.Context, request GetNotificationStatsRequestObject) (GetNotificationStatsResponseObject, error)
+	// Delete notification
+	// (DELETE /notifications/{id})
+	DeleteNotification(ctx context.Context, request DeleteNotificationRequestObject) (DeleteNotificationResponseObject, error)
+	// Get notification by ID
+	// (GET /notifications/{id})
+	GetNotification(ctx context.Context, request GetNotificationRequestObject) (GetNotificationResponseObject, error)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
@@ -6272,6 +6967,37 @@ func (sh *strictHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InviteUserResponseObject); ok {
 		if err := validResponse.VisitInviteUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateNotification operation middleware
+func (sh *strictHandler) CreateNotification(w http.ResponseWriter, r *http.Request) {
+	var request CreateNotificationRequestObject
+
+	var body CreateNotificationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateNotification(ctx, request.(CreateNotificationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateNotification")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateNotificationResponseObject); ok {
+		if err := validResponse.VisitCreateNotificationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -7504,6 +8230,139 @@ func (sh *strictHandler) UpdateItem(w http.ResponseWriter, r *http.Request, id U
 	}
 }
 
+// GetNotifications operation middleware
+func (sh *strictHandler) GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams) {
+	var request GetNotificationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNotifications(ctx, request.(GetNotificationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNotifications")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNotificationsResponseObject); ok {
+		if err := validResponse.VisitGetNotificationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkNotificationsAsRead operation middleware
+func (sh *strictHandler) MarkNotificationsAsRead(w http.ResponseWriter, r *http.Request) {
+	var request MarkNotificationsAsReadRequestObject
+
+	var body MarkNotificationsAsReadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkNotificationsAsRead(ctx, request.(MarkNotificationsAsReadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkNotificationsAsRead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkNotificationsAsReadResponseObject); ok {
+		if err := validResponse.VisitMarkNotificationsAsReadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNotificationStats operation middleware
+func (sh *strictHandler) GetNotificationStats(w http.ResponseWriter, r *http.Request) {
+	var request GetNotificationStatsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNotificationStats(ctx, request.(GetNotificationStatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNotificationStats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNotificationStatsResponseObject); ok {
+		if err := validResponse.VisitGetNotificationStatsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteNotification operation middleware
+func (sh *strictHandler) DeleteNotification(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request DeleteNotificationRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteNotification(ctx, request.(DeleteNotificationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteNotification")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteNotificationResponseObject); ok {
+		if err := validResponse.VisitDeleteNotificationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNotification operation middleware
+func (sh *strictHandler) GetNotification(w http.ResponseWriter, r *http.Request, id UUID) {
+	var request GetNotificationRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNotification(ctx, request.(GetNotificationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNotification")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNotificationResponseObject); ok {
+		if err := validResponse.VisitGetNotificationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PingProtected operation middleware
 func (sh *strictHandler) PingProtected(w http.ResponseWriter, r *http.Request) {
 	var request PingProtectedRequestObject
@@ -7798,139 +8657,157 @@ func (sh *strictHandler) GetUserAvailability(w http.ResponseWriter, r *http.Requ
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"jl8BAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
