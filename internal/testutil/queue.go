@@ -76,6 +76,9 @@ func NewTestQueue(t *testing.T) *TestQueue {
 		Inspector: inspector,
 	}
 
+	t.Cleanup(func() {
+		testQueue.Close()
+	})
 	return testQueue
 }
 
