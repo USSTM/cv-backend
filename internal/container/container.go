@@ -57,4 +57,9 @@ func (c *Container) Cleanup() {
 		c.Database.Close()
 		logging.Info("Database connection closed")
 	}
+
+	if c.Queue != nil {
+		c.Queue.Close()
+		logging.Info("Queue connection closed")
+	}
 }
