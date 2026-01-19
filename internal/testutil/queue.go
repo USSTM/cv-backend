@@ -79,14 +79,14 @@ func NewTestQueue(t *testing.T) *TestQueue {
 	return testQueue
 }
 
-func (tQ *TestQueue) Enqueue(taskType string, data interface{}) (*asynq.TaskInfo, error) {
-	return tQ.Queue.Enqueue(taskType, data)
+func (tq *TestQueue) Enqueue(taskType string, data interface{}) (*asynq.TaskInfo, error) {
+	return tq.Queue.Enqueue(taskType, data)
 }
 
-func (tQ *TestQueue) Cleanup(t *testing.T) {
+func (tq *TestQueue) Cleanup(t *testing.T) {
 	ctx := context.Background()
 
-	err := tQ.Redis.FlushDB(ctx).Err()
+	err := tq.Redis.FlushDB(ctx).Err()
 	require.NoError(t, err, "Failed to flush Redis database")
 }
 
