@@ -41,7 +41,10 @@ func main() {
 		logging.Error("Failed to load OpenAPI spec", "error", err)
 	}
 
-	// Add request context and logging middlewares BEFORE validator
+	corsHandler := appmiddleware.NewCORSHandler(&c.Config.CORS)
+	r.Use(corsHandler)
+
+	// Add request context and logging middlewares AFTER CORS
 	r.Use(appmiddleware.RequestContext)
 	r.Use(appmiddleware.LoggingMiddleware)
 

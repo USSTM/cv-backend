@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type Config struct {
 	Server   ServerConfig
 	JWT      JWTConfig
 	Logging  LoggingConfig
+	CORS     CORSConfig
 }
 
 type DatabaseConfig struct {
@@ -43,6 +45,15 @@ type LoggingConfig struct {
 	Compress   bool
 }
 
+type CORSConfig struct {
+	AllowedOrigins   []string
+	AllowedMethods   []string
+	AllowedHeaders   []string
+	ExposedHeaders   []string
+	AllowCredentials bool
+	MaxAge           int
+}
+
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
@@ -69,6 +80,17 @@ func Load() *Config {
 			MaxBackups: getEnvAs("LOG_MAX_BACKUPS", 3, strconv.Atoi),
 			MaxAge:     getEnvAs("LOG_MAX_AGE", 28, strconv.Atoi),
 			Compress:   getEnvAs("LOG_COMPRESS", true, strconv.ParseBool),
+		},
+		CORS: CORSConfig{
+			AllowedOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{
+				"http://localhost:3000",
+				"http://localhost:5173",
+			}),
+			AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+			ExposedHeaders:   []string{"Link"},
+			AllowCredentials: true,
+			MaxAge:           300,
 		},
 	}
 }
@@ -101,6 +123,20 @@ func getEnvAs[T any](key string, defaultValue T, parser func(string) (T, error))
 		if parsed, err := parser(value); err == nil {
 			return parsed
 		}
+	}
+	return defaultValue
+}
+
+func getEnvSlice(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		parts := strings.Split(value, ",")
+		result := make([]string, 0, len(parts))
+		for _, part := range parts {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
 	}
 	return defaultValue
 }
