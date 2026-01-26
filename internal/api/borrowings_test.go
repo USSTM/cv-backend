@@ -20,10 +20,11 @@ import (
 func testBorrowingServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	return server, testDB, mockAuth
 }
@@ -2087,9 +2088,10 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 
 	testDB := getSharedTestDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	t.Run("success - approve HIGH item creates booking", func(t *testing.T) {
 		testDB.CleanupDatabase(t)

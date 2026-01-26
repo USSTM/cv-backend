@@ -28,9 +28,10 @@ func TestServer_CreateAvailability(t *testing.T) {
 
 	testDB := getSharedTestDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	t.Run("successful create availability as approver", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -167,10 +168,10 @@ func TestServer_ListAvailability(t *testing.T) {
 
 	testDB := getSharedTestDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
-	testDB.CleanupDatabase(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	approver1 := testDB.NewUser(t).WithEmail("approver1@list.test").AsApprover().Create()
 	approver2 := testDB.NewUser(t).WithEmail("approver2@list.test").AsApprover().Create()
@@ -252,9 +253,10 @@ func TestServer_GetAvailabilityByDate(t *testing.T) {
 	testDB := getSharedTestDatabase(t)
 	testDB.CleanupDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	approver := testDB.NewUser(t).WithEmail("approver@date.test").AsApprover().Create()
 	member := testDB.NewUser(t).WithEmail("member@date.test").AsMember().Create()
@@ -306,9 +308,10 @@ func TestServer_GetAvailabilityByID(t *testing.T) {
 	testDB := getSharedTestDatabase(t)
 	testDB.CleanupDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	approver := testDB.NewUser(t).WithEmail("approver@id.test").AsApprover().Create()
 	member := testDB.NewUser(t).WithEmail("member@id.test").AsMember().Create()
@@ -355,9 +358,10 @@ func TestServer_GetUserAvailability(t *testing.T) {
 	testDB := getSharedTestDatabase(t)
 	testDB.CleanupDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	approver := testDB.NewUser(t).WithEmail("approver@user.test").AsApprover().Create()
 
@@ -434,9 +438,10 @@ func TestServer_DeleteAvailability(t *testing.T) {
 	testDB := getSharedTestDatabase(t)
 	testDB.CleanupDatabase(t)
 	testQueue := testutil.NewTestQueue(t)
+	testLocalStack := testutil.NewTestLocalStack(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, testLocalStack, mockJWT, mockAuth)
 
 	approver := testDB.NewUser(t).WithEmail("approver@delete.test").AsApprover().Create()
 	member := testDB.NewUser(t).WithEmail("member@delete.test").AsMember().Create()

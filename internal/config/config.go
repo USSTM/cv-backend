@@ -13,6 +13,14 @@ type Config struct {
 	Server   ServerConfig
 	JWT      JWTConfig
 	Logging  LoggingConfig
+	AWS      AWSConfig
+}
+
+type AWSConfig struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	FromEmail       string
 }
 
 type DatabaseConfig struct {
@@ -81,6 +89,12 @@ func Load() *Config {
 			MaxBackups: getEnvAs("LOG_MAX_BACKUPS", 3, strconv.Atoi),
 			MaxAge:     getEnvAs("LOG_MAX_AGE", 28, strconv.Atoi),
 			Compress:   getEnvAs("LOG_COMPRESS", true, strconv.ParseBool),
+		},
+		AWS: AWSConfig{
+			Region:          getEnv("AWS_REGION", "us-east-1"),
+			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
+			FromEmail:       getEnv("AWS_SES_FROM_EMAIL", "noreply@example.com"),
 		},
 	}
 }

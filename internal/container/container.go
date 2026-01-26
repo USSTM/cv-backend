@@ -1,8 +1,11 @@
 package container
 
 import (
+	"context"
+
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/aws"
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
 	"github.com/USSTM/cv-backend/internal/logging"
@@ -24,7 +27,7 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
-	taskQueue, err := queue.New(&cfg.Redis)
+	taskQueue, err := queue.NewQueue(&cfg.Redis)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +39,12 @@ func New(cfg config.Config) (*Container, error) {
 
 	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
 
-	server := api.NewServer(db, taskQueue, jwtService, authenticator)
+	sesService, err := aws.NewSESService(context.Background(), cfg.AWS)
+	if err != nil {
+		return nil, err
+	}
+
+	server := api.NewServer(db, taskQueue, sesService, jwtService, authenticator)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,

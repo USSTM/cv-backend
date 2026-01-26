@@ -32,3 +32,8 @@ type AuthenticatorService interface {
 type RedisQueueService interface {
 	Enqueue(taskType string, data interface{}) (*asynq.TaskInfo, error)
 }
+
+// LocalStackService defines the interface for LocalStack operations
+type LocalStackService interface {
+	SendEmail(ctx context.Context, to, subject, body string) error
+}

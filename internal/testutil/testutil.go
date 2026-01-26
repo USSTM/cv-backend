@@ -18,26 +18,29 @@ import (
 // TestServer provides a test server setup for API testing
 type TestServer struct {
 	*httptest.Server
-	DB       *TestDatabase
-	Queue    *TestQueue
-	MockJWT  *MockJWTService
-	MockAuth *MockAuthenticator
+	DB         *TestDatabase
+	Queue      *TestQueue
+	LocalStack *TestLocalStack
+	MockJWT    *MockJWTService
+	MockAuth   *MockAuthenticator
 }
 
 // NewTestServer creates a test server with real database and service mocks
 func NewTestServer(t *testing.T, handler http.Handler) *TestServer {
 	testDB := NewTestDatabase(t)
 	queue := NewTestQueue(t)
+	localStack := NewTestLocalStack(t)
 	mockJWT := NewMockJWTService(t)
 	mockAuth := NewMockAuthenticator(t)
 
 	server := httptest.NewServer(handler)
 	return &TestServer{
-		Server:   server,
-		DB:       testDB,
-		Queue:    queue,
-		MockJWT:  mockJWT,
-		MockAuth: mockAuth,
+		Server:     server,
+		DB:         testDB,
+		Queue:      queue,
+		LocalStack: localStack,
+		MockJWT:    mockJWT,
+		MockAuth:   mockAuth,
 	}
 }
 
