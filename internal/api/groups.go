@@ -16,10 +16,7 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAllGroups401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAllGroups401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
@@ -28,24 +25,15 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 			"user_id", user.ID,
 			"permission", rbac.ViewGroupData,
 			"error", err)
-		return api.GetAllGroups500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllGroups500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetAllGroups403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetAllGroups403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	groups, err := s.db.Queries().GetAllGroups(ctx)
 	if err != nil {
-		return api.GetAllGroups500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.GetAllGroups500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	var response api.GetAllGroups200JSONResponse
@@ -69,10 +57,7 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetGroupByID401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetGroupByID401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewGroupData, nil)
@@ -81,24 +66,15 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 			"user_id", user.ID,
 			"permission", rbac.ViewGroupData,
 			"error", err)
-		return api.GetGroupByID500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetGroupByID500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetGroupByID403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetGroupByID403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	group, err := s.db.Queries().GetGroupByID(ctx, request.Id)
 	if err != nil {
-		return api.GetGroupByID404JSONResponse{
-			Code:    404,
-			Message: "Group not found",
-		}, nil
+		return api.GetGroupByID404JSONResponse(NotFound("Group").Create()), nil
 	}
 
 	var description *string
@@ -119,10 +95,7 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CreateGroup401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.CreateGroup401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
@@ -131,16 +104,10 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 			"user_id", user.ID,
 			"permission", rbac.ManageGroups,
 			"error", err)
-		return api.CreateGroup500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.CreateGroup500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.CreateGroup403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.CreateGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	groupParams := db.CreateGroupParams{
@@ -153,10 +120,7 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 		logger.Error("Failed to create group",
 			"group_name", request.Body.Name,
 			"error", err)
-		return api.CreateGroup500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.CreateGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	var description *string
@@ -177,10 +141,7 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.UpdateGroup401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.UpdateGroup401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
@@ -189,16 +150,10 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 			"user_id", user.ID,
 			"permission", rbac.ManageGroups,
 			"error", err)
-		return api.UpdateGroup500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.UpdateGroup500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.UpdateGroup403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.UpdateGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	groupParams := db.UpdateGroupParams{
@@ -212,10 +167,7 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 		logger.Error("Failed to update group",
 			"group_id", request.Id,
 			"error", err)
-		return api.UpdateGroup500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.UpdateGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	var description *string
@@ -236,10 +188,7 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.DeleteGroup401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.DeleteGroup401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroups, nil)
@@ -248,16 +197,10 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 			"user_id", user.ID,
 			"permission", rbac.ManageGroups,
 			"error", err)
-		return api.DeleteGroup500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.DeleteGroup500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.DeleteGroup403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.DeleteGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	err = s.db.Queries().DeleteGroup(ctx, request.Id)
@@ -265,10 +208,7 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 		logger.Error("Failed to delete group",
 			"group_id", request.Id,
 			"error", err)
-		return api.DeleteGroup500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.DeleteGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	return api.DeleteGroup204Response{}, nil

@@ -93,8 +93,8 @@ func TestServer_ListTimeSlots(t *testing.T) {
 		require.IsType(t, api.ListTimeSlots401JSONResponse{}, response)
 
 		resp := response.(api.ListTimeSlots401JSONResponse)
-		assert.Equal(t, int32(401), resp.Code)
-		assert.Equal(t, "Unauthorized", resp.Message)
+		assert.Equal(t, "AUTHENTICATION_REQUIRED", string(resp.Error.Code))
+		assert.Contains(t, resp.Error.Message, "Authentication required")
 	})
 
 	t.Run("time slot format validation", func(t *testing.T) {

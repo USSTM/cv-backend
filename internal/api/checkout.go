@@ -25,7 +25,7 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CheckoutCart401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.CheckoutCart401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Check permission
@@ -36,10 +36,10 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 			"group_id", request.Body.GroupId,
 			"permission", rbac.RequestItems,
 			"error", err)
-		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+		return api.CheckoutCart500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.CheckoutCart403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+		return api.CheckoutCart403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// transaction
@@ -49,7 +49,7 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 			"user_id", user.ID,
 			"group_id", request.Body.GroupId,
 			"error", err)
-		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to start transaction"}, nil
+		return api.CheckoutCart500JSONResponse(InternalError("Failed to start transaction").Create()), nil
 	}
 	defer tx.Rollback(ctx)
 
@@ -65,11 +65,11 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 			"user_id", user.ID,
 			"group_id", request.Body.GroupId,
 			"error", err)
-		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to get cart items"}, nil
+		return api.CheckoutCart500JSONResponse(InternalError("Failed to get cart items").Create()), nil
 	}
 
 	if len(cartItems) == 0 {
-		return api.CheckoutCart400JSONResponse{Code: 400, Message: "Cart is empty"}, nil
+		return api.CheckoutCart400JSONResponse(ValidationErr("Cart is empty", nil).Create()), nil
 	}
 
 	result := CheckoutResult{
@@ -138,12 +138,12 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		UserID:  user.ID,
 	})
 	if err != nil {
-		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to clear cart"}, nil
+		return api.CheckoutCart500JSONResponse(InternalError("Failed to clear cart").Create()), nil
 	}
 
 	// Commit transaction
 	if err := tx.Commit(ctx); err != nil {
-		return api.CheckoutCart500JSONResponse{Code: 500, Message: "Failed to commit transaction"}, nil
+		return api.CheckoutCart500JSONResponse(InternalError("Failed to commit transaction").Create()), nil
 	}
 
 	return api.CheckoutCart200JSONResponse{

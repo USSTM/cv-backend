@@ -152,9 +152,9 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.IsType(t, api.BorrowItem400JSONResponse{}, response)
 
 		errorResp := response.(api.BorrowItem400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
 		// For MEDIUM items with stock-based tracking, when stock is depleted it says "Insufficient stock"
-		assert.Contains(t, errorResp.Message, "Insufficient stock")
+		assert.Contains(t, errorResp.Error.Message, "Insufficient stock")
 	})
 
 	t.Run("attempt to borrow without permission", func(t *testing.T) {
@@ -200,8 +200,8 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.IsType(t, api.BorrowItem403JSONResponse{}, response)
 
 		errorResp := response.(api.BorrowItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("attempt to borrow non-existent item", func(t *testing.T) {
@@ -284,8 +284,8 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.IsType(t, api.BorrowItem403JSONResponse{}, response)
 
 		errorResp := response.(api.BorrowItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "approved request")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "approved request")
 	})
 
 	t.Run("attempt to borrow with insufficient stock", func(t *testing.T) {
@@ -331,8 +331,8 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.IsType(t, api.BorrowItem400JSONResponse{}, response)
 
 		errorResp := response.(api.BorrowItem400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient stock")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient stock")
 	})
 
 	t.Run("user cannot borrow item for group they are not member of", func(t *testing.T) {
@@ -377,8 +377,8 @@ func TestServer_BorrowItem(t *testing.T) {
 		require.IsType(t, api.BorrowItem403JSONResponse{}, response)
 
 		errorResp := response.(api.BorrowItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }
 
@@ -496,8 +496,8 @@ func TestServer_ReturnItem(t *testing.T) {
 		require.IsType(t, api.ReturnItem403JSONResponse{}, response)
 
 		errorResp := response.(api.ReturnItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "not actively borrowed by you")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "not actively borrowed by you")
 	})
 
 	t.Run("attempt to return without permission", func(t *testing.T) {
@@ -559,8 +559,8 @@ func TestServer_ReturnItem(t *testing.T) {
 		require.IsType(t, api.ReturnItem403JSONResponse{}, response)
 
 		errorResp := response.(api.ReturnItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 }
 
@@ -679,8 +679,8 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 		require.IsType(t, api.CheckBorrowingItemStatus403JSONResponse{}, response)
 
 		errorResp := response.(api.CheckBorrowingItemStatus403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 }
 
@@ -792,8 +792,8 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.IsType(t, api.GetBorrowedItemHistoryByUserId403JSONResponse{}, response)
 
 		errorResp := response.(api.GetBorrowedItemHistoryByUserId403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "view other users")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "view other users")
 	})
 
 	t.Run("user views their own active borrowings", func(t *testing.T) {
@@ -1000,8 +1000,8 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 		require.IsType(t, api.GetAllActiveBorrowedItems403JSONResponse{}, response)
 
 		errorResp := response.(api.GetAllActiveBorrowedItems403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("admin views all returned items", func(t *testing.T) {
@@ -1172,8 +1172,8 @@ func TestServer_RequestItem(t *testing.T) {
 		require.IsType(t, api.RequestItem400JSONResponse{}, response)
 
 		errorResp := response.(api.RequestItem400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "high-value items")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "high-value items")
 	})
 
 	t.Run("attempt to request non-existent item", func(t *testing.T) {
@@ -1205,8 +1205,8 @@ func TestServer_RequestItem(t *testing.T) {
 		require.IsType(t, api.RequestItem404JSONResponse{}, response)
 
 		errorResp := response.(api.RequestItem404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "not found")
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "not found")
 	})
 
 	t.Run("user without permission cannot request item", func(t *testing.T) {
@@ -1244,7 +1244,7 @@ func TestServer_RequestItem(t *testing.T) {
 		require.IsType(t, api.RequestItem403JSONResponse{}, response)
 
 		errorResp := response.(api.RequestItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 	})
 
 	t.Run("user cannot request item for group they are not member of", func(t *testing.T) {
@@ -1281,8 +1281,8 @@ func TestServer_RequestItem(t *testing.T) {
 		require.IsType(t, api.RequestItem403JSONResponse{}, response)
 
 		errorResp := response.(api.RequestItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }
 
@@ -1489,8 +1489,8 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.IsType(t, api.ReviewRequest400JSONResponse{}, response)
 
 		errorResp := response.(api.ReviewRequest400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "stock")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "stock")
 	})
 
 	t.Run("member cannot review request", func(t *testing.T) {
@@ -1547,7 +1547,7 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.IsType(t, api.ReviewRequest403JSONResponse{}, response)
 
 		errorResp := response.(api.ReviewRequest403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 	})
 
 	t.Run("cannot review already reviewed request", func(t *testing.T) {
@@ -1639,8 +1639,8 @@ func TestServer_ReviewRequest(t *testing.T) {
 		require.IsType(t, api.ReviewRequest400JSONResponse{}, response)
 
 		errorResp := response.(api.ReviewRequest400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "already reviewed")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "already reviewed")
 	})
 }
 
@@ -1717,7 +1717,7 @@ func TestServer_GetAllRequests(t *testing.T) {
 		require.IsType(t, api.GetAllRequests403JSONResponse{}, response)
 
 		errorResp := response.(api.GetAllRequests403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 	})
 }
 
@@ -1799,7 +1799,7 @@ func TestServer_GetPendingRequests(t *testing.T) {
 		require.IsType(t, api.GetPendingRequests403JSONResponse{}, response)
 
 		errorResp := response.(api.GetPendingRequests403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 	})
 }
 
@@ -1884,8 +1884,8 @@ func TestServer_GetRequestsByUserId(t *testing.T) {
 		require.IsType(t, api.GetRequestsByUserId403JSONResponse{}, response)
 
 		errorResp := response.(api.GetRequestsByUserId403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "other users")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "other users")
 	})
 }
 
@@ -2054,8 +2054,8 @@ func TestServer_GetRequestById(t *testing.T) {
 		require.IsType(t, api.GetRequestById403JSONResponse{}, response)
 
 		errorResp := response.(api.GetRequestById403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "view this request")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "view this request")
 	})
 
 	t.Run("request not found returns 404", func(t *testing.T) {
@@ -2075,8 +2075,8 @@ func TestServer_GetRequestById(t *testing.T) {
 		require.IsType(t, api.GetRequestById404JSONResponse{}, response)
 
 		errorResp := response.(api.GetRequestById404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "not found")
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "not found")
 	})
 }
 
@@ -2234,8 +2234,8 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		require.IsType(t, api.ReviewRequest400JSONResponse{}, response)
 
 		resp := response.(api.ReviewRequest400JSONResponse)
-		assert.Equal(t, int32(400), resp.Code)
-		assert.Contains(t, resp.Message, "availability_id")
+		assert.Equal(t, "VALIDATION_ERROR", string(resp.Error.Code))
+		assert.Contains(t, resp.Error.Message, "availability_id")
 	})
 
 }

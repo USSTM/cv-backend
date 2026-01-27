@@ -372,8 +372,8 @@ func TestServer_ErrorItems(t *testing.T) {
 		require.IsType(t, api.GetItemById404JSONResponse{}, response)
 
 		errorResp := response.(api.GetItemById404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Equal(t, "Item not found", errorResp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Equal(t, "Item not found", errorResp.Error.Message)
 	})
 
 	t.Run("trying to create item without request body", func(t *testing.T) {
@@ -393,8 +393,8 @@ func TestServer_ErrorItems(t *testing.T) {
 		require.IsType(t, api.CreateItem400JSONResponse{}, response)
 
 		errorResp := response.(api.CreateItem400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Equal(t, "Request body is required", errorResp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Equal(t, "Request body is required", errorResp.Error.Message)
 	})
 
 	t.Run("trying to create item as a member (without permission)", func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestServer_ErrorItems(t *testing.T) {
 		require.IsType(t, api.CreateItem403JSONResponse{}, response)
 
 		errorResp := response.(api.CreateItem403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 }

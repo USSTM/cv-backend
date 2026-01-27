@@ -149,14 +149,47 @@ components:
     Error:
       type: object
       properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - AUTHENTICATION_REQUIRED
+                - PERMISSION_DENIED
+                - RESOURCE_NOT_FOUND
+                - INSUFFICIENT_STOCK
+                - CONFLICT
+                - INTERNAL_ERROR
+              description: Machine-readable error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              description: Field-level validation errors
+              items:
+                type: object
+                required:
+                  - field
+                  - message
+                properties:
+                  field:
+                    type: string
+                    description: Field name that failed validation
+                  message:
+                    type: string
+                    description: Validation error message
+            context:
+              type: object
+              description: Additional error context (e.g., available stock)
+              additionalProperties: true
       required:
-        - code
-        - message
+        - error
 
     LoginRequest:
       type: object
@@ -165,8 +198,12 @@ components:
           type: string
           format: email
           example: "user@torontomu.ca"
+        password:
+          type: string
+          example: "password123"
       required:
         - email
+        - password
     LoginResponse:
       type: object
       properties:

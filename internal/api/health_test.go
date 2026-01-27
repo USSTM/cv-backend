@@ -64,7 +64,7 @@ func TestServer_ReadinessCheck(t *testing.T) {
 		require.IsType(t, api.ReadinessCheck200JSONResponse{}, response)
 
 		readyResp := response.(api.ReadinessCheck200JSONResponse)
-		assert.Equal(t, "ready", readyResp.Status)
+		assert.Equal(t, "ready", string(readyResp.Status))
 		assert.WithinDuration(t, time.Now(), readyResp.Timestamp, 1*time.Second)
 		require.NotNil(t, readyResp.Checks)
 		assert.Equal(t, "ok", readyResp.Checks["database"])

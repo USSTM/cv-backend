@@ -31,7 +31,7 @@ FROM permissions p
 JOIN role_permissions rp ON p.name = rp.permission_name
 JOIN user_roles ur ON rp.role_name = ur.role_name
 WHERE ur.user_id = $1 AND p.name = $2
-  AND (ur.scope = 'global' OR (ur.scope = 'group' AND ur.scope_id = $3));
+  AND (ur.scope = 'global' OR (ur.scope = 'group' AND (ur.scope_id = $3 OR $3 IS NULL)));
 
 
 -- name: CreateRole :exec

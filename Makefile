@@ -1,5 +1,7 @@
-.PHONY: generate-api generate-db generate build run clean migrate-up migrate-down migrate-status migrate-create db-reset test test-unit test-integration test-colima test-verbose
+.PHONY: seed generate-api generate-db generate build run clean migrate-up migrate-down migrate-status migrate-create db-reset test test-unit test-integration test-colima test-verbose
 
+seed:
+	export $$(cat .env | xargs) && go run cmd/seeder/main.go seed --file config/dev-seed.yaml
 # Generate API boilerplate from OpenAPI spec
 generate-api:
 	go tool oapi-codegen --config=api/config.yaml api/swagger.yaml
@@ -45,8 +47,6 @@ db-reset:
 	docker-compose up -d
 
 # Test commands
-# Run all tests
-test: test-unit test-integration
 
 # Run unit tests only (no testcontainers)
 test-unit:
@@ -59,9 +59,8 @@ test-integration:
 # Run integration tests with Colima setup
 test-colima:
 	export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" && \
-	export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/var/run/docker.sock" && \
+	export TESTCONTAINERS_RYUK_DISABLED=true && \
 	go test ./...
-
 # Run tests with verbose output
 test-verbose:
 	go test -v ./...

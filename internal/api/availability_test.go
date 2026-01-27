@@ -107,7 +107,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 		require.IsType(t, api.CreateAvailability400JSONResponse{}, response)
 
 		resp := response.(api.CreateAvailability400JSONResponse)
-		assert.Contains(t, resp.Message, "must be in the future")
+		assert.Contains(t, resp.Error.Message, "must be in the future")
 	})
 
 	t.Run("duplicate availability", func(t *testing.T) {
@@ -142,7 +142,7 @@ func TestServer_CreateAvailability(t *testing.T) {
 		require.IsType(t, api.CreateAvailability409JSONResponse{}, response)
 
 		resp := response.(api.CreateAvailability409JSONResponse)
-		assert.Contains(t, resp.Message, "already have availability")
+		assert.Contains(t, resp.Error.Message, "already have availability")
 	})
 
 	t.Run("unauthorized", func(t *testing.T) {
@@ -509,7 +509,7 @@ func TestServer_DeleteAvailability(t *testing.T) {
 		require.IsType(t, api.DeleteAvailability403JSONResponse{}, response)
 
 		resp := response.(api.DeleteAvailability403JSONResponse)
-		assert.Contains(t, resp.Message, "can only delete your own")
+		assert.Contains(t, resp.Error.Message, "can only delete your own")
 	})
 
 	t.Run("global admin can delete any availability", func(t *testing.T) {

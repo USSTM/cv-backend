@@ -19,10 +19,7 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetBookingByID401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetBookingByID401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Fetch booking with joined data
@@ -31,10 +28,7 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 		logger.Warn("Failed to get booking",
 			"booking_id", request.BookingId,
 			"error", err)
-		return api.GetBookingByID404JSONResponse{
-			Code:    404,
-			Message: "Booking not found",
-		}, nil
+		return api.GetBookingByID404JSONResponse(NotFound("Booking").Create()), nil
 	}
 
 	// user can view own booking, or has view_all_data permission
@@ -45,17 +39,11 @@ func (s Server) GetBookingByID(ctx context.Context, request api.GetBookingByIDRe
 			"user_id", user.ID,
 			"permission", rbac.ViewAllData,
 			"error", err)
-		return api.GetBookingByID500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.GetBookingByID500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	if !isOwner && !hasViewAll {
-		return api.GetBookingByID403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view this booking",
-		}, nil
+		return api.GetBookingByID403JSONResponse(PermissionDenied("Insufficient permissions to view this booking").Create()), nil
 	}
 
 	response := convertToBookingResponse(booking)
@@ -248,10 +236,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ListBookings401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ListBookings401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Check permissions to determine what user can view
@@ -261,10 +246,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 			"user_id", user.ID,
 			"permission", rbac.ViewAllData,
 			"error", err)
-		return api.ListBookings500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// optional API status to nullable DB status
@@ -295,10 +277,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 			logger.Error("Failed to list bookings",
 				"status", status,
 				"error", err)
-			return api.ListBookings500JSONResponse{
-				Code:    500,
-				Message: "An unexpected error occurred",
-			}, nil
+			return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 		}
 
 		response := make([]api.BookingResponse, 0, len(bookings))
@@ -318,10 +297,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 			"user_id", user.ID,
 			"status", status,
 			"error", err)
-		return api.ListBookings500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make([]api.BookingResponse, 0, len(bookings))
@@ -336,10 +312,7 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetMyBookings401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetMyBookings401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// optional API status to nullable DB status
@@ -361,10 +334,7 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 			"user_id", user.ID,
 			"status", status,
 			"error", err)
-		return api.GetMyBookings500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.GetMyBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make([]api.BookingResponse, 0, len(bookings))
@@ -381,10 +351,7 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ListPendingConfirmation401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ListPendingConfirmation401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// need manage_all_bookings or manage_group_bookings
@@ -394,10 +361,7 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 			"user_id", user.ID,
 			"permission", rbac.ManageAllBookings,
 			"error", err)
-		return api.ListPendingConfirmation500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListPendingConfirmation500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	var groupID *uuid.UUID
@@ -414,25 +378,16 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 					"permission", rbac.ManageGroupBookings,
 					"group_id", request.Params.GroupId,
 					"error", err)
-				return api.ListPendingConfirmation500JSONResponse{
-					Code:    500,
-					Message: "An unexpected error occurred",
-				}, nil
+				return api.ListPendingConfirmation500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 			}
 
 			if !hasManageGroup {
-				return api.ListPendingConfirmation403JSONResponse{
-					Code:    403,
-					Message: "Insufficient permissions to view pending confirmations for this group",
-				}, nil
+				return api.ListPendingConfirmation403JSONResponse(PermissionDenied("Insufficient permissions to view pending confirmations for this group").Create()), nil
 			}
 
 			groupID = request.Params.GroupId
 		} else {
-			return api.ListPendingConfirmation400JSONResponse{
-				Code:    400,
-				Message: "group_id parameter is required for group administrators",
-			}, nil
+			return api.ListPendingConfirmation400JSONResponse(ValidationErr("group_id parameter is required for group administrators", nil).Create()), nil
 		}
 	} else {
 		// has manage_all, group doesn't matter but can be specified
@@ -445,10 +400,7 @@ func (s Server) ListPendingConfirmation(ctx context.Context, request api.ListPen
 		logger.Error("Failed to list pending confirmation bookings",
 			"group_id", groupID,
 			"error", err)
-		return api.ListPendingConfirmation500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListPendingConfirmation500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make([]api.BookingResponse, 0, len(bookings))
@@ -465,10 +417,7 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ConfirmBooking401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ConfirmBooking401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Fetch booking to validate
@@ -477,43 +426,28 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 		logger.Warn("Failed to get booking for confirmation",
 			"booking_id", request.BookingId,
 			"error", err)
-		return api.ConfirmBooking404JSONResponse{
-			Code:    404,
-			Message: "Booking not found",
-		}, nil
+		return api.ConfirmBooking404JSONResponse(NotFound("Booking").Create()), nil
 	}
 
 	// Validate ownership
 	if booking.RequesterID == nil || *booking.RequesterID != user.ID {
-		return api.ConfirmBooking403JSONResponse{
-			Code:    403,
-			Message: "Only the requester can confirm this booking",
-		}, nil
+		return api.ConfirmBooking403JSONResponse(PermissionDenied("Only the requester can confirm this booking").Create()), nil
 	}
 
 	// Validate status
 	if booking.Status != db.RequestStatusPendingConfirmation {
-		return api.ConfirmBooking400JSONResponse{
-			Code:    400,
-			Message: "Booking is not in pending_confirmation status",
-		}, nil
+		return api.ConfirmBooking400JSONResponse(ValidationErr("Booking is not in pending_confirmation status", nil).Create()), nil
 	}
 
 	// Validate within 48h
 	fortyEightHoursAgo := time.Now().Add(-48 * time.Hour)
 	if booking.CreatedAt.Time.Before(fortyEightHoursAgo) {
-		return api.ConfirmBooking400JSONResponse{
-			Code:    400,
-			Message: "Confirmation window expired (must confirm within 48 hours)",
-		}, nil
+		return api.ConfirmBooking400JSONResponse(ValidationErr("Confirmation window expired (must confirm within 48 hours)", nil).Create()), nil
 	}
 
 	// Validate before pickup
 	if time.Now().After(booking.PickUpDate.Time) {
-		return api.ConfirmBooking400JSONResponse{
-			Code:    400,
-			Message: "Cannot confirm booking after pickup date has passed",
-		}, nil
+		return api.ConfirmBooking400JSONResponse(ValidationErr("Cannot confirm booking after pickup date has passed", nil).Create()), nil
 	}
 
 	confirmedBooking, err := s.db.Queries().ConfirmBooking(ctx, db.ConfirmBookingParams{
@@ -525,10 +459,7 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 			"booking_id", request.BookingId,
 			"user_id", user.ID,
 			"error", err)
-		return api.ConfirmBooking500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ConfirmBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// complete response
@@ -537,10 +468,7 @@ func (s Server) ConfirmBooking(ctx context.Context, request api.ConfirmBookingRe
 		logger.Error("Failed to fetch confirmed booking",
 			"booking_id", confirmedBooking.ID,
 			"error", err)
-		return api.ConfirmBooking500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ConfirmBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := convertToBookingResponse(updatedBooking)
@@ -553,10 +481,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CancelBooking401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.CancelBooking401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Fetch booking
@@ -565,10 +490,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 		logger.Warn("Failed to get booking for cancellation",
 			"booking_id", request.BookingId,
 			"error", err)
-		return api.CancelBooking404JSONResponse{
-			Code:    404,
-			Message: "Booking not found",
-		}, nil
+		return api.CancelBooking404JSONResponse(NotFound("Booking").Create()), nil
 	}
 
 	// Check permissions
@@ -580,10 +502,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 			"user_id", user.ID,
 			"permission", rbac.ManageAllBookings,
 			"error", err)
-		return api.CancelBooking500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CancelBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	canCancel := false
@@ -601,10 +520,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 	}
 
 	if !canCancel {
-		return api.CancelBooking403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to cancel this booking",
-		}, nil
+		return api.CancelBooking403JSONResponse(PermissionDenied("Insufficient permissions to cancel this booking").Create()), nil
 	}
 
 	// Cancel the booking
@@ -614,10 +530,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 			"booking_id", request.BookingId,
 			"user_id", user.ID,
 			"error", err)
-		return api.CancelBooking500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CancelBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// complete response
@@ -626,10 +539,7 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 		logger.Error("Failed to fetch cancelled booking",
 			"booking_id", request.BookingId,
 			"error", err)
-		return api.CancelBooking500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CancelBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := convertToBookingResponse(updatedBooking)

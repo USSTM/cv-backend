@@ -29,34 +29,22 @@ func toDBRequestStatus(s api.RequestStatus) db.NullRequestStatus {
 func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObject) (api.BorrowItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.BorrowItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.BorrowItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Check permission with group scope (validates both permission and group membership)
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.BorrowItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.BorrowItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// transaction
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	defer tx.Rollback(ctx) // Auto-rollback if not committed
 
@@ -65,26 +53,17 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 	// Lock and get item
 	item, err := qtx.GetItemByIDForUpdate(ctx, request.Body.ItemId)
 	if err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// Reject LOW
 	if item.Type == db.ItemTypeLow {
-		return api.BorrowItem400JSONResponse{
-			Code:    400,
-			Message: "Low-value items cannot be borrowed directly. Please add to cart and checkout.",
-		}, nil
+		return api.BorrowItem400JSONResponse(ValidationErr("Low-value items cannot be borrowed directly. Please add to cart and checkout.", nil).Create()), nil
 	}
 
 	// Check availability
 	if item.Stock < int32(request.Body.Quantity) {
-		return api.BorrowItem400JSONResponse{
-			Code:    400,
-			Message: "Insufficient stock available",
-		}, nil
+		return api.BorrowItem400JSONResponse(ValidationErr("Insufficient stock available", nil).Create()), nil
 	}
 
 	// High items checks
@@ -93,16 +72,10 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 		// is currently borrowed?
 		borrowable, err := qtx.CheckBorrowingItemStatus(ctx, &request.Body.ItemId)
 		if err != nil {
-			return api.BorrowItem500JSONResponse{
-				Code:    500,
-				Message: "Internal server error",
-			}, nil
+			return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 		}
 		if !borrowable {
-			return api.BorrowItem400JSONResponse{
-				Code:    400,
-				Message: "High-value item is currently borrowed",
-			}, nil
+			return api.BorrowItem400JSONResponse(ValidationErr("High-value item is currently borrowed", nil).Create()), nil
 		}
 		approvedRequest, err := qtx.GetApprovedRequestForUserAndItem(ctx, db.GetApprovedRequestForUserAndItemParams{
 			UserID: &user.ID,
@@ -110,24 +83,15 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 		})
 
 		if err == pgx.ErrNoRows {
-			return api.BorrowItem403JSONResponse{
-				Code:    403,
-				Message: "High-value items require an approved request. Please submit a request first.",
-			}, nil
+			return api.BorrowItem403JSONResponse(PermissionDenied("High-value items require an approved request. Please submit a request first.").Create()), nil
 		}
 		if err != nil {
-			return api.BorrowItem500JSONResponse{
-				Code:    500,
-				Message: "Internal server error",
-			}, nil
+			return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 		}
 
 		// Verify request quantity matches borrow quantity
 		if approvedRequest.Quantity != int32(request.Body.Quantity) {
-			return api.BorrowItem400JSONResponse{
-				Code:    400,
-				Message: "Borrow quantity must match approved request quantity",
-			}, nil
+			return api.BorrowItem400JSONResponse(ValidationErr("Borrow quantity must match approved request quantity", nil).Create()), nil
 		}
 
 		approvedRequestID = &approvedRequest.ID
@@ -146,10 +110,7 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 	// Create borrowing
 	resp, err := qtx.BorrowItem(ctx, params)
 	if err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// Decrement stock
@@ -158,29 +119,20 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 		Stock: int32(request.Body.Quantity),
 	})
 	if err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Failed to update stock",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Failed to update stock").Create()), nil
 	}
 
 	// If high, mark request as fulfilled
 	if item.Type == db.ItemTypeHigh && approvedRequestID != nil {
 		err = qtx.MarkRequestAsFulfilled(ctx, *approvedRequestID)
 		if err != nil {
-			return api.BorrowItem500JSONResponse{
-				Code:    500,
-				Message: "Failed to mark request as fulfilled",
-			}, nil
+			return api.BorrowItem500JSONResponse(InternalError("Failed to mark request as fulfilled").Create()), nil
 		}
 	}
 
 	// end transaction
 	if err := tx.Commit(ctx); err != nil {
-		return api.BorrowItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.BorrowItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.BorrowItem201JSONResponse{
@@ -202,33 +154,21 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObject) (api.ReturnItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ReturnItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ReturnItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.ReturnItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.ReturnItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// transaction
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	defer tx.Rollback(ctx) // rollback if not committed
 
@@ -240,16 +180,10 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 		UserID: &user.ID,
 	})
 	if err == pgx.ErrNoRows {
-		return api.ReturnItem403JSONResponse{
-			Code:    403,
-			Message: "Item is not actively borrowed by you, or does not exist",
-		}, nil
+		return api.ReturnItem403JSONResponse(PermissionDenied("Item is not actively borrowed by you, or does not exist").Create()), nil
 	}
 	if err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// Update with return information
@@ -261,10 +195,7 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 
 	resp, err := qtx.ReturnItem(ctx, params)
 	if err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// Increment stock
@@ -273,18 +204,12 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 		Stock: resp.Quantity,
 	})
 	if err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Failed to update stock",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Failed to update stock").Create()), nil
 	}
 
 	// end transaction
 	if err := tx.Commit(ctx); err != nil {
-		return api.ReturnItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	var afterCondition *string
@@ -317,32 +242,20 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 func (s Server) CheckBorrowingItemStatus(ctx context.Context, request api.CheckBorrowingItemStatusRequestObject) (api.CheckBorrowingItemStatusResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CheckBorrowingItemStatus401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.CheckBorrowingItemStatus401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, nil)
 	if err != nil {
-		return api.CheckBorrowingItemStatus500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.CheckBorrowingItemStatus500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.CheckBorrowingItemStatus403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.CheckBorrowingItemStatus403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	borrowable, err := s.db.Queries().CheckBorrowingItemStatus(ctx, &request.ItemId)
 	if err != nil {
-		return api.CheckBorrowingItemStatus500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.CheckBorrowingItemStatus500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.CheckBorrowingItemStatus200JSONResponse{
@@ -353,48 +266,30 @@ func (s Server) CheckBorrowingItemStatus(ctx context.Context, request api.CheckB
 func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.GetBorrowedItemHistoryByUserIdRequestObject) (api.GetBorrowedItemHistoryByUserIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetBorrowedItemHistoryByUserId401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.GetBorrowedItemHistoryByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetBorrowedItemHistoryByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// users can only view their own borrowed items
 	if user.ID != request.UserId {
-		return api.GetBorrowedItemHistoryByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view other users' borrowed items",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetBorrowedItemHistoryByUserId(ctx, &request.UserId)
 	if err != nil {
-		return api.GetBorrowedItemHistoryByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	borrowedItemsByUserResponse, err := createBorrowedItemResponse(items, false)
 	if err != nil {
-		return api.GetBorrowedItemHistoryByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetBorrowedItemHistoryByUserId200JSONResponse(borrowedItemsByUserResponse), nil
@@ -403,48 +298,30 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.GetActiveBorrowedItemsByUserIdRequestObject) (api.GetActiveBorrowedItemsByUserIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetActiveBorrowedItemsByUserId401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.GetActiveBorrowedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetActiveBorrowedItemsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// users can only view their own borrowed items
 	if user.ID != request.UserId {
-		return api.GetActiveBorrowedItemsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view other users' borrowed items",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetActiveBorrowedItemsByUserId(ctx, &request.UserId)
 	if err != nil {
-		return api.GetActiveBorrowedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	activeBorrowedItemsByUserResponse, err := createBorrowedItemResponse(items, true)
 	if err != nil {
-		return api.GetActiveBorrowedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetActiveBorrowedItemsByUserId200JSONResponse(activeBorrowedItemsByUserResponse), nil
@@ -453,48 +330,30 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetReturnedItemsByUserIdRequestObject) (api.GetReturnedItemsByUserIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetReturnedItemsByUserId401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetReturnedItemsByUserId401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.GetReturnedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetReturnedItemsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetReturnedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// users can only view their own borrowed items
 	if user.ID != request.UserId {
-		return api.GetReturnedItemsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view other users' borrowed items",
-		}, nil
+		return api.GetReturnedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetReturnedItemsByUserId(ctx, &request.UserId)
 	if err != nil {
-		return api.GetReturnedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	returnedItemsByUserResponse, err := createBorrowedItemResponse(items, false)
 	if err != nil {
-		return api.GetReturnedItemsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetReturnedItemsByUserId200JSONResponse(returnedItemsByUserResponse), nil
@@ -503,40 +362,25 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAllActiveBorrowedItemsRequestObject) (api.GetAllActiveBorrowedItemsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAllActiveBorrowedItems401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAllActiveBorrowedItems401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetAllActiveBorrowedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetAllActiveBorrowedItems403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetAllActiveBorrowedItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetAllActiveBorrowedItems(ctx)
 	if err != nil {
-		return api.GetAllActiveBorrowedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	activeBorrowedItemsResponse, err := createBorrowedItemResponse(items, true)
 	if err != nil {
-		return api.GetAllActiveBorrowedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetAllActiveBorrowedItems200JSONResponse(activeBorrowedItemsResponse), nil
@@ -545,40 +389,25 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllReturnedItemsRequestObject) (api.GetAllReturnedItemsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAllReturnedItems401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAllReturnedItems401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetAllReturnedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetAllReturnedItems403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetAllReturnedItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetAllReturnedItems(ctx)
 	if err != nil {
-		return api.GetAllReturnedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	returnedItemsResponse, err := createBorrowedItemResponse(items, false)
 	if err != nil {
-		return api.GetAllReturnedItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetAllReturnedItems200JSONResponse(returnedItemsResponse), nil
@@ -587,40 +416,25 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 func (s Server) GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, request api.GetActiveBorrowedItemsToBeReturnedByDateRequestObject) (api.GetActiveBorrowedItemsToBeReturnedByDateResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetActiveBorrowedItemsToBeReturnedByDate401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetActiveBorrowedItemsToBeReturnedByDate401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetActiveBorrowedItemsToBeReturnedByDate403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetActiveBorrowedItemsToBeReturnedByDate403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetActiveBorrowedItemsToBeReturnedByDate(ctx, pgtype.Timestamp{Time: request.DueDate.Time, Valid: true})
 	if err != nil {
-		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	borrowedItemsToBeReturnedByDateResponse, err := createBorrowedItemResponse(items, true)
 	if err != nil {
-		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	return api.GetActiveBorrowedItemsToBeReturnedByDate200JSONResponse(borrowedItemsToBeReturnedByDateResponse), nil
@@ -679,47 +493,29 @@ func createBorrowedItemResponse(items []db.Borrowing, active bool) ([]api.Borrow
 func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestObject) (api.RequestItemResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.RequestItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.RequestItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Check permission with group
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.RequestItems, &request.Body.GroupId)
 	if err != nil {
-		return api.RequestItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.RequestItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.RequestItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.RequestItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// Validate item is high
 	item, err := s.db.Queries().GetItemByID(ctx, request.Body.ItemId)
 	if err == pgx.ErrNoRows {
-		return api.RequestItem404JSONResponse{
-			Code:    404,
-			Message: "Item not found",
-		}, nil
+		return api.RequestItem404JSONResponse(NotFound("Item").Create()), nil
 	}
 	if err != nil {
-		return api.RequestItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.RequestItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	if item.Type != db.ItemTypeHigh {
-		return api.RequestItem400JSONResponse{
-			Code:    400,
-			Message: "Only high-value items require approval requests. Low/medium items can be borrowed directly.",
-		}, nil
+		return api.RequestItem400JSONResponse(ValidationErr("Only high-value items require approval requests. Low/medium items can be borrowed directly.", nil).Create()), nil
 	}
 
 	params := db.RequestItemParams{
@@ -731,10 +527,7 @@ func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestO
 
 	resp, err := s.db.Queries().RequestItem(ctx, params)
 	if err != nil {
-		return api.RequestItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.RequestItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	var reviewedAt *time.Time
@@ -757,33 +550,21 @@ func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestO
 func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequestObject) (api.ReviewRequestResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ReviewRequest401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ReviewRequest401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ApproveAllRequests, nil)
 	if err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.ReviewRequest403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.ReviewRequest403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// transaction
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	defer tx.Rollback(ctx) // rollback if not committed
 
@@ -791,33 +572,21 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 
 	req, err := qtx.GetRequestByIdForUpdate(ctx, request.RequestId)
 	if err == pgx.ErrNoRows {
-		return api.ReviewRequest400JSONResponse{
-			Code:    400,
-			Message: "Request not found",
-		}, nil
+		return api.ReviewRequest400JSONResponse(ValidationErr("Request not found", nil).Create()), nil
 	}
 	if err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// check stock
 	item, err := qtx.GetItemByIDForUpdate(ctx, *req.ItemID)
 	if err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// verify stock availability (if approved)
 	if request.Body.Status == api.Approved && item.Stock < req.Quantity {
-		return api.ReviewRequest400JSONResponse{
-			Code:    400,
-			Message: "Insufficient stock to approve this request",
-		}, nil
+		return api.ReviewRequest400JSONResponse(ValidationErr("Insufficient stock to approve this request", nil).Create()), nil
 	}
 
 	// If approving HIGH item, create booking
@@ -825,19 +594,13 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 	if request.Body.Status == api.Approved && item.Type == db.ItemTypeHigh {
 		// Validate booking fields are provided
 		if request.Body.AvailabilityId == nil || request.Body.PickupLocation == nil || request.Body.ReturnLocation == nil {
-			return api.ReviewRequest400JSONResponse{
-				Code:    400,
-				Message: "Booking fields (availability_id, pickup_location, return_location) required when approving HIGH items",
-			}, nil
+			return api.ReviewRequest400JSONResponse(ValidationErr("Booking fields (availability_id, pickup_location, return_location) required when approving HIGH items", nil).Create()), nil
 		}
 
 		// Fetch availability to get date and approver
 		availability, err := qtx.GetAvailabilityByID(ctx, *request.Body.AvailabilityId)
 		if err != nil {
-			return api.ReviewRequest400JSONResponse{
-				Code:    400,
-				Message: "Invalid availability_id",
-			}, nil
+			return api.ReviewRequest400JSONResponse(ValidationErr("Invalid availability_id", nil).Create()), nil
 		}
 
 		// Calculate pickup date: availability date + time slot start time
@@ -866,10 +629,7 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 			Status:         db.RequestStatusPendingConfirmation,
 		})
 		if err != nil {
-			return api.ReviewRequest500JSONResponse{
-				Code:    500,
-				Message: "Failed to create booking",
-			}, nil
+			return api.ReviewRequest500JSONResponse(InternalError("Failed to create booking").Create()), nil
 		}
 
 		bookingID = &booking.ID
@@ -880,10 +640,7 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 			BookingID: bookingID,
 		})
 		if err != nil {
-			return api.ReviewRequest500JSONResponse{
-				Code:    500,
-				Message: "Failed to link request to booking",
-			}, nil
+			return api.ReviewRequest500JSONResponse(InternalError("Failed to link request to booking").Create()), nil
 		}
 	}
 
@@ -895,24 +652,15 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 
 	resp, err := qtx.ReviewRequest(ctx, params)
 	if err == pgx.ErrNoRows {
-		return api.ReviewRequest400JSONResponse{
-			Code:    400,
-			Message: "Request already reviewed or invalid",
-		}, nil
+		return api.ReviewRequest400JSONResponse(ValidationErr("Request already reviewed or invalid", nil).Create()), nil
 	}
 	if err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// end transaction
 	if err := tx.Commit(ctx); err != nil {
-		return api.ReviewRequest500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	reviewedAt := resp.ReviewedAt.Time
@@ -932,32 +680,20 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRequestObject) (api.GetAllRequestsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAllRequests401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAllRequests401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetAllRequests500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetAllRequests403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetAllRequests403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	requests, err := s.db.Queries().GetAllRequests(ctx)
 	if err != nil {
-		return api.GetAllRequests500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	response := createRequestItemResponse(requests)
@@ -967,32 +703,20 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRequestsRequestObject) (api.GetPendingRequestsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetPendingRequests401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetPendingRequests401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ApproveAllRequests, nil)
 	if err != nil {
-		return api.GetPendingRequests500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetPendingRequests403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetPendingRequests403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	requests, err := s.db.Queries().GetPendingRequests(ctx)
 	if err != nil {
-		return api.GetPendingRequests500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	response := createRequestItemResponse(requests)
@@ -1002,40 +726,25 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 func (s Server) GetRequestsByUserId(ctx context.Context, request api.GetRequestsByUserIdRequestObject) (api.GetRequestsByUserIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetRequestsByUserId401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetRequestsByUserId401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.GetRequestsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetRequestsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetRequestsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetRequestsByUserId403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// Users can only view their own requests
 	if user.ID != request.UserId {
-		return api.GetRequestsByUserId403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view other users' requests",
-		}, nil
+		return api.GetRequestsByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' requests").Create()), nil
 	}
 
 	requests, err := s.db.Queries().GetRequestsByUserId(ctx, &request.UserId)
 	if err != nil {
-		return api.GetRequestsByUserId500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetRequestsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	response := createRequestItemResponse(requests)
@@ -1045,53 +754,32 @@ func (s Server) GetRequestsByUserId(ctx context.Context, request api.GetRequests
 func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRequestObject) (api.GetRequestByIdResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetRequestById401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetRequestById401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
 	if err != nil {
-		return api.GetRequestById500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetRequestById500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetRequestById403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetRequestById403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	req, err := s.db.Queries().GetRequestById(ctx, request.RequestId)
 	if err == pgx.ErrNoRows {
-		return api.GetRequestById404JSONResponse{
-			Code:    404,
-			Message: "Request not found",
-		}, nil
+		return api.GetRequestById404JSONResponse(NotFound("Request").Create()), nil
 	}
 	if err != nil {
-		return api.GetRequestById500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetRequestById500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	// User can only view own requests (unless they have rbac.ViewAllData permission)
 	hasViewAllPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetRequestById500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetRequestById500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasViewAllPermission && *req.UserID != user.ID {
-		return api.GetRequestById403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions to view this request",
-		}, nil
+		return api.GetRequestById403JSONResponse(PermissionDenied("Insufficient permissions to view this request").Create()), nil
 	}
 
 	var reviewedAt *time.Time

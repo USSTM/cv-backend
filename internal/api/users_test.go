@@ -118,8 +118,8 @@ func TestServer_Users(t *testing.T) {
 		require.IsType(t, api.InviteUser403JSONResponse{}, response)
 
 		inviteResp := response.(api.InviteUser403JSONResponse)
-		assert.Equal(t, int32(403), inviteResp.Code)
-		assert.Equal(t, "Insufficient permissions", inviteResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(inviteResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", inviteResp.Error.Message)
 	})
 
 	t.Run("trying to manage get users without right permissions", func(t *testing.T) {
@@ -136,8 +136,8 @@ func TestServer_Users(t *testing.T) {
 		require.IsType(t, api.GetUsers403JSONResponse{}, response)
 
 		usersResp := response.(api.GetUsers403JSONResponse)
-		assert.Equal(t, int32(403), usersResp.Code)
-		assert.Equal(t, "Insufficient permissions", usersResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(usersResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", usersResp.Error.Message)
 	})
 }
 
@@ -223,8 +223,8 @@ func TestServer_GetUserById(t *testing.T) {
 		require.IsType(t, api.GetUserById403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserById403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("user not found", func(t *testing.T) {
@@ -246,8 +246,8 @@ func TestServer_GetUserById(t *testing.T) {
 		require.IsType(t, api.GetUserById404JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserById404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Equal(t, "User not found", errorResp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Equal(t, "User not found", errorResp.Error.Message)
 	})
 }
 
@@ -307,8 +307,8 @@ func TestServer_GetUserByEmail(t *testing.T) {
 		require.IsType(t, api.GetUserByEmail403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserByEmail403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("user not found by email", func(t *testing.T) {
@@ -328,8 +328,8 @@ func TestServer_GetUserByEmail(t *testing.T) {
 		require.IsType(t, api.GetUserByEmail404JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserByEmail404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Equal(t, "User not found", errorResp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Equal(t, "User not found", errorResp.Error.Message)
 	})
 }
 
@@ -410,8 +410,8 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 		require.IsType(t, api.GetUsersByGroup403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUsersByGroup403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("group not found", func(t *testing.T) {
@@ -432,8 +432,8 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 		require.IsType(t, api.GetUsersByGroup404JSONResponse{}, response)
 
 		errorResp := response.(api.GetUsersByGroup404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Equal(t, "Group not found", errorResp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Equal(t, "Group not found", errorResp.Error.Message)
 	})
 
 	t.Run("no users found in group", func(t *testing.T) {
@@ -458,7 +458,7 @@ func TestServer_GetUsersByGroup(t *testing.T) {
 		require.IsType(t, api.GetUsersByGroup404JSONResponse{}, response)
 
 		errorResp := response.(api.GetUsersByGroup404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Equal(t, "No users found in the specified group", errorResp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Equal(t, "No users found in the specified group", errorResp.Error.Message)
 	})
 }
