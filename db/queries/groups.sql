@@ -14,3 +14,7 @@ RETURNING id, name, description;
 
 -- name: DeleteGroup :exec
 DELETE FROM groups WHERE id = $1;
+
+-- name: GetGroupByName :one
+SELECT id, name, description
+FROM groups WHERE name = $1;

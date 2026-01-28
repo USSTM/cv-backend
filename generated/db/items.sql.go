@@ -138,6 +138,25 @@ func (q *Queries) GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item,
 	return i, err
 }
 
+const getItemByName = `-- name: GetItemByName :one
+SELECT id, name, description, type, stock, urls
+FROM items WHERE name = $1
+`
+
+func (q *Queries) GetItemByName(ctx context.Context, name string) (Item, error) {
+	row := q.db.QueryRow(ctx, getItemByName, name)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Type,
+		&i.Stock,
+		&i.Urls,
+	)
+	return i, err
+}
+
 const getItemsByType = `-- name: GetItemsByType :many
 SELECT id, name, description, type, stock, urls FROM items WHERE type = $1
 `

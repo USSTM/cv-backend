@@ -1,0 +1,17 @@
+item_takings:
+  # Audit trail of LOW item takings
+  - user_email: member1@test.com
+    group_name: chemistry-club
+    item_name: "USB Cable"
+    quantity: 3
+    taken_at: "2025-01-20T14:00:00Z"
+  - user_email: member2@test.com
+    group_name: physics-society
+    item_name: "USB Cable"
+    quantity: 2
+    taken_at: "2025-01-22T11:30:00Z"
+  - user_email: member1@test.com
+    group_name: chemistry-club
+    item_name: "USB Cable"
+    quantity: 1
+    taken_at: "2025-01-25T09:15:00Z"

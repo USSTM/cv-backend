@@ -67,8 +67,10 @@ type Querier interface {
 	GetCartItemsForCheckout(ctx context.Context, arg GetCartItemsForCheckoutParams) ([]GetCartItemsForCheckoutRow, error)
 	GetExpiredBookings(ctx context.Context) ([]uuid.UUID, error)
 	GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error)
+	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error)
+	GetItemByName(ctx context.Context, name string) (Item, error)
 	GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error)
 	GetPendingRequests(ctx context.Context) ([]Request, error)
 	GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error)
@@ -81,6 +83,7 @@ type Querier interface {
 	GetTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg GetTakingHistoryByUserIdWithGroupFilterParams) ([]GetTakingHistoryByUserIdWithGroupFilterRow, error)
 	GetTakingStats(ctx context.Context, arg GetTakingStatsParams) (GetTakingStatsRow, error)
 	GetTimeSlotByID(ctx context.Context, id uuid.UUID) (TimeSlot, error)
+	GetTimeSlotByStartTime(ctx context.Context, startTime pgtype.Time) (TimeSlot, error)
 	// Get a specific user's availability schedule
 	GetUserAvailability(ctx context.Context, arg GetUserAvailabilityParams) ([]GetUserAvailabilityRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)

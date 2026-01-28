@@ -43,3 +43,7 @@ WHERE id = $1 AND stock >= $2;
 UPDATE items
 SET stock = stock + $2
 WHERE id = $1;
+
+-- name: GetItemByName :one
+SELECT id, name, description, type, stock, urls
+FROM items WHERE name = $1;

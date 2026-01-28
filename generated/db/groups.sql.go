@@ -73,6 +73,18 @@ func (q *Queries) GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error)
 	return i, err
 }
 
+const getGroupByName = `-- name: GetGroupByName :one
+SELECT id, name, description
+FROM groups WHERE name = $1
+`
+
+func (q *Queries) GetGroupByName(ctx context.Context, name string) (Group, error) {
+	row := q.db.QueryRow(ctx, getGroupByName, name)
+	var i Group
+	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	return i, err
+}
+
 const updateGroup = `-- name: UpdateGroup :one
 UPDATE groups SET name = $2, description = $3 WHERE id = $1
 RETURNING id, name, description

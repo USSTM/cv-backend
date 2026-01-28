@@ -1,0 +1,5 @@
+groups:
+  - name: chemistry-club
+    description: "Chemistry Students Club"
+  - name: physics-society
+    description: "Physics Society"

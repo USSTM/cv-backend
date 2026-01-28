@@ -1,0 +1,28 @@
+bookings:
+  # Pending confirmation booking
+  - requester_email: member1@test.com
+    manager_email: approver@test.com
+    item_name: "Laptop - MacBook Pro"
+    group_name: chemistry-club
+    availability_date: "2025-02-10"
+    availability_time_slot: "09:00:00"
+    pickup_date: "2025-02-10T09:15:00Z"
+    pickup_location: "Building A, Room 101"
+    return_date: "2025-02-15T17:00:00Z"
+    return_location: "Building A, Room 101"
+    status: "pending_confirmation"
+
+  # Confirmed booking
+  - requester_email: member2@test.com
+    manager_email: approver@test.com
+    item_name: "Laptop - MacBook Pro"
+    group_name: physics-society
+    availability_date: "2025-02-12"
+    availability_time_slot: "09:00:00"
+    pickup_date: "2025-02-12T09:30:00Z"
+    pickup_location: "Building B, Office 205"
+    return_date: "2025-02-20T16:00:00Z"
+    return_location: "Building B, Office 205"
+    status: "confirmed"
+    confirmed_at: "2025-01-27T10:00:00Z"
+    confirmed_by_email: member2@test.com
