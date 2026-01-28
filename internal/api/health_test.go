@@ -16,7 +16,7 @@ func TestServer_HealthCheck(t *testing.T) {
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, nil, mockJWT, mockAuth)
 
 	t.Run("returns 200 OK with timestamp", func(t *testing.T) {
 		request := api.HealthCheckRequestObject{}
@@ -53,7 +53,7 @@ func TestServer_ReadinessCheck(t *testing.T) {
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, nil, mockJWT, mockAuth)
 
 	t.Run("returns 200 ready when database is healthy", func(t *testing.T) {
 		request := api.ReadinessCheckRequestObject{}
@@ -64,7 +64,7 @@ func TestServer_ReadinessCheck(t *testing.T) {
 		require.IsType(t, api.ReadinessCheck200JSONResponse{}, response)
 
 		readyResp := response.(api.ReadinessCheck200JSONResponse)
-		assert.Equal(t, "ready", readyResp.Status)
+		assert.Equal(t, "ready", string(readyResp.Status))
 		assert.WithinDuration(t, time.Now(), readyResp.Timestamp, 1*time.Second)
 		require.NotNil(t, readyResp.Checks)
 		assert.Equal(t, "ok", readyResp.Checks["database"])

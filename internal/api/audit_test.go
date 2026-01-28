@@ -127,8 +127,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserTakingHistory403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	t.Run("global admin can view any user's taking history", func(t *testing.T) {
@@ -274,8 +274,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserTakingHistory403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	t.Run("group admin cannot access another group's data", func(t *testing.T) {
@@ -329,7 +329,7 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory403JSONResponse{}, response)
 
 		errorResp := response.(api.GetUserTakingHistory403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 	})
 
 	t.Run("pagination works correctly", func(t *testing.T) {
@@ -496,8 +496,8 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetItemTakingHistory403JSONResponse{}, response)
 
 		errorResp := response.(api.GetItemTakingHistory403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	t.Run("pagination works correctly for item history", func(t *testing.T) {
@@ -679,8 +679,8 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 		require.IsType(t, api.GetItemTakingStats403JSONResponse{}, response)
 
 		errorResp := response.(api.GetItemTakingStats403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	t.Run("item with no takings returns zero stats", func(t *testing.T) {
@@ -708,7 +708,7 @@ func TestServer_GetItemTakingStats(t *testing.T) {
 
 		require.NoError(t, err)
 		if errResp, ok := response.(api.GetItemTakingStats500JSONResponse); ok {
-			t.Fatalf("Got 500 error: %s", errResp.Message)
+			t.Fatalf("Got 500 error: %s", errResp.Error.Message)
 		}
 		require.IsType(t, api.GetItemTakingStats200JSONResponse{}, response)
 

@@ -16,34 +16,22 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetItems401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetItems401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ViewItems permission", "error", err)
-		return api.GetItems500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetItems403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetAllItems(ctx)
 	if err != nil {
 		logger.Error("Failed to get items", "error", err)
-		return api.GetItems500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	// Convert database items to API response format
@@ -75,34 +63,22 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetItemsByType401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetItemsByType401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ViewItems permission", "error", err)
-		return api.GetItemsByType500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetItemsByType500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetItemsByType403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetItemsByType403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	items, err := s.db.Queries().GetItemsByType(ctx, db.ItemType(request.Type))
 	if err != nil {
 		logger.Error("Failed to get items by type", "error", err)
-		return api.GetItemsByType500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.GetItemsByType500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	// Convert database items to API response format
@@ -134,33 +110,21 @@ func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestO
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetItemById401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetItemById401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ViewItems permission", "error", err)
-		return api.GetItemById500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetItemById500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetItemById403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetItemById403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	item, err := s.db.Queries().GetItemByID(ctx, request.Id)
 	if err != nil {
-		return api.GetItemById404JSONResponse{
-			Code:    404,
-			Message: "Item not found",
-		}, nil
+		return api.GetItemById404JSONResponse(NotFound("Item").Create()), nil
 	}
 
 	id := item.ID
@@ -185,32 +149,20 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CreateItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.CreateItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ManageItems permission", "error", err)
-		return api.CreateItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.CreateItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.CreateItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.CreateItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	if request.Body == nil {
-		return api.CreateItem400JSONResponse{
-			Code:    400,
-			Message: "Request body is required",
-		}, nil
+		return api.CreateItem400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	req := *request.Body
@@ -237,10 +189,7 @@ func (s Server) CreateItem(ctx context.Context, request api.CreateItemRequestObj
 	item, err := s.db.Queries().CreateItem(ctx, params)
 	if err != nil {
 		logger.Error("Failed to create item", "error", err)
-		return api.CreateItem500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.CreateItem500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	id := item.ID
@@ -264,32 +213,20 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.UpdateItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.UpdateItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ManageItems permission", "error", err)
-		return api.UpdateItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.UpdateItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.UpdateItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.UpdateItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	if request.Body == nil {
-		return api.UpdateItem400JSONResponse{
-			Code:    400,
-			Message: "Request body is required",
-		}, nil
+		return api.UpdateItem400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	req := *request.Body
@@ -317,10 +254,7 @@ func (s Server) UpdateItem(ctx context.Context, request api.UpdateItemRequestObj
 	item, err := s.db.Queries().UpdateItem(ctx, params)
 	if err != nil {
 		logger.Error("Failed to update item", "error", err)
-		return api.UpdateItem404JSONResponse{
-			Code:    404,
-			Message: "Item not found",
-		}, nil
+		return api.UpdateItem404JSONResponse(NotFound("Item").Create()), nil
 	}
 
 	id := item.ID
@@ -344,20 +278,20 @@ func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObjec
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.PatchItem401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.PatchItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ManageItems permission", "error", err)
-		return api.PatchItem500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+		return api.PatchItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.PatchItem403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+		return api.PatchItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	if request.Body == nil {
-		return api.PatchItem400JSONResponse{Code: 400, Message: "Request body is required"}, nil
+		return api.PatchItem400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	req := *request.Body
@@ -389,7 +323,7 @@ func (s Server) PatchItem(ctx context.Context, request api.PatchItemRequestObjec
 	item, err := s.db.Queries().PatchItem(ctx, params)
 
 	if err != nil {
-		return api.PatchItem404JSONResponse{Code: 404, Message: "Item not found"}, nil
+		return api.PatchItem404JSONResponse(NotFound("Item").Create()), nil
 	}
 
 	id := item.ID
@@ -414,34 +348,22 @@ func (s Server) DeleteItem(ctx context.Context, request api.DeleteItemRequestObj
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.DeleteItem401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.DeleteItem401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageItems, nil)
 	if err != nil {
 		logger.Error("Error checking rbac.ManageItems permission", "error", err)
-		return api.DeleteItem500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.DeleteItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.DeleteItem403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.DeleteItem403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	err = s.db.Queries().DeleteItem(ctx, request.Id)
 	if err != nil {
 		logger.Error("Failed to delete item", "error", err)
-		return api.DeleteItem404JSONResponse{
-			Code:    404,
-			Message: "Item not found",
-		}, nil
+		return api.DeleteItem404JSONResponse(NotFound("Item").Create()), nil
 	}
 
 	return api.DeleteItem204Response{}, nil

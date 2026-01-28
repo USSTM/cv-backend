@@ -159,8 +159,8 @@ func TestServer_AddToCart(t *testing.T) {
 		require.IsType(t, api.AddToCart400JSONResponse{}, response)
 
 		errorResp := response.(api.AddToCart400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "greater than 0")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "greater than 0")
 	})
 
 	t.Run("cannot add non-existent item", func(t *testing.T) {
@@ -191,8 +191,8 @@ func TestServer_AddToCart(t *testing.T) {
 		require.IsType(t, api.AddToCart404JSONResponse{}, response)
 
 		errorResp := response.(api.AddToCart404JSONResponse)
-		assert.Equal(t, int32(404), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "not found")
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "not found")
 	})
 
 	t.Run("user cannot add item to cart for group they are not member of", func(t *testing.T) {
@@ -227,8 +227,8 @@ func TestServer_AddToCart(t *testing.T) {
 		require.IsType(t, api.AddToCart403JSONResponse{}, response)
 
 		errorResp := response.(api.AddToCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	// hypothetical, this is edge case where user role assignment gets bugged
@@ -266,8 +266,8 @@ func TestServer_AddToCart(t *testing.T) {
 		require.IsType(t, api.AddToCart403JSONResponse{}, response)
 
 		errorResp := response.(api.AddToCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 }
 
@@ -388,8 +388,8 @@ func TestServer_GetCart(t *testing.T) {
 		require.IsType(t, api.GetCart403JSONResponse{}, response)
 
 		errorResp := response.(api.GetCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }
 
@@ -496,8 +496,8 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 		require.IsType(t, api.UpdateCartItemQuantity400JSONResponse{}, response)
 
 		errorResp := response.(api.UpdateCartItemQuantity400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "greater than 0")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "greater than 0")
 	})
 
 	t.Run("user cannot update cart for group they are not member of", func(t *testing.T) {
@@ -553,8 +553,8 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 		require.IsType(t, api.UpdateCartItemQuantity403JSONResponse{}, response)
 
 		errorResp := response.(api.UpdateCartItemQuantity403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }
 
@@ -665,8 +665,8 @@ func TestServer_RemoveFromCart(t *testing.T) {
 		require.IsType(t, api.RemoveFromCart403JSONResponse{}, response)
 
 		errorResp := response.(api.RemoveFromCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }
 
@@ -790,7 +790,7 @@ func TestServer_ClearCart(t *testing.T) {
 		require.IsType(t, api.ClearCart403JSONResponse{}, response)
 
 		errorResp := response.(api.ClearCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 }

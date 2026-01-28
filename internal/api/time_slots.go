@@ -28,19 +28,13 @@ func (s Server) ListTimeSlots(ctx context.Context, request api.ListTimeSlotsRequ
 
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ListTimeSlots401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ListTimeSlots401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	timeSlots, err := s.db.Queries().ListTimeSlots(ctx)
 	if err != nil {
 		logger.Error("Failed to list time slots", "error", err)
-		return api.ListTimeSlots500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListTimeSlots500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make(api.ListTimeSlots200JSONResponse, 0, len(timeSlots))

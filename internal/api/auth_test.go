@@ -46,7 +46,8 @@ func TestServer_LoginUser(t *testing.T) {
 		// Create request using StrictServerInterface pattern
 		request := api.LoginUserRequestObject{
 			Body: &api.LoginUserJSONRequestBody{
-				Email: types.Email(testUser.Email),
+				Email:    types.Email(testUser.Email),
+				Password: "password",
 			},
 		}
 
@@ -69,7 +70,8 @@ func TestServer_LoginUser(t *testing.T) {
 		// Create request with non-existent user
 		request := api.LoginUserRequestObject{
 			Body: &api.LoginUserJSONRequestBody{
-				Email: types.Email("nonexistent@example.com"),
+				Email:    types.Email("nonexistent@example.com"),
+				Password: "password",
 			},
 		}
 
@@ -81,8 +83,8 @@ func TestServer_LoginUser(t *testing.T) {
 		require.IsType(t, api.LoginUser400JSONResponse{}, response)
 
 		errorResp := response.(api.LoginUser400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Equal(t, "Invalid email or password.", errorResp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Equal(t, "Invalid email or password.", errorResp.Error.Message)
 	})
 
 	t.Run("jwt generation failure", func(t *testing.T) {
@@ -98,7 +100,8 @@ func TestServer_LoginUser(t *testing.T) {
 		// Create request
 		request := api.LoginUserRequestObject{
 			Body: &api.LoginUserJSONRequestBody{
-				Email: types.Email(testUser.Email),
+				Email:    types.Email(testUser.Email),
+				Password: "password",
 			},
 		}
 
@@ -110,8 +113,8 @@ func TestServer_LoginUser(t *testing.T) {
 		require.IsType(t, api.LoginUser500JSONResponse{}, response)
 
 		errorResp := response.(api.LoginUser500JSONResponse)
-		assert.Equal(t, int32(500), errorResp.Code)
-		assert.Equal(t, "An unexpected error occurred.", errorResp.Message)
+		assert.Equal(t, "INTERNAL_ERROR", string(errorResp.Error.Code))
+		assert.Equal(t, "An unexpected error occurred.", errorResp.Error.Message)
 
 		// Verify mock was called
 		mockJWT.AssertExpectations(t)
@@ -170,8 +173,8 @@ func TestServer_PingProtected(t *testing.T) {
 		require.IsType(t, api.PingProtected401JSONResponse{}, response)
 
 		errorResp := response.(api.PingProtected401JSONResponse)
-		assert.Equal(t, int32(401), errorResp.Code)
-		assert.Equal(t, "Unauthorized!", errorResp.Message)
+		assert.Equal(t, "AUTHENTICATION_REQUIRED", string(errorResp.Error.Code))
+		assert.Equal(t, "Authentication required", errorResp.Error.Message)
 	})
 
 	t.Run("insufficient permissions", func(t *testing.T) {
@@ -194,7 +197,7 @@ func TestServer_PingProtected(t *testing.T) {
 		require.IsType(t, api.PingProtected401JSONResponse{}, response)
 
 		errorResp := response.(api.PingProtected401JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 }

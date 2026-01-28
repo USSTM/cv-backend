@@ -1,11 +1,12 @@
 package testutil
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"

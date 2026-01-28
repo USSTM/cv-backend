@@ -16,7 +16,7 @@ import (
 func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTakingHistoryRequestObject) (api.GetUserTakingHistoryResponseObject, error) {
 	authenticatedUser, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUserTakingHistory401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.GetUserTakingHistory401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	targetUserID := request.UserId
@@ -25,10 +25,10 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 	// Check access permissions
 	canView, err := s.canViewUserTakingHistory(ctx, authenticatedUser.ID, targetUserID, groupIDFilter)
 	if err != nil {
-		return api.GetUserTakingHistory500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+		return api.GetUserTakingHistory500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !canView {
-		return api.GetUserTakingHistory403JSONResponse{Code: 403, Message: "Insufficient permissions to view this user's data"}, nil
+		return api.GetUserTakingHistory403JSONResponse(PermissionDenied("Insufficient permissions to view this user's data").Create()), nil
 	}
 
 	// basic pagination attempt
@@ -52,7 +52,7 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 			Offset:  offset,
 		})
 		if err != nil {
-			return api.GetUserTakingHistory500JSONResponse{Code: 500, Message: "Failed to get history"}, nil
+			return api.GetUserTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
 		}
 		for _, taking := range filteredTakings {
 			response = append(response, api.TakingHistoryResponse{
@@ -72,7 +72,7 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 			Offset: offset,
 		})
 		if err != nil {
-			return api.GetUserTakingHistory500JSONResponse{Code: 500, Message: "Failed to get history"}, nil
+			return api.GetUserTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
 		}
 		for _, taking := range takings {
 			response = append(response, api.TakingHistoryResponse{
@@ -134,15 +134,15 @@ func (s Server) canViewUserTakingHistory(ctx context.Context, authenticatedUserI
 func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTakingHistoryRequestObject) (api.GetItemTakingHistoryResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetItemTakingHistory401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.GetItemTakingHistory401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetItemTakingHistory500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+		return api.GetItemTakingHistory500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetItemTakingHistory403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+		return api.GetItemTakingHistory403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// basic pagination
@@ -161,7 +161,7 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 		Offset: offset,
 	})
 	if err != nil {
-		return api.GetItemTakingHistory500JSONResponse{Code: 500, Message: "Failed to get history"}, nil
+		return api.GetItemTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
 	}
 
 	var response []api.ItemTakingHistoryResponse
@@ -188,15 +188,15 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 func (s Server) GetItemTakingStats(ctx context.Context, request api.GetItemTakingStatsRequestObject) (api.GetItemTakingStatsResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetItemTakingStats401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.GetItemTakingStats401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 	if err != nil {
-		return api.GetItemTakingStats500JSONResponse{Code: 500, Message: "Internal server error"}, nil
+		return api.GetItemTakingStats500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetItemTakingStats403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+		return api.GetItemTakingStats403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	minDate := time.Unix(0, 0)                            // 1970-01-01
@@ -219,7 +219,7 @@ func (s Server) GetItemTakingStats(ctx context.Context, request api.GetItemTakin
 		TakenAt_2: endDate,
 	})
 	if err != nil {
-		return api.GetItemTakingStats500JSONResponse{Code: 500, Message: "Failed to get stats"}, nil
+		return api.GetItemTakingStats500JSONResponse(InternalError("Failed to get stats").Create()), nil
 	}
 
 	// Convert pgtype types to request types

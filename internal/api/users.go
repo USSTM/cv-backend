@@ -20,10 +20,7 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 	// Check permission
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUsers401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetUsers401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
@@ -32,25 +29,16 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 			"user_id", user.ID,
 			"permission", rbac.ManageUsers,
 			"error", err)
-		return api.GetUsers500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetUsers500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetUsers403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetUsers403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	users, err := s.db.Queries().GetAllUsers(ctx)
 	if err != nil {
 		logger.Error("Failed to get users", "error", err)
-		return api.GetUsers500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.GetUsers500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	// Convert database users to API response format
@@ -93,15 +81,15 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObject) (api.InviteUserResponseObject, error) {
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.InviteUser401JSONResponse{Code: 401, Message: "Unauthorized"}, nil
+		return api.InviteUser401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, request.Body.ScopeId)
 	if err != nil || !hasPermission {
-		return api.InviteUser403JSONResponse{Code: 403, Message: "Insufficient permissions"}, nil
+		return api.InviteUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	if request.Body == nil {
-		return api.InviteUser400JSONResponse{Code: 400, Message: "Request body is required"}, nil
+		return api.InviteUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	req := request.Body
@@ -113,25 +101,25 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 	}
 
 	if scopeStr == "global" && scopeID != uuid.Nil {
-		return api.InviteUser400JSONResponse{Code: 400, Message: "Scope ID must be empty for global scope"}, nil
+		return api.InviteUser400JSONResponse(ValidationErr("Scope ID must be empty for global scope", nil).Create()), nil
 	}
 
 	if scopeStr == "group" {
 		if scopeID == uuid.Nil {
-			return api.InviteUser400JSONResponse{Code: 400, Message: "Scope ID must be provided for group scope"}, nil
+			return api.InviteUser400JSONResponse(ValidationErr("Scope ID must be provided for group scope", nil).Create()), nil
 		}
 
 		// check if the group exists with error handling, if it does exist, then do nothing
 		_, err := s.db.Queries().GetGroupByID(ctx, scopeID)
 		if err != nil {
-			return api.InviteUser404JSONResponse{Code: 404, Message: "Group not found"}, nil
+			return api.InviteUser404JSONResponse(NotFound("Group").Create()), nil
 		}
 	}
 
 	// generates a random code for the sign-up link (just a random string of 32 characters)
 	code, err := generateRandomCode(32)
 	if err != nil {
-		return api.InviteUser500JSONResponse{Code: 500, Message: "Failed to generate sign-up code"}, nil
+		return api.InviteUser500JSONResponse(InternalError("Failed to generate sign-up code").Create()), nil
 	}
 
 	// this makes it so that if the scopeID is uuid.Nil, it will be nil in the database (instead of 0000000-0000-0000-0000-000000000000)
@@ -153,7 +141,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 
 	signupCode, err := s.db.Queries().CreateSignUpCode(ctx, params)
 	if err != nil {
-		return api.InviteUser500JSONResponse{Code: 500, Message: "An unexpected error occurred."}, nil
+		return api.InviteUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	return api.InviteUser201JSONResponse{Code: &signupCode.Code}, nil
@@ -164,49 +152,33 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUsersByGroup401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetUsersByGroup401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, &request.GroupId)
 	if err != nil {
 		logger.Error("Error checking manage_group_users permission", "error", err)
-		return api.GetUsersByGroup500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetUsersByGroup500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetUsersByGroup403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetUsersByGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	_, err = s.db.Queries().GetGroupByID(ctx, request.GroupId)
 	if err != nil {
-		return api.GetUsersByGroup404JSONResponse{
-			Code:    404,
-			Message: "Group not found",
-		}, nil
+		return api.GetUsersByGroup404JSONResponse(NotFound("Group").Create()), nil
 	}
 
 	users, err := s.db.Queries().GetUsersByGroup(ctx, &request.GroupId)
 	if err != nil {
 		logger.Error("Failed to get users by group", "error", err)
-		return api.GetUsersByGroup500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.GetUsersByGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	if len(users) == 0 {
-		return api.GetUsersByGroup404JSONResponse{
-			Code:    404,
-			Message: "No users found in the specified group",
-		}, nil
+		return api.GetUsersByGroup404JSONResponse(
+			NewError(CodeResourceNotFound, "No users found in the specified group").Create(),
+		), nil
 	}
 
 	var response api.GetUsersByGroup200JSONResponse
@@ -234,10 +206,7 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 	// Check authentication
 	currentUser, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUserById401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetUserById401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// Users can view their own data, or admins can view any user
@@ -246,27 +215,18 @@ func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestO
 		hasPermission, err := s.authenticator.CheckPermission(ctx, currentUser.ID, rbac.ManageUsers, nil)
 		if err != nil {
 			logger.Error("Error checking manage_users permission", "error", err)
-			return api.GetUserById500JSONResponse{
-				Code:    500,
-				Message: "Internal server error",
-			}, nil
+			return api.GetUserById500JSONResponse(InternalError("Internal server error").Create()), nil
 		}
 		canView = hasPermission
 	}
 
 	if !canView {
-		return api.GetUserById403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetUserById403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	user, err := s.db.Queries().GetUserByID(ctx, request.UserId)
 	if err != nil {
-		return api.GetUserById404JSONResponse{
-			Code:    404,
-			Message: "User not found",
-		}, nil
+		return api.GetUserById404JSONResponse(NotFound("User").Create()), nil
 	}
 
 	roles, err := s.db.Queries().GetUserRoles(ctx, &user.ID)
@@ -288,33 +248,21 @@ func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRe
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUserByEmail401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetUserByEmail401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
 	if err != nil {
 		logger.Error("Error checking manage_users permission", "error", err)
-		return api.GetUserByEmail500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.GetUserByEmail500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.GetUserByEmail403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.GetUserByEmail403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	foundUser, err := s.db.Queries().GetUserByEmail(ctx, string(request.Email))
 	if err != nil {
-		return api.GetUserByEmail404JSONResponse{
-			Code:    404,
-			Message: "User not found",
-		}, nil
+		return api.GetUserByEmail404JSONResponse(NotFound("User").Create()), nil
 	}
 
 	roles, err := s.db.Queries().GetUserRoles(ctx, &foundUser.ID)

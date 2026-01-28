@@ -889,8 +889,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking401JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking401JSONResponse)
-		assert.Equal(t, int32(401), resp.Code)
-		assert.Equal(t, "Unauthorized", resp.Message)
+		assert.Equal(t, "AUTHENTICATION_REQUIRED", string(resp.Error.Code))
+		assert.Equal(t, "Authentication required", resp.Error.Message)
 	})
 
 	t.Run("not found - invalid booking ID", func(t *testing.T) {
@@ -907,8 +907,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking404JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking404JSONResponse)
-		assert.Equal(t, int32(404), resp.Code)
-		assert.Equal(t, "Booking not found", resp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(resp.Error.Code))
+		assert.Equal(t, "Booking not found", resp.Error.Message)
 	})
 
 	t.Run("forbidden - different user tries to confirm", func(t *testing.T) {
@@ -966,8 +966,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking403JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking403JSONResponse)
-		assert.Equal(t, int32(403), resp.Code)
-		assert.Equal(t, "Only the requester can confirm this booking", resp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(resp.Error.Code))
+		assert.Equal(t, "Only the requester can confirm this booking", resp.Error.Message)
 	})
 
 	t.Run("bad request - wrong status (already confirmed)", func(t *testing.T) {
@@ -1024,8 +1024,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking400JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking400JSONResponse)
-		assert.Equal(t, int32(400), resp.Code)
-		assert.Equal(t, "Booking is not in pending_confirmation status", resp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(resp.Error.Code))
+		assert.Equal(t, "Booking is not in pending_confirmation status", resp.Error.Message)
 	})
 
 	t.Run("bad request - 48h window expired", func(t *testing.T) {
@@ -1075,8 +1075,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking400JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking400JSONResponse)
-		assert.Equal(t, int32(400), resp.Code)
-		assert.Equal(t, "Confirmation window expired (must confirm within 48 hours)", resp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(resp.Error.Code))
+		assert.Equal(t, "Confirmation window expired (must confirm within 48 hours)", resp.Error.Message)
 	})
 
 	t.Run("bad request - after pickup date passed", func(t *testing.T) {
@@ -1133,8 +1133,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking400JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking400JSONResponse)
-		assert.Equal(t, int32(400), resp.Code)
-		assert.Equal(t, "Cannot confirm booking after pickup date has passed", resp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(resp.Error.Code))
+		assert.Equal(t, "Cannot confirm booking after pickup date has passed", resp.Error.Message)
 	})
 
 	t.Run("idempotency - already confirmed", func(t *testing.T) {
@@ -1197,8 +1197,8 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		require.IsType(t, api.ConfirmBooking400JSONResponse{}, response2)
 
 		resp := response2.(api.ConfirmBooking400JSONResponse)
-		assert.Equal(t, int32(400), resp.Code)
-		assert.Equal(t, "Booking is not in pending_confirmation status", resp.Message)
+		assert.Equal(t, "VALIDATION_ERROR", string(resp.Error.Code))
+		assert.Equal(t, "Booking is not in pending_confirmation status", resp.Error.Message)
 	})
 }
 
@@ -1455,8 +1455,8 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking403JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking403JSONResponse)
-		assert.Equal(t, int32(403), resp.Code)
-		assert.Equal(t, "Insufficient permissions to cancel this booking", resp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(resp.Error.Code))
+		assert.Equal(t, "Insufficient permissions to cancel this booking", resp.Error.Message)
 	})
 
 	t.Run("forbidden - different user without permissions", func(t *testing.T) {
@@ -1516,8 +1516,8 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking403JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking403JSONResponse)
-		assert.Equal(t, int32(403), resp.Code)
-		assert.Equal(t, "Insufficient permissions to cancel this booking", resp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(resp.Error.Code))
+		assert.Equal(t, "Insufficient permissions to cancel this booking", resp.Error.Message)
 	})
 
 	t.Run("not found - invalid booking ID", func(t *testing.T) {
@@ -1534,8 +1534,8 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking404JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking404JSONResponse)
-		assert.Equal(t, int32(404), resp.Code)
-		assert.Equal(t, "Booking not found", resp.Message)
+		assert.Equal(t, "RESOURCE_NOT_FOUND", string(resp.Error.Code))
+		assert.Equal(t, "Booking not found", resp.Error.Message)
 	})
 
 	t.Run("unauthorized - no authentication", func(t *testing.T) {
@@ -1549,8 +1549,8 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking401JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking401JSONResponse)
-		assert.Equal(t, int32(401), resp.Code)
-		assert.Equal(t, "Unauthorized", resp.Message)
+		assert.Equal(t, "AUTHENTICATION_REQUIRED", string(resp.Error.Code))
+		assert.Equal(t, "Authentication required", resp.Error.Message)
 	})
 
 	t.Run("cancel already cancelled booking (idempotent)", func(t *testing.T) {
@@ -1675,6 +1675,6 @@ func TestServer_CancelBooking(t *testing.T) {
 		require.IsType(t, api.CancelBooking403JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking403JSONResponse)
-		assert.Equal(t, int32(403), resp.Code)
+		assert.Equal(t, "PERMISSION_DENIED", string(resp.Error.Code))
 	})
 }

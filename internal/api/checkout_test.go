@@ -499,8 +499,8 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.IsType(t, api.CheckoutCart400JSONResponse{}, response)
 
 		errorResp := response.(api.CheckoutCart400JSONResponse)
-		assert.Equal(t, int32(400), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "empty")
+		assert.Equal(t, "VALIDATION_ERROR", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "empty")
 	})
 
 	t.Run("user cannot checkout cart for group they are not member of", func(t *testing.T) {
@@ -526,8 +526,8 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.IsType(t, api.CheckoutCart403JSONResponse{}, response)
 
 		errorResp := response.(api.CheckoutCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Contains(t, errorResp.Message, "Insufficient permissions")
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
 	t.Run("user without permission cannot checkout", func(t *testing.T) {
@@ -555,8 +555,8 @@ func TestServer_CheckoutCart(t *testing.T) {
 		require.IsType(t, api.CheckoutCart403JSONResponse{}, response)
 
 		errorResp := response.(api.CheckoutCart403JSONResponse)
-		assert.Equal(t, int32(403), errorResp.Code)
-		assert.Equal(t, "Insufficient permissions", errorResp.Message)
+		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("checkout with partial success some succeed, some fail", func(t *testing.T) {

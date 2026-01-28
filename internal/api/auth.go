@@ -13,10 +13,7 @@ import (
 
 func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObject) (api.LoginUserResponseObject, error) {
 	if request.Body == nil {
-		return api.LoginUser400JSONResponse{
-			Code:    400,
-			Message: "Request body is required",
-		}, nil
+		return api.LoginUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	logger := middleware.GetLoggerFromContext(ctx)
@@ -27,22 +24,14 @@ func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObjec
 		logger.Warn("User not found during login",
 			"email", req.Email,
 			"error", err)
-		return api.LoginUser400JSONResponse{
-			Code:    400,
-			Message: "Invalid email or password.",
-		}, nil
+		return api.LoginUser400JSONResponse(ValidationErr("Invalid email or password.", nil).Create()), nil
 	}
 
-	// TODO: Add password field to LoginRequest schema
-	// For now, validate against a hardcoded password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("password")); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		logger.Warn("Invalid password during login",
 			"email", req.Email,
 			"error", err)
-		return api.LoginUser400JSONResponse{
-			Code:    400,
-			Message: "Invalid email or password.",
-		}, nil
+		return api.LoginUser400JSONResponse(ValidationErr("Invalid email or password.", nil).Create()), nil
 	}
 
 	userUUID := user.ID
@@ -53,10 +42,7 @@ func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObjec
 			"email", user.Email,
 			"user_id", userUUID,
 			"error", err)
-		return api.LoginUser500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred.",
-		}, nil
+		return api.LoginUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
 	logger.Info("User logged in successfully", "email", user.Email)
@@ -70,10 +56,7 @@ func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequ
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.PingProtected401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized!",
-		}, nil
+		return api.PingProtected401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewOwnData, nil)
@@ -82,16 +65,10 @@ func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequ
 			"user_id", user.ID,
 			"permission", rbac.ViewOwnData,
 			"error", err)
-		return api.PingProtected500JSONResponse{
-			Code:    500,
-			Message: "Internal server error",
-		}, nil
+		return api.PingProtected500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	if !hasPermission {
-		return api.PingProtected401JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.PingProtected401JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	return api.PingProtected200JSONResponse{

@@ -20,36 +20,24 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.CreateAvailability401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.CreateAvailability401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// manage time slots (approvers only)
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
 		logger.Error("Failed to check permission", "error", err)
-		return api.CreateAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CreateAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	if !hasPermission {
-		return api.CreateAvailability403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.CreateAvailability403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// future date?
 	date := request.Body.Date.Time
 	if date.Before(time.Now().Truncate(24 * time.Hour)) {
-		return api.CreateAvailability400JSONResponse{
-			Code:    400,
-			Message: "Date must be in the future",
-		}, nil
+		return api.CreateAvailability400JSONResponse(ValidationErr("Date must be in the future", nil).Create()), nil
 	}
 
 	// conflict with availability in bookings?
@@ -63,17 +51,11 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 	})
 	if err != nil {
 		logger.Error("Failed to check availability conflict", "error", err)
-		return api.CreateAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CreateAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	if hasConflict {
-		return api.CreateAvailability409JSONResponse{
-			Code:    409,
-			Message: "You already have availability set for this time slot on this date",
-		}, nil
+		return api.CreateAvailability409JSONResponse(ConflictErr("You already have availability set for this time slot on this date").Create()), nil
 	}
 
 	// create
@@ -88,20 +70,14 @@ func (s Server) CreateAvailability(ctx context.Context, request api.CreateAvaila
 	})
 	if err != nil {
 		logger.Error("Failed to create availability", "error", err)
-		return api.CreateAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CreateAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// fetch time slot
 	timeSlot, err := s.db.Queries().GetTimeSlotByID(ctx, *availability.TimeSlotID)
 	if err != nil {
 		logger.Error("Failed to fetch time slot", "error", err)
-		return api.CreateAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.CreateAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	return api.CreateAvailability201JSONResponse{
@@ -120,10 +96,7 @@ func (s Server) ListAvailability(ctx context.Context, request api.ListAvailabili
 
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.ListAvailability401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.ListAvailability401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// date filter
@@ -145,10 +118,7 @@ func (s Server) ListAvailability(ctx context.Context, request api.ListAvailabili
 	})
 	if err != nil {
 		logger.Error("Failed to list availability", "error", err)
-		return api.ListAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.ListAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// format to openapi spec
@@ -174,10 +144,7 @@ func (s Server) GetAvailabilityByDate(ctx context.Context, request api.GetAvaila
 
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAvailabilityByDate401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAvailabilityByDate401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	date := request.Date.Time
@@ -188,10 +155,7 @@ func (s Server) GetAvailabilityByDate(ctx context.Context, request api.GetAvaila
 	})
 	if err != nil {
 		logger.Error("Failed to fetch availability by date", "error", err)
-		return api.GetAvailabilityByDate500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.GetAvailabilityByDate500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make(api.GetAvailabilityByDate200JSONResponse, 0, len(availabilities))
@@ -215,25 +179,16 @@ func (s Server) GetAvailabilityByID(ctx context.Context, request api.GetAvailabi
 
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetAvailabilityByID401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetAvailabilityByID401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	availability, err := s.db.Queries().GetAvailabilityByID(ctx, request.Id)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			return api.GetAvailabilityByID404JSONResponse{
-				Code:    404,
-				Message: "Availability not found",
-			}, nil
+			return api.GetAvailabilityByID404JSONResponse(NotFound("Availability").Create()), nil
 		}
 		logger.Error("Failed to fetch availability", "error", err)
-		return api.GetAvailabilityByID500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.GetAvailabilityByID500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	return api.GetAvailabilityByID200JSONResponse{
@@ -253,10 +208,7 @@ func (s Server) GetUserAvailability(ctx context.Context, request api.GetUserAvai
 
 	_, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.GetUserAvailability401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.GetUserAvailability401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// optional date range
@@ -276,10 +228,7 @@ func (s Server) GetUserAvailability(ctx context.Context, request api.GetUserAvai
 	})
 	if err != nil {
 		logger.Error("Failed to fetch user availability", "error", err)
-		return api.GetUserAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.GetUserAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	response := make(api.GetUserAvailability200JSONResponse, 0, len(availabilities))
@@ -303,43 +252,28 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
-		return api.DeleteAvailability401JSONResponse{
-			Code:    401,
-			Message: "Unauthorized",
-		}, nil
+		return api.DeleteAvailability401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
 	// user has permission (approvers only)
 	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageTimeSlots, nil)
 	if err != nil {
 		logger.Error("Failed to check permission", "error", err)
-		return api.DeleteAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.DeleteAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	if !hasPermission {
-		return api.DeleteAvailability403JSONResponse{
-			Code:    403,
-			Message: "Insufficient permissions",
-		}, nil
+		return api.DeleteAvailability403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
 	// fetch availability to check ownership
 	availability, err := s.db.Queries().GetAvailabilityByID(ctx, request.Id)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			return api.DeleteAvailability404JSONResponse{
-				Code:    404,
-				Message: "Availability not found",
-			}, nil
+			return api.DeleteAvailability404JSONResponse(NotFound("Availability").Create()), nil
 		}
 		logger.Error("Failed to fetch availability", "error", err)
-		return api.DeleteAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.DeleteAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	// check ownership: users can only delete their own availability unless they have view_all_data permission
@@ -347,16 +281,10 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 		hasGlobalPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ViewAllData, nil)
 		if err != nil {
 			logger.Error("Failed to check global permission", "error", err)
-			return api.DeleteAvailability500JSONResponse{
-				Code:    500,
-				Message: "An unexpected error occurred",
-			}, nil
+			return api.DeleteAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 		}
 		if !hasGlobalPermission {
-			return api.DeleteAvailability403JSONResponse{
-				Code:    403,
-				Message: "You can only delete your own availability",
-			}, nil
+			return api.DeleteAvailability403JSONResponse(PermissionDenied("You can only delete your own availability").Create()), nil
 		}
 	}
 
@@ -364,27 +292,18 @@ func (s Server) DeleteAvailability(ctx context.Context, request api.DeleteAvaila
 	inUse, err := s.db.Queries().CheckAvailabilityInUse(ctx, &request.Id)
 	if err != nil {
 		logger.Error("Failed to check if availability is in use", "error", err)
-		return api.DeleteAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.DeleteAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	if inUse {
-		return api.DeleteAvailability409JSONResponse{
-			Code:    409,
-			Message: "Cannot delete availability that is referenced by active bookings",
-		}, nil
+		return api.DeleteAvailability409JSONResponse(ConflictErr("Cannot delete availability that is referenced by active bookings").Create()), nil
 	}
 
 	// delete
 	err = s.db.Queries().DeleteAvailability(ctx, request.Id)
 	if err != nil {
 		logger.Error("Failed to delete availability", "error", err)
-		return api.DeleteAvailability500JSONResponse{
-			Code:    500,
-			Message: "An unexpected error occurred",
-		}, nil
+		return api.DeleteAvailability500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
 	return api.DeleteAvailability204Response{}, nil

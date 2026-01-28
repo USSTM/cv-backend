@@ -13,9 +13,11 @@ import (
 	"github.com/USSTM/cv-backend/internal/container"
 	"github.com/USSTM/cv-backend/internal/logging"
 	appmiddleware "github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/swagger"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -52,17 +54,27 @@ func main() {
 	r.Use(appmiddleware.RequestContext)
 	r.Use(appmiddleware.LoggingMiddleware)
 
-	// Add authentication middleware
-	validator := middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
-		Options: openapi3filter.Options{
-			AuthenticationFunc: c.Authenticator.Authenticate,
-		},
+	// group swagger ui routes away from actual API
+	r.Group(func(r chi.Router) {
+		// Swagger UI routes
+		r.Get("/swagger.json", swagger.ServeSwaggerJSON)
+		r.Get("/docs/*", httpSwagger.Handler(
+			httpSwagger.URL("/swagger.json"),
+		))
 	})
-	r.Use(validator)
 
-	// Wrap server with strict handler
-	strictHandler := genapi.NewStrictHandler(c.Server, nil)
-	genapi.HandlerFromMux(strictHandler, r)
+	// authentication middleware and API
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
+			Options: openapi3filter.Options{
+				AuthenticationFunc: c.Authenticator.Authenticate,
+			},
+		}))
+
+		// strict handler
+		strictHandler := genapi.NewStrictHandler(c.Server, nil)
+		genapi.HandlerFromMux(strictHandler, r)
+	})
 
 	addr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
 	s := &http.Server{
