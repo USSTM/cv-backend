@@ -24,7 +24,7 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
-	taskQueue, err := queue.New(&cfg.Redis)
+	taskQueue, err := queue.NewQueue(&cfg.Redis)
 	if err != nil {
 		return nil, err
 	}
