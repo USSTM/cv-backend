@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Database DatabaseConfig
+	Redis    RedisConfig
 	Server   ServerConfig
 	JWT      JWTConfig
 	Logging  LoggingConfig
@@ -23,6 +24,12 @@ type DatabaseConfig struct {
 	Password string
 	DBName   string
 	SSLMode  string
+}
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
 }
 
 type ServerConfig struct {
@@ -63,6 +70,11 @@ func Load() *Config {
 			Password: getEnv("POSTGRES_PASSWORD", ""),
 			DBName:   getEnv("POSTGRES_DB", "postgres"),
 			SSLMode:  getEnv("POSTGRES_SSL_MODE", "disable"),
+		},
+		Redis: RedisConfig{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAs("REDIS_DB", 0, strconv.Atoi),
 		},
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),

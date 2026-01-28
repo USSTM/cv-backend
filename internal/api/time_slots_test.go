@@ -16,9 +16,10 @@ func TestServer_ListTimeSlots(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful list time slots", func(t *testing.T) {
 		testUser := testDB.NewUser(t).

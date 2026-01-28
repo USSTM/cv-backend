@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
@@ -21,9 +22,10 @@ func TestServer_GetBookingByID(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful retrieval as booking owner", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -242,9 +244,10 @@ func TestServer_GetMyBookings(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful retrieval of user's own bookings", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -446,9 +449,10 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("approver can view pending confirmations", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -641,9 +645,10 @@ func TestServer_ListBookings(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("admin can view all bookings", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -794,9 +799,10 @@ func TestServer_ConfirmBooking(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("success - requester confirms booking within 48h before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -1202,9 +1208,10 @@ func TestServer_CancelBooking(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("success - requester cancels before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)

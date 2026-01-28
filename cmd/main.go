@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	genapi "github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/container"
 	"github.com/USSTM/cv-backend/internal/logging"
 	appmiddleware "github.com/USSTM/cv-backend/internal/middleware"
@@ -18,20 +19,23 @@ import (
 )
 
 func main() {
-	c, err := container.New()
+	cfg := config.Load()
+
+	// Initialize structured logging before anything else (so we can log errors)
+	if err := logging.Init(&cfg.Logging); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	logging.Info("Logger initialized successfully",
+		"level", cfg.Logging.Level,
+		"format", cfg.Logging.Format,
+		"filename", cfg.Logging.Filename)
+
+	// create container after (so we can log errors with structured logger)
+	c, err := container.New(*cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize container: %v", err)
 	}
 	defer c.Cleanup()
-
-	// Initialize structured logging
-	if err := logging.Init(&c.Config.Logging); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	logging.Info("Logger initialized successfully",
-		"level", c.Config.Logging.Level,
-		"format", c.Config.Logging.Format,
-		"filename", c.Config.Logging.Filename)
 
 	r := chi.NewMux()
 
@@ -60,7 +64,7 @@ func main() {
 	strictHandler := genapi.NewStrictHandler(c.Server, nil)
 	genapi.HandlerFromMux(strictHandler, r)
 
-	addr := fmt.Sprintf("0.0.0.0:%s", c.Config.Server.Port)
+	addr := fmt.Sprintf("0.0.0.0:%s", cfg.Server.Port)
 	s := &http.Server{
 		Handler: r,
 		Addr:    addr,

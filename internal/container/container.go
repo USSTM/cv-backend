@@ -6,20 +6,25 @@ import (
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
 	"github.com/USSTM/cv-backend/internal/logging"
+	"github.com/USSTM/cv-backend/internal/queue"
 )
 
 type Container struct {
 	Config        *config.Config
 	Database      *database.Database
+	Queue         *queue.TaskQueue
 	JWTService    *auth.JWTService
 	Authenticator *auth.Authenticator
 	Server        *api.Server
 }
 
-func New() (*Container, error) {
-	cfg := config.Load()
-
+func New(cfg config.Config) (*Container, error) {
 	db, err := database.New(&cfg.Database)
+	if err != nil {
+		return nil, err
+	}
+
+	taskQueue, err := queue.New(&cfg.Redis)
 	if err != nil {
 		return nil, err
 	}
@@ -31,15 +36,16 @@ func New() (*Container, error) {
 
 	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
 
-	server := api.NewServer(db, jwtService, authenticator)
+	server := api.NewServer(db, taskQueue, jwtService, authenticator)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
 		"port", cfg.Database.Port)
 
 	return &Container{
-		Config:        cfg,
+		Config:        &cfg,
 		Database:      db,
+		Queue:         taskQueue,
 		JWTService:    jwtService,
 		Authenticator: authenticator,
 		Server:        server,

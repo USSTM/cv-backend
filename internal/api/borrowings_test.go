@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"testing"
 	"time"
+
+	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
@@ -18,10 +19,11 @@ import (
 
 func testBorrowingServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
 
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	return server, testDB, mockAuth
 }
@@ -2084,9 +2086,10 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 	}
 
 	testDB := getSharedTestDatabase(t)
+	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, mockJWT, mockAuth)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("success - approve HIGH item creates booking", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
