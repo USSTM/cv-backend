@@ -5,6 +5,9 @@ go 1.24.0
 toolchain go1.24.5
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.41.1
+	github.com/aws/aws-sdk-go-v2/config v1.32.7
+	github.com/aws/aws-sdk-go-v2/service/ses v1.34.18
 	github.com/getkin/kin-openapi v0.127.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/google/uuid v1.6.0
@@ -17,6 +20,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
+	github.com/testcontainers/testcontainers-go/modules/localstack v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.37.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0
 	golang.org/x/crypto v0.43.0
@@ -28,13 +32,25 @@ require (
 	cel.dev/expr v0.23.0 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/ClickHouse/ch-go v0.65.1 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.7 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.0.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6 // indirect
+	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coder/websocket v1.8.13 // indirect
@@ -62,7 +78,7 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
@@ -87,7 +103,7 @@ require (
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+	github.com/lufia/plan9stats v0.0.0-20240226150601-1dcf7310316a // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -118,7 +134,7 @@ require (
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20250324122243-d51e00e5bbf0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
+	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/riza-io/grpc-go v0.2.0 // indirect
@@ -136,8 +152,8 @@ require (
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.12 // indirect
-	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/tklauser/go-sysconf v0.3.13 // indirect
+	github.com/tklauser/numcpus v0.7.0 // indirect
 	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d // indirect
 	github.com/vertica/vertica-sql-go v1.3.3 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect

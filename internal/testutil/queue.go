@@ -58,7 +58,7 @@ func NewTestQueue(t *testing.T) *TestQueue {
 	}
 
 	// Create Asynq Task Queue
-	taskQueue, err := queue.New(&appConfig)
+	taskQueue, err := queue.NewQueue(&appConfig)
 	require.NoError(t, err, "Failed to create application queue wrapper")
 
 	// Create Asynq Inspector

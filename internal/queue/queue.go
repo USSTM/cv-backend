@@ -13,7 +13,7 @@ type TaskQueue struct {
 	client *asynq.Client
 }
 
-func New(cfg *config.RedisConfig) (*TaskQueue, error) {
+func NewQueue(cfg *config.RedisConfig) (*TaskQueue, error) {
 	client := asynq.NewClient(asynq.RedisClientOpt{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,
