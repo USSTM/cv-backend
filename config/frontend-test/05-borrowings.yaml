@@ -1,0 +1,23 @@
+borrowings:
+  # Active borrowing - member1 has projector
+  - user_email: member1@test.com
+    group_name: chemistry-club
+    item_name: "Projector"
+    quantity: 1
+    borrowed_at: "2025-01-25T10:00:00Z"
+    due_date: "2025-02-08T17:00:00Z"
+    before_condition: "good"
+    before_condition_url: "https://example.com/before.jpg"
+
+  # Returned borrowing - member2 returned projector
+  - user_email: member2@test.com
+    group_name: physics-society
+    item_name: "Projector"
+    quantity: 1
+    borrowed_at: "2025-01-15T14:00:00Z"
+    due_date: "2025-01-25T17:00:00Z"
+    returned_at: "2025-01-24T16:30:00Z"
+    before_condition: "pristine"
+    before_condition_url: "https://example.com/before2.jpg"
+    after_condition: "good"
+    after_condition_url: "https://example.com/after2.jpg"

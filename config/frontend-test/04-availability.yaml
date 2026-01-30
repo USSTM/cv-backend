@@ -1,0 +1,10 @@
+availability:
+  - user_email: approver@test.com
+    date: "2025-02-10"
+    time_slot_start: "09:00:00"
+  - user_email: approver@test.com
+    date: "2025-02-10"
+    time_slot_start: "13:00:00"
+  - user_email: approver@test.com
+    date: "2025-02-12"
+    time_slot_start: "09:00:00"

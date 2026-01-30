@@ -1,0 +1,25 @@
+users:
+  - email: admin@test.com
+    password: password123
+  - email: approver@test.com
+    password: password123
+  - email: member1@test.com
+    password: password123
+  - email: member2@test.com
+    password: password123
+
+user_roles:
+  - user_email: admin@test.com
+    role_name: global_admin
+    scope: global
+  - user_email: approver@test.com
+    role_name: approver
+    scope: global
+  - user_email: member1@test.com
+    role_name: member
+    scope: group
+    group_name: chemistry-club
+  - user_email: member2@test.com
+    role_name: member
+    scope: group
+    group_name: physics-society

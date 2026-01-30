@@ -1,0 +1,16 @@
+items:
+  - name: "USB Cable"
+    type: low
+    stock: 50
+    description: "USB-C cables"
+    urls: []
+  - name: "Projector"
+    type: medium
+    stock: 5
+    description: "HD Projector for presentations"
+    urls: []
+  - name: "Laptop - MacBook Pro"
+    type: high
+    stock: 2
+    description: "MacBook Pro 16-inch"
+    urls: ["https://example.com/macbook"]

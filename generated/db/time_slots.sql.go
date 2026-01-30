@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getTimeSlotByID = `-- name: GetTimeSlotByID :one
@@ -18,6 +19,18 @@ WHERE id = $1
 
 func (q *Queries) GetTimeSlotByID(ctx context.Context, id uuid.UUID) (TimeSlot, error) {
 	row := q.db.QueryRow(ctx, getTimeSlotByID, id)
+	var i TimeSlot
+	err := row.Scan(&i.ID, &i.StartTime, &i.EndTime)
+	return i, err
+}
+
+const getTimeSlotByStartTime = `-- name: GetTimeSlotByStartTime :one
+SELECT id, start_time, end_time FROM time_slots
+WHERE start_time = $1
+`
+
+func (q *Queries) GetTimeSlotByStartTime(ctx context.Context, startTime pgtype.Time) (TimeSlot, error) {
+	row := q.db.QueryRow(ctx, getTimeSlotByStartTime, startTime)
 	var i TimeSlot
 	err := row.Scan(&i.ID, &i.StartTime, &i.EndTime)
 	return i, err

@@ -1,0 +1,9 @@
+cart_items:
+  - user_email: member1@test.com
+    group_name: chemistry-club
+    item_name: "USB Cable"
+    quantity: 5
+  - user_email: member1@test.com
+    group_name: chemistry-club
+    item_name: "Projector"
+    quantity: 1

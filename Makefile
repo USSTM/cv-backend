@@ -2,6 +2,13 @@
 
 seed:
 	export $$(cat .env | xargs) && go run cmd/seeder/main.go seed --file config/dev-seed.yaml
+
+nuke:
+	export $$(cat .env | xargs) && go run cmd/seeder/main.go nuke --force
+
+reseed: nuke
+	export $$(cat .env | xargs) && go run cmd/seeder/main.go seed --file config/dev-seed.yaml
+
 # Generate API boilerplate from OpenAPI spec
 generate-api:
 	go tool oapi-codegen --config=api/config.yaml api/swagger.yaml
