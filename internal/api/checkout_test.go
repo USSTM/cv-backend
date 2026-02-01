@@ -13,23 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testCheckoutServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 func TestServer_CheckoutCart(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCheckoutServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful checkout with LOW items only", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -528,35 +517,6 @@ func TestServer_CheckoutCart(t *testing.T) {
 		errorResp := response.(api.CheckoutCart403JSONResponse)
 		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
-	})
-
-	t.Run("user without permission cannot checkout", func(t *testing.T) {
-		testUser := testDB.NewUser(t).
-			WithEmail("checkout@noperm.ca").
-			AsMember().
-			Create()
-
-		group := testDB.NewGroup(t).
-			WithName("No Perm Checkout Group").
-			Create()
-
-		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
-
-		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, false, nil)
-		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
-
-		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
-			Body: &api.CheckoutCartJSONRequestBody{
-				GroupId: group.ID,
-			},
-		})
-
-		require.NoError(t, err)
-		require.IsType(t, api.CheckoutCart403JSONResponse{}, response)
-
-		errorResp := response.(api.CheckoutCart403JSONResponse)
-		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
-		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
 	})
 
 	t.Run("checkout with partial success some succeed, some fail", func(t *testing.T) {

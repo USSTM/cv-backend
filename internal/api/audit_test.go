@@ -14,17 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testAuditServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 // Helper to create taking record
 func createTaking(t *testing.T, testDB *testutil.TestDatabase, userID, groupID, itemID uuid.UUID, quantity int32) uuid.UUID {
 	taking, err := testDB.Queries().RecordItemTaking(context.Background(), db.RecordItemTakingParams{
@@ -39,10 +28,10 @@ func createTaking(t *testing.T, testDB *testutil.TestDatabase, userID, groupID, 
 
 func TestServer_GetUserTakingHistory(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping audit tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testAuditServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("user can view their own taking history", func(t *testing.T) {
 		// Create user
@@ -404,10 +393,10 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 
 func TestServer_GetItemTakingHistory(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping audit tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testAuditServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("admin can view item taking history", func(t *testing.T) {
 		// Create admin
@@ -584,10 +573,10 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 
 func TestServer_GetItemTakingStats(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping audit tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testAuditServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("admin can view item taking stats", func(t *testing.T) {
 		// Create admin

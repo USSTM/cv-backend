@@ -16,15 +16,10 @@ import (
 
 func TestServer_Users(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping users tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful view users", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -143,15 +138,10 @@ func TestServer_Users(t *testing.T) {
 
 func TestServer_GetUserById(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get user by id tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get user by id as admin", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -253,15 +243,10 @@ func TestServer_GetUserById(t *testing.T) {
 
 func TestServer_GetUserByEmail(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get user by email tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get user by email as admin", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -335,15 +320,10 @@ func TestServer_GetUserByEmail(t *testing.T) {
 
 func TestServer_GetUsersByGroup(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get users by group tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get users by group", func(t *testing.T) {
 		group := testDB.NewGroup(t).

@@ -15,11 +15,7 @@ func TestServer_ListTimeSlots(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, _ := newTestServer(t)
 
 	t.Run("successful list time slots", func(t *testing.T) {
 		testUser := testDB.NewUser(t).

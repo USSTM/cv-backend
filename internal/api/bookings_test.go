@@ -21,11 +21,7 @@ func TestServer_GetBookingByID(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful retrieval as booking owner", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -38,54 +34,24 @@ func TestServer_GetBookingByID(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		require.NotEmpty(t, timeSlots)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour) // 9 AM
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// User retrieves their own booking
 		// Handler checks view_all_data permission even for owners
 		mockAuth.ExpectCheckPermission(user.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, api.GetBookingByID200JSONResponse{}, response)
 
 		resp := response.(api.GetBookingByID200JSONResponse)
-		assert.Equal(t, bookingID, resp.Id)
+		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, user.ID, resp.RequesterId)
 		assert.Equal(t, item.ID, resp.ItemId)
 		assert.Equal(t, "Main Office", resp.PickUpLocation)
@@ -106,52 +72,23 @@ func TestServer_GetBookingByID(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking for a different user
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID, // Different user's booking
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Admin retrieves another user's booking
 		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, api.GetBookingByID200JSONResponse{}, response)
 
 		resp := response.(api.GetBookingByID200JSONResponse)
-		assert.Equal(t, bookingID, resp.Id)
+		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, user.ID, resp.RequesterId)
 	})
 
@@ -167,45 +104,16 @@ func TestServer_GetBookingByID(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user2, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking for user1
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user1.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user1.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// user2 tries to view user1's booking
 		mockAuth.ExpectCheckPermission(user2.ID, rbac.ViewAllData, nil, false, nil)
 
 		response, err := server.GetBookingByID(ctx, api.GetBookingByIDRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
@@ -243,11 +151,7 @@ func TestServer_GetMyBookings(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, _ := newTestServer(t)
 
 	t.Run("successful retrieval of user's own bookings", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -261,72 +165,20 @@ func TestServer_GetMyBookings(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		require.NotEmpty(t, timeSlots)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create 2 bookings for user
-		booking1ID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             booking1ID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
-
-		booking2ID := uuid.New()
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             booking2ID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate.Add(24 * time.Hour), Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate.Add(24 * time.Hour), Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed,
-		})
-		require.NoError(t, err)
+		booking1 := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
+		booking2 := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 24*time.Hour)
 
 		// Create 1 booking for other user
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &otherUser.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, otherUser.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Get user's bookings
 		response, err := server.GetMyBookings(ctx, api.GetMyBookingsRequestObject{})
@@ -339,8 +191,8 @@ func TestServer_GetMyBookings(t *testing.T) {
 
 		// Verify IDs
 		bookingIDs := []uuid.UUID{resp[0].Id, resp[1].Id}
-		assert.Contains(t, bookingIDs, booking1ID)
-		assert.Contains(t, bookingIDs, booking2ID)
+		assert.Contains(t, bookingIDs, booking1.ID)
+		assert.Contains(t, bookingIDs, booking2.ID)
 	})
 
 	t.Run("filter by status", func(t *testing.T) {
@@ -353,53 +205,17 @@ func TestServer_GetMyBookings(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create confirmed booking
-		confirmedID := uuid.New()
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             confirmedID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed,
-		})
-		require.NoError(t, err)
+		confirmed := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 0)
 
 		// Create pending booking
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate.Add(24 * time.Hour), Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate.Add(24 * time.Hour), Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 24*time.Hour)
 
 		// Filter by confirmed status
 		confirmedStatus := api.RequestStatus("confirmed")
@@ -414,7 +230,7 @@ func TestServer_GetMyBookings(t *testing.T) {
 
 		resp := response.(api.GetMyBookings200JSONResponse)
 		assert.Len(t, resp, 1)
-		assert.Equal(t, confirmedID, resp[0].Id)
+		assert.Equal(t, confirmed.ID, resp[0].Id)
 		assert.Equal(t, api.RequestStatus("confirmed"), resp[0].Status)
 	})
 
@@ -448,11 +264,7 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("approver can view pending confirmations", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -465,56 +277,17 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), approver, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		require.NotEmpty(t, timeSlots)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create pending confirmation booking
-		pendingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             pendingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		pending := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Create confirmed booking (should not appear)
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate.Add(24 * time.Hour), Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate.Add(24 * time.Hour), Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 24*time.Hour)
 
 		// Approver views pending confirmations
 		mockAuth.ExpectCheckPermission(approver.ID, rbac.ManageAllBookings, nil, true, nil)
@@ -526,7 +299,7 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 
 		resp := response.(api.ListPendingConfirmation200JSONResponse)
 		assert.Len(t, resp, 1)
-		assert.Equal(t, pendingID, resp[0].Id)
+		assert.Equal(t, pending.ID, resp[0].Id)
 		assert.Equal(t, api.RequestStatus("pending_confirmation"), resp[0].Status)
 	})
 
@@ -542,36 +315,11 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), manager, testDB.Queries())
 
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
+		availability := createTestAvailability(t, testDB, approver.ID)
 
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		pendingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             pendingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		pending := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// User with manage_group_bookings permission can view (must provide group_id)
 		mockAuth.ExpectCheckPermission(manager.ID, rbac.ManageAllBookings, nil, false, nil)
@@ -588,7 +336,7 @@ func TestServer_ListPendingConfirmation(t *testing.T) {
 
 		resp := response.(api.ListPendingConfirmation200JSONResponse)
 		assert.Len(t, resp, 1)
-		assert.Equal(t, pendingID, resp[0].Id)
+		assert.Equal(t, pending.ID, resp[0].Id)
 	})
 
 	t.Run("member cannot view pending confirmations", func(t *testing.T) {
@@ -644,11 +392,7 @@ func TestServer_ListBookings(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("admin can view all bookings", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -662,52 +406,17 @@ func TestServer_ListBookings(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), admin, testDB.Queries())
 
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking for user1
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &user1.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, user1.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Create booking for user2
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &user2.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate.Add(24 * time.Hour), Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate.Add(24 * time.Hour), Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, user2.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 24*time.Hour)
 
 		// Admin views all bookings
 		mockAuth.ExpectCheckPermission(admin.ID, rbac.ViewAllData, nil, true, nil)
@@ -732,52 +441,17 @@ func TestServer_ListBookings(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking for user
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Create booking for other user
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             uuid.New(),
-			RequesterID:    &otherUser.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate.Add(24 * time.Hour), Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate.Add(24 * time.Hour), Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed,
-		})
-		require.NoError(t, err)
+		createTestBooking(t, testDB,
+			availability.ID, otherUser.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 24*time.Hour)
 
 		// User only sees their own booking
 		mockAuth.ExpectCheckPermission(user.ID, rbac.ViewAllData, nil, false, nil)
@@ -798,11 +472,7 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, _ := newTestServer(t)
 
 	t.Run("success - requester confirms booking within 48h before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -815,58 +485,30 @@ func TestServer_ConfirmBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		require.NotEmpty(t, timeSlots)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability (7 days in future)
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking (pending_confirmation, created just now)
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour) // 9 AM on future date
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		booking, err := testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// User confirms booking
 		response, err := server.ConfirmBooking(ctx, api.ConfirmBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, api.ConfirmBooking200JSONResponse{}, response)
 
 		resp := response.(api.ConfirmBooking200JSONResponse)
-		assert.Equal(t, bookingID, resp.Id)
+		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, api.RequestStatus("confirmed"), resp.Status)
 		assert.NotNil(t, resp.ConfirmedAt)
 		assert.NotNil(t, resp.ConfirmedBy)
 		assert.Equal(t, user.ID, *resp.ConfirmedBy)
 
 		// Verify database state
-		updatedBooking, err := testDB.Queries().GetBookingByID(ctx, bookingID)
+		updatedBooking, err := testDB.Queries().GetBookingByID(ctx, booking.ID)
 		require.NoError(t, err)
 		assert.Equal(t, db.RequestStatusConfirmed, updatedBooking.Status)
 		assert.True(t, updatedBooking.ConfirmedAt.Valid)
@@ -874,7 +516,7 @@ func TestServer_ConfirmBooking(t *testing.T) {
 		assert.Equal(t, user.ID, *updatedBooking.ConfirmedBy)
 
 		// Verify original booking created_at is recent
-		timeSinceCreation := time.Since(booking.CreatedAt.Time)
+		timeSinceCreation := time.Since(updatedBooking.CreatedAt.Time)
 		assert.Less(t, timeSinceCreation, 1*time.Minute, "Booking should be recently created")
 	})
 
@@ -923,43 +565,16 @@ func TestServer_ConfirmBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user2, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking for user1
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user1.ID, // Belongs to user1
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user1.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// user2 tries to confirm user1's booking
 		response, err := server.ConfirmBooking(ctx, api.ConfirmBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
@@ -981,43 +596,16 @@ func TestServer_ConfirmBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking that's already confirmed
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusConfirmed, // Already confirmed
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusConfirmed, 0)
 
 		// User tries to confirm already-confirmed booking
 		response, err := server.ConfirmBooking(ctx, api.ConfirmBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
@@ -1039,28 +627,16 @@ func TestServer_ConfirmBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability (far in future so pickup date isn't an issue)
-		futureDate := time.Now().AddDate(0, 0, 14) // 14 days in future
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking with created_at = 49 hours ago
 		bookingID := uuid.New()
+		futureDate := time.Now().AddDate(0, 0, 14) // 14 days in future so pickup date isn't an issue
 		pickupDate := futureDate.Add(9 * time.Hour)
 		returnDate := pickupDate.Add(24 * time.Hour)
 		createdAt := time.Now().Add(-49 * time.Hour) // 49 hours ago
 
-		// SQL insert to set created_at manually
-		_, err = testDB.Pool().Exec(ctx, `
+		_, err := testDB.Pool().Exec(ctx, `
 			INSERT INTO booking (id, requester_id, manager_id, item_id, group_id, availability_id, pick_up_date, pick_up_location, return_date, return_location, status, created_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		`, bookingID, user.ID, approver.ID, item.ID, group.ID, availability.ID, pickupDate, "Main Office", returnDate, "Main Office", db.RequestStatusPendingConfirmation, createdAt)
@@ -1148,50 +724,22 @@ func TestServer_ConfirmBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
+		availability := createTestAvailability(t, testDB, approver.ID)
 
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// First confirmation succeed
 		response1, err := server.ConfirmBooking(ctx, api.ConfirmBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 		require.NoError(t, err)
 		require.IsType(t, api.ConfirmBooking200JSONResponse{}, response1)
 
 		// Second confirmation fail with status
 		response2, err := server.ConfirmBooking(ctx, api.ConfirmBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 		require.NoError(t, err)
 		require.IsType(t, api.ConfirmBooking400JSONResponse{}, response2)
@@ -1207,11 +755,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("success - requester cancels before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
@@ -1224,57 +768,28 @@ func TestServer_CancelBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		require.NotEmpty(t, timeSlots)
-		timeSlotID := timeSlots[0].ID
+		availability := createTestAvailability(t, testDB, approver.ID)
 
-		// Create availability (future date)
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// User cancels booking before pickup
 		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, api.CancelBooking200JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking200JSONResponse)
-		assert.Equal(t, bookingID, resp.Id)
+		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, api.RequestStatus("cancelled"), resp.Status)
 
 		// Verify database state
-		updatedBooking, err := testDB.Queries().GetBookingByID(ctx, bookingID)
+		updatedBooking, err := testDB.Queries().GetBookingByID(ctx, booking.ID)
 		require.NoError(t, err)
 		assert.Equal(t, db.RequestStatusCancelled, updatedBooking.Status)
 	})
@@ -1290,52 +805,25 @@ func TestServer_CancelBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), manager, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &manager.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, manager.ID)
 
 		// Create booking for user
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &manager.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, manager.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Manager cancels user's booking
 		mockAuth.ExpectCheckPermission(manager.ID, rbac.ManageAllBookings, nil, true, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, api.CancelBooking200JSONResponse{}, response)
 
 		resp := response.(api.CancelBooking200JSONResponse)
-		assert.Equal(t, bookingID, resp.Id)
+		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, api.RequestStatus("cancelled"), resp.Status)
 	})
 
@@ -1471,45 +959,18 @@ func TestServer_CancelBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user2, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking for user1
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user1.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user1.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// user2 tries to cancel user1's booking
 		mockAuth.ExpectCheckPermission(user2.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)
@@ -1564,44 +1025,16 @@ func TestServer_CancelBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
+		availability := createTestAvailability(t, testDB, approver.ID)
 
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
-
-		// Create booking
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// Cancel once
 		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 		response1, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 		require.NoError(t, err)
 		require.IsType(t, api.CancelBooking200JSONResponse{}, response1)
@@ -1609,7 +1042,7 @@ func TestServer_CancelBooking(t *testing.T) {
 		// Cancel again
 		mockAuth.ExpectCheckPermission(user.ID, rbac.ManageAllBookings, nil, false, nil)
 		response2, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 		require.NoError(t, err)
 		require.IsType(t, api.CancelBooking200JSONResponse{}, response2)
@@ -1630,45 +1063,18 @@ func TestServer_CancelBooking(t *testing.T) {
 
 		ctx := testutil.ContextWithUser(context.Background(), user2, testDB.Queries())
 
-		// Get a time slot
-		timeSlots, _ := testDB.Queries().ListTimeSlots(ctx)
-		timeSlotID := timeSlots[0].ID
-
-		// Create availability
-		futureDate := time.Now().AddDate(0, 0, 7)
-		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
-			ID:         uuid.New(),
-			UserID:     &approver.ID,
-			TimeSlotID: &timeSlotID,
-			Date:       pgtype.Date{Time: futureDate, Valid: true},
-		})
-		require.NoError(t, err)
+		availability := createTestAvailability(t, testDB, approver.ID)
 
 		// Create booking for user1
-		bookingID := uuid.New()
-		pickupDate := futureDate.Add(9 * time.Hour)
-		returnDate := pickupDate.Add(24 * time.Hour)
-
-		_, err = testDB.Queries().CreateBooking(ctx, db.CreateBookingParams{
-			ID:             bookingID,
-			RequesterID:    &user1.ID,
-			ManagerID:      &approver.ID,
-			ItemID:         &item.ID,
-			GroupID:        &group.ID,
-			AvailabilityID: &availability.ID,
-			PickUpDate:     pgtype.Timestamp{Time: pickupDate, Valid: true},
-			PickUpLocation: "Main Office",
-			ReturnDate:     pgtype.Timestamp{Time: returnDate, Valid: true},
-			ReturnLocation: "Main Office",
-			Status:         db.RequestStatusPendingConfirmation,
-		})
-		require.NoError(t, err)
+		booking := createTestBooking(t, testDB,
+			availability.ID, user1.ID, approver.ID, item.ID, group.ID,
+			db.RequestStatusPendingConfirmation, 0)
 
 		// user2 (not requester, no permissions) tries to cancel
 		mockAuth.ExpectCheckPermission(user2.ID, rbac.ManageAllBookings, nil, false, nil)
 
 		response, err := server.CancelBooking(ctx, api.CancelBookingRequestObject{
-			BookingId: bookingID,
+			BookingId: booking.ID,
 		})
 
 		require.NoError(t, err)

@@ -17,23 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testBorrowingServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 func TestServer_BorrowItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful borrow of medium-type item by member", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -384,10 +373,10 @@ func TestServer_BorrowItem(t *testing.T) {
 
 func TestServer_ReturnItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping return item tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful return of borrowed item with after condition", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -566,10 +555,10 @@ func TestServer_ReturnItem(t *testing.T) {
 
 func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping check borrowing item status tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("check status of available item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -686,10 +675,10 @@ func TestServer_CheckBorrowingItemStatus(t *testing.T) {
 
 func TestServer_UserBorrowingHistory(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping user borrowing history tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("user views their own full history", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -922,10 +911,10 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 
 func TestServer_AdminBorrowingViews(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping admin borrowing view tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("admin views all active borrowings", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -1087,10 +1076,10 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 
 func TestServer_RequestItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping request item tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful request for high-value item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -1288,10 +1277,10 @@ func TestServer_RequestItem(t *testing.T) {
 
 func TestServer_ReviewRequest(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping review request tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("approver successfully approves request", func(t *testing.T) {
 		requestUser := testDB.NewUser(t).
@@ -1646,10 +1635,10 @@ func TestServer_ReviewRequest(t *testing.T) {
 
 func TestServer_GetAllRequests(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get all requests tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("admin views all requests", func(t *testing.T) {
 		adminUser := testDB.NewUser(t).
@@ -1723,10 +1712,10 @@ func TestServer_GetAllRequests(t *testing.T) {
 
 func TestServer_GetPendingRequests(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get pending requests tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("approver views pending requests", func(t *testing.T) {
 		approverUser := testDB.NewUser(t).
@@ -1805,10 +1794,10 @@ func TestServer_GetPendingRequests(t *testing.T) {
 
 func TestServer_GetRequestsByUserId(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get requests by user id tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("user views their own requests", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -1891,10 +1880,10 @@ func TestServer_GetRequestsByUserId(t *testing.T) {
 
 func TestServer_GetRequestById(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get request by id tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testBorrowingServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("user views their own request", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -2085,11 +2074,7 @@ func TestServer_ReviewRequest_BookingIntegration(t *testing.T) {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("success - approve HIGH item creates booking", func(t *testing.T) {
 		testDB.CleanupDatabase(t)

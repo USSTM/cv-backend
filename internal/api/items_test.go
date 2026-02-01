@@ -13,23 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testItemServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 func TestServer_GetItems(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping view items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get items", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -149,10 +138,10 @@ func TestServer_GetItems(t *testing.T) {
 
 func TestServer_CreateItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping create items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful create item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -222,10 +211,10 @@ func TestServer_CreateItem(t *testing.T) {
 
 func TestServer_UpdateItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping update items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful update item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -272,10 +261,10 @@ func TestServer_UpdateItem(t *testing.T) {
 
 func TestServer_PatchItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping patch items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful patch item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -317,10 +306,10 @@ func TestServer_PatchItem(t *testing.T) {
 
 func TestServer_DeleteItem(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping delete items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful delete item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -350,10 +339,10 @@ func TestServer_DeleteItem(t *testing.T) {
 
 func TestServer_ErrorItems(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping error items tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testItemServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("trying to find item that doesn't exist", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
