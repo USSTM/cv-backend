@@ -13,23 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testGroupServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 func TestServer_GetAllGroups(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get all groups tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testGroupServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get all groups", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -84,10 +73,10 @@ func TestServer_GetAllGroups(t *testing.T) {
 
 func TestServer_GetGroupByID(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping get group by id tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testGroupServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get group by id", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -136,10 +125,10 @@ func TestServer_GetGroupByID(t *testing.T) {
 
 func TestServer_CreateGroup(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping create group tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testGroupServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful create group", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -193,10 +182,10 @@ func TestServer_CreateGroup(t *testing.T) {
 
 func TestServer_UpdateGroup(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping update group tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testGroupServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful update group", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -259,10 +248,10 @@ func TestServer_UpdateGroup(t *testing.T) {
 
 func TestServer_DeleteGroup(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping delete group tests in short mode")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testGroupServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful delete group", func(t *testing.T) {
 		testUser := testDB.NewUser(t).

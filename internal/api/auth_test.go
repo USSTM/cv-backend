@@ -8,7 +8,6 @@ import (
 	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
-	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/assert"
@@ -17,20 +16,13 @@ import (
 
 func TestServer_LoginUser(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping integration test")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	// Get test database
 	testDB := getSharedTestDatabase(t)
-
-	// Get test Redis Queue
 	testQueue := testutil.NewTestQueue(t)
-
-	// Create mock services
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-
-	// Create server with real database and mocked services
 	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
 
 	t.Run("successful login", func(t *testing.T) {
@@ -123,17 +115,10 @@ func TestServer_LoginUser(t *testing.T) {
 
 func TestServer_PingProtected(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping integration test")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-
-	testQueue := testutil.NewTestQueue(t)
-
-	mockJWT := &testutil.MockJWTService{}
-	mockAuth := &testutil.MockAuthenticator{}
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful ping with authenticated user", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -144,11 +129,7 @@ func TestServer_PingProtected(t *testing.T) {
 		// Mock permission check
 		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
 
-		// Create context with authenticated user
-		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
-			ID:    testUser.ID,
-			Email: testUser.Email,
-		})
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		// Call handler directly
 		response, err := server.PingProtected(ctx, api.PingProtectedRequestObject{})
@@ -186,10 +167,7 @@ func TestServer_PingProtected(t *testing.T) {
 		// Mock permission check to return false
 		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, false, nil)
 
-		ctx := context.WithValue(context.Background(), auth.UserClaimsKey, &auth.AuthenticatedUser{
-			ID:    testUser.ID,
-			Email: testUser.Email,
-		})
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.PingProtected(ctx, api.PingProtectedRequestObject{})
 

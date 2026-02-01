@@ -13,23 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testCartServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
-
-	return server, testDB, mockAuth
-}
-
 func TestServer_AddToCart(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCartServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful add item to cart", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -231,52 +220,14 @@ func TestServer_AddToCart(t *testing.T) {
 		assert.Contains(t, errorResp.Error.Message, "Insufficient permissions")
 	})
 
-	// hypothetical, this is edge case where user role assignment gets bugged
-	t.Run("user without permission cannot add to cart", func(t *testing.T) {
-		testUser := testDB.NewUser(t).
-			WithEmail("cart@noperm.ca").
-			AsMember().
-			Create()
-
-		group := testDB.NewGroup(t).
-			WithName("No Permission Group").
-			Create()
-
-		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
-
-		item := testDB.NewItem(t).
-			WithName("Keyboard").
-			WithType("low").
-			WithStock(20).
-			Create()
-
-		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, false, nil)
-		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
-
-		response, err := server.AddToCart(ctx, api.AddToCartRequestObject{
-			GroupId: group.ID,
-			Body: &api.AddToCartJSONRequestBody{
-				GroupId:  group.ID,
-				ItemId:   item.ID,
-				Quantity: 2,
-			},
-		})
-
-		require.NoError(t, err)
-		require.IsType(t, api.AddToCart403JSONResponse{}, response)
-
-		errorResp := response.(api.AddToCart403JSONResponse)
-		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
-		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
-	})
 }
 
 func TestServer_GetCart(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCartServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful get cart with items", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -395,10 +346,10 @@ func TestServer_GetCart(t *testing.T) {
 
 func TestServer_UpdateCartItemQuantity(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCartServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful update cart item quantity", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -560,10 +511,10 @@ func TestServer_UpdateCartItemQuantity(t *testing.T) {
 
 func TestServer_RemoveFromCart(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCartServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful remove item from cart", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
@@ -672,10 +623,10 @@ func TestServer_RemoveFromCart(t *testing.T) {
 
 func TestServer_ClearCart(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip integration tests")
+		t.Skip("Skipping integration tests in short mode")
 	}
 
-	server, testDB, mockAuth := testCartServer(t)
+	server, testDB, mockAuth := newTestServer(t)
 
 	t.Run("successful clear cart with multiple items", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
