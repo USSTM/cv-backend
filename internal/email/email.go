@@ -45,7 +45,7 @@ func NewSESService(ctx context.Context, cfg config.AWSConfig) (*SESService, erro
 	// hardcoded sender for localstack (the sender doesn't matter, we change this later for actual SES)
 	return &SESService{
 		client: client,
-		sender: "test@example.com",
+		sender: cfg.Sender,
 	}, nil
 }
 
