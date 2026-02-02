@@ -23,6 +23,7 @@ type AWSConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	EndpointURL     string
+	Sender          string
 }
 
 type DatabaseConfig struct {
@@ -117,6 +118,7 @@ func Load() *Config {
 			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
 			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
 			EndpointURL:     getEnv("AWS_ENDPOINT_URL", ""),
+			Sender:          getEnv("AWS_EMAIL_SENDER", "noreply@campusvault.com"),
 		},
 	}
 }
