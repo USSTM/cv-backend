@@ -44,3 +44,35 @@ func TestParsePagination(t *testing.T) {
 		assert.Equal(t, int64(0), o)
 	})
 }
+
+func TestBuildPaginationMeta(t *testing.T) {
+	t.Run("more data", func(t *testing.T) {
+		meta := buildPaginationMeta(100, 10, 0)
+		assert.Equal(t, 100, meta.Total)
+		assert.Equal(t, 10, meta.Limit)
+		assert.Equal(t, 0, meta.Offset)
+		assert.True(t, meta.HasMore)
+	})
+
+	t.Run("no more data", func(t *testing.T) {
+		meta := buildPaginationMeta(100, 50, 50)
+		assert.Equal(t, 100, meta.Total)
+		assert.Equal(t, 50, meta.Limit)
+		assert.Equal(t, 50, meta.Offset)
+		assert.False(t, meta.HasMore)
+	})
+
+	t.Run("no more data, went over", func(t *testing.T) {
+		meta := buildPaginationMeta(25, 50, 0)
+		assert.Equal(t, 25, meta.Total)
+		assert.Equal(t, 50, meta.Limit)
+		assert.Equal(t, 0, meta.Offset)
+		assert.False(t, meta.HasMore)
+	})
+
+	t.Run("empty result", func(t *testing.T) {
+		meta := buildPaginationMeta(0, 50, 0)
+		assert.Equal(t, 0, meta.Total)
+		assert.False(t, meta.HasMore)
+	})
+}

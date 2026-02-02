@@ -97,12 +97,7 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 
 	return api.GetUserTakingHistory200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -190,12 +185,7 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 
 	return api.GetItemTakingHistory200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 

@@ -305,12 +305,7 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 
 	return api.GetBorrowedItemHistoryByUserId200JSONResponse{
 		Data: borrowedItemsByUserResponse,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -356,12 +351,7 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 
 	return api.GetActiveBorrowedItemsByUserId200JSONResponse{
 		Data: activeBorrowedItemsByUserResponse,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -407,12 +397,7 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 
 	return api.GetReturnedItemsByUserId200JSONResponse{
 		Data: returnedItemsByUserResponse,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -449,12 +434,7 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 
 	return api.GetAllActiveBorrowedItems200JSONResponse{
 		Data: activeBorrowedItemsResponse,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -491,12 +471,7 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 
 	return api.GetAllReturnedItems200JSONResponse{
 		Data: returnedItemsResponse,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -793,12 +768,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 	response := createRequestItemResponse(requests)
 	return api.GetAllRequests200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -831,12 +801,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 	response := createRequestItemResponse(requests)
 	return api.GetPendingRequests200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 

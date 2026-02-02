@@ -303,12 +303,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 		}
 		return api.ListBookings200JSONResponse{
 			Data: response,
-			Meta: api.PaginationMeta{
-				Total:   int(total),
-				Limit:   int(limit),
-				Offset:  int(offset),
-				HasMore: int(offset)+int(limit) < int(total),
-			},
+			Meta: buildPaginationMeta(total, limit, offset),
 		}, nil
 	}
 
@@ -342,12 +337,7 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 	}
 	return api.ListBookings200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -401,12 +391,7 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 
 	return api.GetMyBookings200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 

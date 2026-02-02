@@ -69,12 +69,7 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 
 	return api.GetItems200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
@@ -140,12 +135,7 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 
 	return api.GetItemsByType200JSONResponse{
 		Data: response,
-		Meta: api.PaginationMeta{
-			Total:   int(total),
-			Limit:   int(limit),
-			Offset:  int(offset),
-			HasMore: int(offset)+int(limit) < int(total),
-		},
+		Meta: buildPaginationMeta(total, limit, offset),
 	}, nil
 }
 
