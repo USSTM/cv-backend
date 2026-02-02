@@ -15,6 +15,14 @@ type Config struct {
 	JWT      JWTConfig
 	Logging  LoggingConfig
 	CORS     CORSConfig
+	AWS      AWSConfig
+}
+
+type AWSConfig struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	EndpointURL     string
 }
 
 type DatabaseConfig struct {
@@ -103,6 +111,12 @@ func Load() *Config {
 			ExposedHeaders:   []string{"Link"},
 			AllowCredentials: true,
 			MaxAge:           300,
+		},
+		AWS: AWSConfig{
+			Region:          getEnv("AWS_REGION", "us-east-1"),
+			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
+			EndpointURL:     getEnv("AWS_ENDPOINT_URL", ""),
 		},
 	}
 }
