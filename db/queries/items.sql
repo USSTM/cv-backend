@@ -1,5 +1,5 @@
 -- name: GetAllItems :many
-SELECT id, name, description, type, stock, urls from items;
+SELECT id, name, description, type, stock, urls from items ORDER BY name ASC LIMIT $1 OFFSET $2;
 
 -- name: CreateItem :one
 INSERT INTO items (name, description, type, stock, urls)
@@ -7,7 +7,7 @@ VALUES ($1, $2, $3, $4, sqlc.narg('urls'))
 RETURNING id, name, description, type, stock, urls;
 
 -- name: GetItemsByType :many
-SELECT id, name, description, type, stock, urls FROM items WHERE type = $1;
+SELECT id, name, description, type, stock, urls FROM items WHERE type = $1 ORDER BY name ASC LIMIT $2 OFFSET $3;
 
 -- name: GetItemByID :one
 SELECT id, name, description, type, stock, urls FROM items WHERE id = $1;
@@ -47,3 +47,9 @@ WHERE id = $1;
 -- name: GetItemByName :one
 SELECT id, name, description, type, stock, urls
 FROM items WHERE name = $1;
+
+-- name: CountAllItems :one
+SELECT COUNT(*) as count FROM items;
+
+-- name: CountItemsByType :one
+SELECT COUNT(*) as count FROM items WHERE type = $1;

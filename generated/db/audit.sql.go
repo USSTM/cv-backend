@@ -12,6 +12,44 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countTakingHistoryByItemId = `-- name: CountTakingHistoryByItemId :one
+SELECT COUNT(*) as count FROM item_takings WHERE item_id = $1
+`
+
+func (q *Queries) CountTakingHistoryByItemId(ctx context.Context, itemID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTakingHistoryByItemId, itemID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTakingHistoryByUserId = `-- name: CountTakingHistoryByUserId :one
+SELECT COUNT(*) as count FROM item_takings WHERE user_id = $1
+`
+
+func (q *Queries) CountTakingHistoryByUserId(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTakingHistoryByUserId, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTakingHistoryByUserIdWithGroupFilter = `-- name: CountTakingHistoryByUserIdWithGroupFilter :one
+SELECT COUNT(*) as count FROM item_takings WHERE user_id = $1 AND group_id = $2
+`
+
+type CountTakingHistoryByUserIdWithGroupFilterParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	GroupID uuid.UUID `json:"group_id"`
+}
+
+func (q *Queries) CountTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg CountTakingHistoryByUserIdWithGroupFilterParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countTakingHistoryByUserIdWithGroupFilter, arg.UserID, arg.GroupID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getTakingHistoryByItemId = `-- name: GetTakingHistoryByItemId :many
 SELECT t.id, t.user_id, t.group_id, t.item_id, t.quantity, t.taken_at,
        u.email as user_email

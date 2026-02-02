@@ -69,9 +69,9 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory200JSONResponse{}, response)
 
 		takingResp := response.(api.GetUserTakingHistory200JSONResponse)
-		assert.Len(t, takingResp, 2, "User should see their own 2 taking records")
-		assert.Equal(t, testUser.ID, takingResp[0].UserId)
-		assert.Equal(t, "USB Cable", takingResp[0].ItemName)
+		assert.Len(t, takingResp.Data, 2, "User should see their own 2 taking records")
+		assert.Equal(t, testUser.ID, takingResp.Data[0].UserId)
+		assert.Equal(t, "USB Cable", takingResp.Data[0].ItemName)
 	})
 
 	t.Run("user cannot view another user's taking history", func(t *testing.T) {
@@ -163,8 +163,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory200JSONResponse{}, response)
 
 		takingResp := response.(api.GetUserTakingHistory200JSONResponse)
-		assert.Len(t, takingResp, 2, "Admin should see all 2 taking records")
-		assert.Equal(t, targetUser.ID, takingResp[0].UserId)
+		assert.Len(t, takingResp.Data, 2, "Admin should see all 2 taking records")
+		assert.Equal(t, targetUser.ID, takingResp.Data[0].UserId)
 	})
 
 	t.Run("group admin can view member's history with valid groupId filter", func(t *testing.T) {
@@ -214,9 +214,9 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory200JSONResponse{}, response)
 
 		takingResp := response.(api.GetUserTakingHistory200JSONResponse)
-		assert.Len(t, takingResp, 1, "Group admin should see member's taking record")
-		assert.Equal(t, memberUser.ID, takingResp[0].UserId)
-		assert.Equal(t, group.ID, takingResp[0].GroupId)
+		assert.Len(t, takingResp.Data, 1, "Group admin should see member's taking record")
+		assert.Equal(t, memberUser.ID, takingResp.Data[0].UserId)
+		assert.Equal(t, group.ID, takingResp.Data[0].GroupId)
 	})
 
 	t.Run("group admin must specify groupId to view other users", func(t *testing.T) {
@@ -363,7 +363,7 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory200JSONResponse{}, response)
 
 		takingResp := response.(api.GetUserTakingHistory200JSONResponse)
-		assert.Len(t, takingResp, 5, "Should return only 5 records with limit=5")
+		assert.Len(t, takingResp.Data, 5, "Should return only 5 records with limit=5")
 	})
 
 	t.Run("empty history returns empty array not null", func(t *testing.T) {
@@ -386,8 +386,8 @@ func TestServer_GetUserTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetUserTakingHistory200JSONResponse{}, response)
 
 		takingResp := response.(api.GetUserTakingHistory200JSONResponse)
-		assert.NotNil(t, takingResp, "Response should not be nil")
-		assert.Len(t, takingResp, 0, "Response should be empty array")
+		assert.NotNil(t, takingResp.Data, "Response should not be nil")
+		assert.Len(t, takingResp.Data, 0, "Response should be empty array")
 	})
 }
 
@@ -445,8 +445,8 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetItemTakingHistory200JSONResponse{}, response)
 
 		historyResp := response.(api.GetItemTakingHistory200JSONResponse)
-		assert.Len(t, historyResp, 3, "Should return all 3 taking records for the item")
-		assert.Equal(t, item.ID, historyResp[0].ItemId)
+		assert.Len(t, historyResp.Data, 3, "Should return all 3 taking records for the item")
+		assert.Equal(t, item.ID, historyResp.Data[0].ItemId)
 	})
 
 	t.Run("non-admin cannot view item taking history", func(t *testing.T) {
@@ -536,7 +536,7 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetItemTakingHistory200JSONResponse{}, response)
 
 		historyResp := response.(api.GetItemTakingHistory200JSONResponse)
-		assert.Len(t, historyResp, 5, "Should return only 5 records with limit=5")
+		assert.Len(t, historyResp.Data, 5, "Should return only 5 records with limit=5")
 	})
 
 	t.Run("empty item history returns empty array not null", func(t *testing.T) {
@@ -566,8 +566,8 @@ func TestServer_GetItemTakingHistory(t *testing.T) {
 		require.IsType(t, api.GetItemTakingHistory200JSONResponse{}, response)
 
 		historyResp := response.(api.GetItemTakingHistory200JSONResponse)
-		assert.NotNil(t, historyResp, "Response should not be nil")
-		assert.Len(t, historyResp, 0, "Response should be empty array")
+		assert.NotNil(t, historyResp.Data, "Response should not be nil")
+		assert.Len(t, historyResp.Data, 0, "Response should be empty array")
 	})
 }
 

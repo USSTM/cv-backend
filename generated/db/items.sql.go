@@ -12,6 +12,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAllItems = `-- name: CountAllItems :one
+SELECT COUNT(*) as count FROM items
+`
+
+func (q *Queries) CountAllItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countItemsByType = `-- name: CountItemsByType :one
+SELECT COUNT(*) as count FROM items WHERE type = $1
+`
+
+func (q *Queries) CountItemsByType(ctx context.Context, type_ ItemType) (int64, error) {
+	row := q.db.QueryRow(ctx, countItemsByType, type_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createItem = `-- name: CreateItem :one
 INSERT INTO items (name, description, type, stock, urls)
 VALUES ($1, $2, $3, $4, $5)
@@ -72,11 +94,16 @@ func (q *Queries) DeleteItem(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllItems = `-- name: GetAllItems :many
-SELECT id, name, description, type, stock, urls from items
+SELECT id, name, description, type, stock, urls from items ORDER BY name ASC LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetAllItems(ctx context.Context) ([]Item, error) {
-	rows, err := q.db.Query(ctx, getAllItems)
+type GetAllItemsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetAllItems(ctx context.Context, arg GetAllItemsParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, getAllItems, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -158,11 +185,17 @@ func (q *Queries) GetItemByName(ctx context.Context, name string) (Item, error) 
 }
 
 const getItemsByType = `-- name: GetItemsByType :many
-SELECT id, name, description, type, stock, urls FROM items WHERE type = $1
+SELECT id, name, description, type, stock, urls FROM items WHERE type = $1 ORDER BY name ASC LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error) {
-	rows, err := q.db.Query(ctx, getItemsByType, type_)
+type GetItemsByTypeParams struct {
+	Type   ItemType `json:"type"`
+	Limit  int64    `json:"limit"`
+	Offset int64    `json:"offset"`
+}
+
+func (q *Queries) GetItemsByType(ctx context.Context, arg GetItemsByTypeParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, getItemsByType, arg.Type, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

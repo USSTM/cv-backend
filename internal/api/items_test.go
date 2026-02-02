@@ -71,7 +71,7 @@ func TestServer_GetItems(t *testing.T) {
 
 		itemsResp := response.(api.GetItems200JSONResponse)
 		assert.NotNil(t, itemsResp)
-		assert.Len(t, itemsResp, 5)
+		assert.Len(t, itemsResp.Data, 5)
 	})
 
 	t.Run("successful get item by id", func(t *testing.T) {

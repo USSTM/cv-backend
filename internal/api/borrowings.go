@@ -282,7 +282,18 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 		return api.GetBorrowedItemHistoryByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetBorrowedItemHistoryByUserId(ctx, &request.UserId)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetBorrowedItemHistoryByUserId(ctx, db.GetBorrowedItemHistoryByUserIdParams{
+		UserID: &request.UserId,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountBorrowedItemHistoryByUserId(ctx, &request.UserId)
 	if err != nil {
 		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -292,7 +303,15 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	return api.GetBorrowedItemHistoryByUserId200JSONResponse(borrowedItemsByUserResponse), nil
+	return api.GetBorrowedItemHistoryByUserId200JSONResponse{
+		Data: borrowedItemsByUserResponse,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.GetActiveBorrowedItemsByUserIdRequestObject) (api.GetActiveBorrowedItemsByUserIdResponseObject, error) {
@@ -314,7 +333,18 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 		return api.GetActiveBorrowedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetActiveBorrowedItemsByUserId(ctx, &request.UserId)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetActiveBorrowedItemsByUserId(ctx, db.GetActiveBorrowedItemsByUserIdParams{
+		UserID: &request.UserId,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountActiveBorrowedItemsByUserId(ctx, &request.UserId)
 	if err != nil {
 		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -324,7 +354,15 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	return api.GetActiveBorrowedItemsByUserId200JSONResponse(activeBorrowedItemsByUserResponse), nil
+	return api.GetActiveBorrowedItemsByUserId200JSONResponse{
+		Data: activeBorrowedItemsByUserResponse,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetReturnedItemsByUserIdRequestObject) (api.GetReturnedItemsByUserIdResponseObject, error) {
@@ -346,7 +384,18 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 		return api.GetReturnedItemsByUserId403JSONResponse(PermissionDenied("Insufficient permissions to view other users' borrowed items").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetReturnedItemsByUserId(ctx, &request.UserId)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetReturnedItemsByUserId(ctx, db.GetReturnedItemsByUserIdParams{
+		UserID: &request.UserId,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountReturnedItemsByUserId(ctx, &request.UserId)
 	if err != nil {
 		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -356,7 +405,15 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	return api.GetReturnedItemsByUserId200JSONResponse(returnedItemsByUserResponse), nil
+	return api.GetReturnedItemsByUserId200JSONResponse{
+		Data: returnedItemsByUserResponse,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAllActiveBorrowedItemsRequestObject) (api.GetAllActiveBorrowedItemsResponseObject, error) {
@@ -373,7 +430,14 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 		return api.GetAllActiveBorrowedItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetAllActiveBorrowedItems(ctx)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetAllActiveBorrowedItems(ctx, db.GetAllActiveBorrowedItemsParams{Limit: limit, Offset: offset})
+	if err != nil {
+		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountAllActiveBorrowedItems(ctx)
 	if err != nil {
 		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -383,7 +447,15 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	return api.GetAllActiveBorrowedItems200JSONResponse(activeBorrowedItemsResponse), nil
+	return api.GetAllActiveBorrowedItems200JSONResponse{
+		Data: activeBorrowedItemsResponse,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllReturnedItemsRequestObject) (api.GetAllReturnedItemsResponseObject, error) {
@@ -400,7 +472,14 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 		return api.GetAllReturnedItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetAllReturnedItems(ctx)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetAllReturnedItems(ctx, db.GetAllReturnedItemsParams{Limit: limit, Offset: offset})
+	if err != nil {
+		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountAllReturnedItems(ctx)
 	if err != nil {
 		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -410,7 +489,15 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	return api.GetAllReturnedItems200JSONResponse(returnedItemsResponse), nil
+	return api.GetAllReturnedItems200JSONResponse{
+		Data: returnedItemsResponse,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, request api.GetActiveBorrowedItemsToBeReturnedByDateRequestObject) (api.GetActiveBorrowedItemsToBeReturnedByDateResponseObject, error) {
@@ -691,13 +778,28 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 		return api.GetAllRequests403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	requests, err := s.db.Queries().GetAllRequests(ctx)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	requests, err := s.db.Queries().GetAllRequests(ctx, db.GetAllRequestsParams{Limit: limit, Offset: offset})
+	if err != nil {
+		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountAllRequests(ctx)
 	if err != nil {
 		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	response := createRequestItemResponse(requests)
-	return api.GetAllRequests200JSONResponse(response), nil
+	return api.GetAllRequests200JSONResponse{
+		Data: response,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRequestsRequestObject) (api.GetPendingRequestsResponseObject, error) {
@@ -714,13 +816,28 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 		return api.GetPendingRequests403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	requests, err := s.db.Queries().GetPendingRequests(ctx)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	requests, err := s.db.Queries().GetPendingRequests(ctx, db.GetPendingRequestsParams{Limit: limit, Offset: offset})
+	if err != nil {
+		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountPendingRequests(ctx)
 	if err != nil {
 		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
 	response := createRequestItemResponse(requests)
-	return api.GetPendingRequests200JSONResponse(response), nil
+	return api.GetPendingRequests200JSONResponse{
+		Data: response,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetRequestsByUserId(ctx context.Context, request api.GetRequestsByUserIdRequestObject) (api.GetRequestsByUserIdResponseObject, error) {

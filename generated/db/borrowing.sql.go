@@ -82,6 +82,61 @@ func (q *Queries) CheckBorrowingItemStatus(ctx context.Context, itemID *uuid.UUI
 	return is_available, err
 }
 
+const countActiveBorrowedItemsByUserId = `-- name: CountActiveBorrowedItemsByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1 AND returned_at IS NULL
+`
+
+func (q *Queries) CountActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveBorrowedItemsByUserId, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAllActiveBorrowedItems = `-- name: CountAllActiveBorrowedItems :one
+SELECT COUNT(*) as count FROM borrowings WHERE returned_at IS NULL
+`
+
+func (q *Queries) CountAllActiveBorrowedItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllActiveBorrowedItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAllReturnedItems = `-- name: CountAllReturnedItems :one
+SELECT COUNT(*) as count FROM borrowings WHERE returned_at IS NOT NULL
+`
+
+func (q *Queries) CountAllReturnedItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllReturnedItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countBorrowedItemHistoryByUserId = `-- name: CountBorrowedItemHistoryByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1
+`
+
+func (q *Queries) CountBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countBorrowedItemHistoryByUserId, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countReturnedItemsByUserId = `-- name: CountReturnedItemsByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1 AND returned_at IS NOT NULL
+`
+
+func (q *Queries) CountReturnedItemsByUserId(ctx context.Context, userID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countReturnedItemsByUserId, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getActiveBorrowedItemsByUserId = `-- name: GetActiveBorrowedItemsByUserId :many
 SELECT id, user_id, group_id, item_id, quantity,
        borrowed_at, due_date, returned_at,
@@ -89,10 +144,17 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE user_id = $1 AND returned_at IS NULL
+ORDER BY borrowed_at DESC LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetActiveBorrowedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error) {
-	rows, err := q.db.Query(ctx, getActiveBorrowedItemsByUserId, userID)
+type GetActiveBorrowedItemsByUserIdParams struct {
+	UserID *uuid.UUID `json:"user_id"`
+	Limit  int64      `json:"limit"`
+	Offset int64      `json:"offset"`
+}
+
+func (q *Queries) GetActiveBorrowedItemsByUserId(ctx context.Context, arg GetActiveBorrowedItemsByUserIdParams) ([]Borrowing, error) {
+	rows, err := q.db.Query(ctx, getActiveBorrowedItemsByUserId, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -209,10 +271,16 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE returned_at IS NULL
+ORDER BY borrowed_at DESC LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetAllActiveBorrowedItems(ctx context.Context) ([]Borrowing, error) {
-	rows, err := q.db.Query(ctx, getAllActiveBorrowedItems)
+type GetAllActiveBorrowedItemsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetAllActiveBorrowedItems(ctx context.Context, arg GetAllActiveBorrowedItemsParams) ([]Borrowing, error) {
+	rows, err := q.db.Query(ctx, getAllActiveBorrowedItems, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -251,10 +319,16 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE returned_at IS NOT NULL
+ORDER BY returned_at DESC LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetAllReturnedItems(ctx context.Context) ([]Borrowing, error) {
-	rows, err := q.db.Query(ctx, getAllReturnedItems)
+type GetAllReturnedItemsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetAllReturnedItems(ctx context.Context, arg GetAllReturnedItemsParams) ([]Borrowing, error) {
+	rows, err := q.db.Query(ctx, getAllReturnedItems, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -293,10 +367,17 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE user_id = $1
+ORDER BY borrowed_at DESC LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error) {
-	rows, err := q.db.Query(ctx, getBorrowedItemHistoryByUserId, userID)
+type GetBorrowedItemHistoryByUserIdParams struct {
+	UserID *uuid.UUID `json:"user_id"`
+	Limit  int64      `json:"limit"`
+	Offset int64      `json:"offset"`
+}
+
+func (q *Queries) GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBorrowedItemHistoryByUserIdParams) ([]Borrowing, error) {
+	rows, err := q.db.Query(ctx, getBorrowedItemHistoryByUserId, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -335,10 +416,17 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE user_id = $1 AND returned_at IS NOT NULL
+ORDER BY returned_at DESC LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetReturnedItemsByUserId(ctx context.Context, userID *uuid.UUID) ([]Borrowing, error) {
-	rows, err := q.db.Query(ctx, getReturnedItemsByUserId, userID)
+type GetReturnedItemsByUserIdParams struct {
+	UserID *uuid.UUID `json:"user_id"`
+	Limit  int64      `json:"limit"`
+	Offset int64      `json:"offset"`
+}
+
+func (q *Queries) GetReturnedItemsByUserId(ctx context.Context, arg GetReturnedItemsByUserIdParams) ([]Borrowing, error) {
+	rows, err := q.db.Query(ctx, getReturnedItemsByUserId, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

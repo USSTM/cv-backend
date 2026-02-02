@@ -28,14 +28,22 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		return api.GetItems403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetAllItems(ctx)
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetAllItems(ctx, db.GetAllItemsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		logger.Error("Failed to get items", "error", err)
 		return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
+	total, err := s.db.Queries().CountAllItems(ctx)
+	if err != nil {
+		logger.Error("Failed to count items", "error", err)
+		return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
 	// Convert database items to API response format
-	var response api.GetItems200JSONResponse
+	var response []api.ItemResponse
 	for _, item := range items {
 		id := item.ID
 		name := item.Name
@@ -55,7 +63,19 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		response = append(response, itemResponse)
 	}
 
-	return response, nil
+	if response == nil {
+		response = []api.ItemResponse{}
+	}
+
+	return api.GetItems200JSONResponse{
+		Data: response,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRequestObject) (api.GetItemsByTypeResponseObject, error) {
@@ -75,14 +95,26 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 		return api.GetItemsByType403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	items, err := s.db.Queries().GetItemsByType(ctx, db.ItemType(request.Type))
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
+	items, err := s.db.Queries().GetItemsByType(ctx, db.GetItemsByTypeParams{
+		Type:   db.ItemType(request.Type),
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		logger.Error("Failed to get items by type", "error", err)
 		return api.GetItemsByType500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
+	total, err := s.db.Queries().CountItemsByType(ctx, db.ItemType(request.Type))
+	if err != nil {
+		logger.Error("Failed to count items by type", "error", err)
+		return api.GetItemsByType500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
 	// Convert database items to API response format
-	var response api.GetItemsByType200JSONResponse
+	var response []api.ItemResponse
 	for _, item := range items {
 		id := item.ID
 		name := item.Name
@@ -102,7 +134,19 @@ func (s Server) GetItemsByType(ctx context.Context, request api.GetItemsByTypeRe
 		response = append(response, itemResponse)
 	}
 
-	return response, nil
+	if response == nil {
+		response = []api.ItemResponse{}
+	}
+
+	return api.GetItemsByType200JSONResponse{
+		Data: response,
+		Meta: api.PaginationMeta{
+			Total:   int(total),
+			Limit:   int(limit),
+			Offset:  int(offset),
+			HasMore: int(offset)+int(limit) < int(total),
+		},
+	}, nil
 }
 
 func (s Server) GetItemById(ctx context.Context, request api.GetItemByIdRequestObject) (api.GetItemByIdResponseObject, error) {
