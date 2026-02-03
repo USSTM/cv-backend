@@ -9,10 +9,8 @@ import (
 	"io"
 	"net/http"
 
+	emailSvc "github.com/USSTM/cv-backend/internal/aws"
 	"github.com/USSTM/cv-backend/internal/config"
-	"github.com/USSTM/cv-backend/internal/email"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ses"
 )
 
 type LocalStackEmail struct {
@@ -34,26 +32,22 @@ type LocalStackResponse struct {
 }
 
 func main() {
-	// load configuration
+	// get from .env
 	cfg := config.Load()
-
-	// initialize email service
 	ctx := context.Background()
-	svc, err := email.NewSESService(ctx, cfg.AWS)
+
+	svc, err := emailSvc.NewEmailService(ctx, cfg.AWS)
 	if err != nil {
 		log.Fatalf("Failed to create email service: %v", err)
 	}
 
-	// verify sender identity (required for SES)
 	log.Printf("Verifying sender identity %s...", svc.Sender())
-	_, err = svc.Client().VerifyEmailIdentity(ctx, &ses.VerifyEmailIdentityInput{
-		EmailAddress: aws.String(svc.Sender()),
-	})
+	_, err = svc.VerifyEmailIdentity(ctx)
 	if err != nil {
-		log.Printf("Warning: Failed to verify identity: %v", err)
+		log.Fatalf("Failed to verify email identity: %v", err)
 	}
 
-	// send a test email
+	// test params
 	to := "test@example.com"
 	subject := "Test Email from LocalStack"
 	body := "Sup ladies and gentlemen"
@@ -68,7 +62,7 @@ func main() {
 
 	// retrieve messages from LocalStack API (for verification)
 	log.Println("\n--- LocalStack SES Inbox ---")
-	// fetch from http://localhost:4566/_aws/ses
+
 	resp, err := http.Get("http://localhost:4566/_aws/ses")
 	if err != nil {
 		log.Printf("Failed to fetch LocalStack messages: %v", err)

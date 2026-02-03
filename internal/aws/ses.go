@@ -1,4 +1,4 @@
-package email
+package aws
 
 import (
 	"context"
@@ -11,12 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
-type SESService struct {
+type EmailService struct {
 	client *ses.Client
 	sender string
 }
 
-func NewSESService(ctx context.Context, cfg config.AWSConfig) (*SESService, error) {
+func NewEmailService(ctx context.Context, cfg config.AWSConfig) (*EmailService, error) {
 	opts := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithRegion(cfg.Region),
 	}
@@ -43,13 +43,13 @@ func NewSESService(ctx context.Context, cfg config.AWSConfig) (*SESService, erro
 	})
 
 	// hardcoded sender for localstack (the sender doesn't matter, we change this later for actual SES)
-	return &SESService{
+	return &EmailService{
 		client: client,
 		sender: cfg.Sender,
 	}, nil
 }
 
-func (s *SESService) SendEmail(ctx context.Context, to string, subject string, body string) error {
+func (s *EmailService) SendEmail(ctx context.Context, to string, subject string, body string) error {
 	input := &ses.SendEmailInput{
 		Destination: &types.Destination{
 			ToAddresses: []string{to},
@@ -74,10 +74,15 @@ func (s *SESService) SendEmail(ctx context.Context, to string, subject string, b
 	return nil
 }
 
-func (s *SESService) Client() *ses.Client {
-	return s.client
+func (s *EmailService) VerifyEmailIdentity(ctx context.Context) (*ses.VerifyEmailIdentityOutput, error) {
+	output, err := s.client.VerifyEmailIdentity(ctx, &ses.VerifyEmailIdentityInput{
+		EmailAddress: aws.String(s.sender),
+	})
+
+	return output, err
 }
 
-func (s *SESService) Sender() string {
+// for printing/debugging
+func (s *EmailService) Sender() string {
 	return s.sender
 }
