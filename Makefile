@@ -28,6 +28,9 @@ build: generate
 run: build
 	export $$(cat .env | xargs) && ./bin/server
 
+email-test:
+	export $$(cat .env | xargs) && go run cmd/emailer/main.go
+
 # Clean build artifacts
 clean:
 	rm -rf bin/

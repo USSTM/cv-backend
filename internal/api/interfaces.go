@@ -32,3 +32,8 @@ type AuthenticatorService interface {
 type RedisQueueService interface {
 	Enqueue(taskType string, data interface{}) (*asynq.TaskInfo, error)
 }
+
+// EmailService defines the interface for email operations
+type EmailService interface {
+	SendEmail(ctx context.Context, to string, subject string, body string) error
+}

@@ -50,7 +50,8 @@ func newTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.Moc
 	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	mockEmail := testutil.NewTestLocalStack(t)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth, mockEmail)
 	return server, testDB, mockAuth
 }
 

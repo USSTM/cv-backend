@@ -1,8 +1,11 @@
 package container
 
 import (
+	"context"
+
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/aws"
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
 	"github.com/USSTM/cv-backend/internal/logging"
@@ -14,6 +17,7 @@ type Container struct {
 	Database      *database.Database
 	Queue         *queue.TaskQueue
 	JWTService    *auth.JWTService
+	EmailService  *aws.EmailService
 	Authenticator *auth.Authenticator
 	Server        *api.Server
 }
@@ -36,7 +40,12 @@ func New(cfg config.Config) (*Container, error) {
 
 	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
 
-	server := api.NewServer(db, taskQueue, jwtService, authenticator)
+	sesService, err := aws.NewEmailService(context.Background(), cfg.AWS)
+	if err != nil {
+		return nil, err
+	}
+
+	server := api.NewServer(db, taskQueue, jwtService, authenticator, sesService)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
@@ -47,6 +56,7 @@ func New(cfg config.Config) (*Container, error) {
 		Database:      db,
 		Queue:         taskQueue,
 		JWTService:    jwtService,
+		EmailService:  sesService,
 		Authenticator: authenticator,
 		Server:        server,
 	}, nil

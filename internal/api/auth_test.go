@@ -23,7 +23,8 @@ func TestServer_LoginUser(t *testing.T) {
 	testQueue := testutil.NewTestQueue(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	mockEmail := testutil.NewTestLocalStack(t)
+	server := NewServer(testDB, testQueue, mockJWT, mockAuth, mockEmail)
 
 	t.Run("successful login", func(t *testing.T) {
 		// Create test user in database using builder
