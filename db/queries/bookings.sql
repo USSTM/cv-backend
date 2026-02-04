@@ -47,7 +47,8 @@ WHERE (sqlc.narg('status')::request_status IS NULL OR b.status = sqlc.narg('stat
   AND (sqlc.narg('group_id')::UUID IS NULL OR b.group_id = sqlc.narg('group_id'))
   AND (sqlc.narg('from_date')::DATE IS NULL OR ua.date >= sqlc.narg('from_date'))
   AND (sqlc.narg('to_date')::DATE IS NULL OR ua.date <= sqlc.narg('to_date'))
-ORDER BY ua.date, b.pick_up_date;
+ORDER BY ua.date, b.pick_up_date
+LIMIT $1 OFFSET $2;
 
 -- name: ListBookingsByUser :many
 SELECT
@@ -64,7 +65,8 @@ JOIN user_availability ua ON b.availability_id = ua.id
 JOIN time_slots ts ON ua.time_slot_id = ts.id
 WHERE b.requester_id = $1
   AND (sqlc.narg('status')::request_status IS NULL OR b.status = sqlc.narg('status'))
-ORDER BY ua.date DESC;
+ORDER BY ua.date DESC
+LIMIT $2 OFFSET $3;
 
 -- name: ListPendingConfirmation :many
 SELECT
@@ -102,3 +104,18 @@ RETURNING *;
 SELECT id FROM booking
 WHERE status = 'pending_confirmation'
   AND created_at < NOW() - INTERVAL '48 hours';
+
+-- name: CountBookings :one
+SELECT COUNT(*) as count
+FROM booking b
+JOIN user_availability ua ON b.availability_id = ua.id
+WHERE (sqlc.narg('status')::request_status IS NULL OR b.status = sqlc.narg('status'))
+  AND (sqlc.narg('group_id')::UUID IS NULL OR b.group_id = sqlc.narg('group_id'))
+  AND (sqlc.narg('from_date')::DATE IS NULL OR ua.date >= sqlc.narg('from_date'))
+  AND (sqlc.narg('to_date')::DATE IS NULL OR ua.date <= sqlc.narg('to_date'));
+
+-- name: CountBookingsByUser :one
+SELECT COUNT(*) as count
+FROM booking b
+WHERE b.requester_id = $1
+  AND (sqlc.narg('status')::request_status IS NULL OR b.status = sqlc.narg('status'));

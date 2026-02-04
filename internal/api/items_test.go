@@ -71,7 +71,7 @@ func TestServer_GetItems(t *testing.T) {
 
 		itemsResp := response.(api.GetItems200JSONResponse)
 		assert.NotNil(t, itemsResp)
-		assert.Len(t, itemsResp, 5)
+		assert.Len(t, itemsResp.Data, 5)
 	})
 
 	t.Run("successful get item by id", func(t *testing.T) {
@@ -411,5 +411,248 @@ func TestServer_ErrorItems(t *testing.T) {
 		errorResp := response.(api.CreateItem403JSONResponse)
 		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
 		assert.Equal(t, "Insufficient permissions", errorResp.Error.Message)
+	})
+}
+
+func TestServer_GetItemsWithSearchAndFilters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration tests in short mode")
+	}
+
+	server, testDB, mockAuth := newTestServer(t)
+
+	testUser := testDB.NewUser(t).
+		WithEmail("search@items.ca").
+		AsMember().
+		Create()
+
+	// various items to search
+	testDB.NewItem(t).
+		WithName("Laptop").
+		WithDescription("Dell XPS 13").
+		WithType("high").
+		WithStock(5).
+		Create()
+
+	testDB.NewItem(t).
+		WithName("Projector").
+		WithDescription("Epson HD").
+		WithType("medium").
+		WithStock(3).
+		Create()
+
+	testDB.NewItem(t).
+		WithName("HDMI Cable").
+		WithDescription("6ft cable").
+		WithType("low").
+		WithStock(0).
+		Create()
+
+	testDB.NewItem(t).
+		WithName("Whiteboard").
+		WithDescription("Magnetic board").
+		WithType("medium").
+		WithStock(2).
+		Create()
+
+	mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewItems, nil, true, nil)
+	ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
+
+	t.Run("search query item success", func(t *testing.T) {
+		query := "laptop"
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q: &query,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "Laptop", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search query item description success", func(t *testing.T) {
+		query := "cable"
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q: &query,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "HDMI Cable", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search filter by type success", func(t *testing.T) {
+		typeParam := api.ItemTypeMedium
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Type: &typeParam,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 2)
+
+		names := []string{itemsResp.Data[0].Name, itemsResp.Data[1].Name}
+		assert.Contains(t, names, "Projector")
+		assert.Contains(t, names, "Whiteboard")
+	})
+
+	t.Run("search filter by stock success", func(t *testing.T) {
+		inStockTrue := true
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				InStock: &inStockTrue,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 3)
+
+		names := []string{itemsResp.Data[0].Name, itemsResp.Data[1].Name, itemsResp.Data[2].Name}
+		assert.Contains(t, names, "Laptop")
+		assert.Contains(t, names, "Projector")
+		assert.Contains(t, names, "Whiteboard")
+		assert.NotContains(t, names, "HDMI Cable")
+	})
+
+	t.Run("search filter by no stock success", func(t *testing.T) {
+		inStockFalse := false
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				InStock: &inStockFalse,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "HDMI Cable", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search and filter by query and type success", func(t *testing.T) {
+		query := "projector"
+		typeParam := api.ItemTypeMedium
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q:    &query,
+				Type: &typeParam,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "Projector", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search and filter by query, type, and stock success", func(t *testing.T) {
+		query := "board"
+		inStockTrue := true
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q:       &query,
+				InStock: &inStockTrue,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "Whiteboard", itemsResp.Data[0].Name)
+	})
+
+	t.Run("apply all filters", func(t *testing.T) {
+		query := "board"
+		typeParam := api.ItemTypeMedium
+		inStockTrue := true
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q:       &query,
+				Type:    &typeParam,
+				InStock: &inStockTrue,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "Whiteboard", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search fails, empty list", func(t *testing.T) {
+		query := "nonexistentitem"
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Q: &query,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 0)
+	})
+
+	t.Run("search filter item high success", func(t *testing.T) {
+		typeParam := api.ItemTypeHigh
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{
+				Type: &typeParam,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 1)
+		assert.Equal(t, "Laptop", itemsResp.Data[0].Name)
+	})
+
+	t.Run("search no filter all items", func(t *testing.T) {
+		response, err := server.GetItems(ctx, api.GetItemsRequestObject{
+			Params: api.GetItemsParams{},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.GetItems200JSONResponse{}, response)
+
+		itemsResp := response.(api.GetItems200JSONResponse)
+		assert.NotNil(t, itemsResp.Data)
+		assert.Len(t, itemsResp.Data, 4)
 	})
 }

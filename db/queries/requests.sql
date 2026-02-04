@@ -43,11 +43,11 @@ WHERE id = $1;
 -- name: GetPendingRequests :many
 SELECT * FROM requests
 WHERE status = 'pending'
-ORDER BY requested_at ASC;
+ORDER BY requested_at ASC LIMIT $1 OFFSET $2;
 
 -- name: GetAllRequests :many
 SELECT * FROM requests
-ORDER BY requested_at DESC;
+ORDER BY requested_at DESC LIMIT $1 OFFSET $2;
 
 -- name: GetRequestsByUserId :many
 SELECT * FROM requests
@@ -72,3 +72,9 @@ RETURNING *;
 -- name: GetRequestByBookingID :one
 SELECT * FROM requests
 WHERE booking_id = $1;
+
+-- name: CountAllRequests :one
+SELECT COUNT(*) as count FROM requests;
+
+-- name: CountPendingRequests :one
+SELECT COUNT(*) as count FROM requests WHERE status = 'pending';

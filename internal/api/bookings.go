@@ -266,12 +266,18 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 		toDate = pgtype.Date{Time: request.Params.ToDate.Time, Valid: true}
 	}
 
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+	var total int64
+
 	// view_all_data, show all bookings
 	if hasViewAll {
 		bookings, err := s.db.Queries().ListBookings(ctx, db.ListBookingsParams{
 			Status:   status,
+			GroupID:  request.Params.GroupId,
 			FromDate: fromDate,
 			ToDate:   toDate,
+			Limit:    limit,
+			Offset:   offset,
 		})
 		if err != nil {
 			logger.Error("Failed to list bookings",
@@ -280,17 +286,33 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 			return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 		}
 
+		total, err = s.db.Queries().CountBookings(ctx, db.CountBookingsParams{
+			Status:   status,
+			GroupID:  request.Params.GroupId,
+			FromDate: fromDate,
+			ToDate:   toDate,
+		})
+		if err != nil {
+			logger.Error("Failed to count bookings", "error", err)
+			return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
+		}
+
 		response := make([]api.BookingResponse, 0, len(bookings))
 		for _, booking := range bookings {
 			response = append(response, convertToBookingResponseFromListRow(booking))
 		}
-		return api.ListBookings200JSONResponse(response), nil
+		return api.ListBookings200JSONResponse{
+			Data: response,
+			Meta: buildPaginationMeta(total, limit, offset),
+		}, nil
 	}
 
 	// only show user's own bookings
 	bookings, err := s.db.Queries().ListBookingsByUser(ctx, db.ListBookingsByUserParams{
 		RequesterID: &user.ID,
 		Status:      status,
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		logger.Error("Failed to list bookings for user",
@@ -300,11 +322,23 @@ func (s Server) ListBookings(ctx context.Context, request api.ListBookingsReques
 		return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
+	total, err = s.db.Queries().CountBookingsByUser(ctx, db.CountBookingsByUserParams{
+		RequesterID: &user.ID,
+		Status:      status,
+	})
+	if err != nil {
+		logger.Error("Failed to count bookings for user", "error", err)
+		return api.ListBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
+	}
+
 	response := make([]api.BookingResponse, 0, len(bookings))
 	for _, booking := range bookings {
 		response = append(response, convertToBookingResponseFromUserRow(booking))
 	}
-	return api.ListBookings200JSONResponse(response), nil
+	return api.ListBookings200JSONResponse{
+		Data: response,
+		Meta: buildPaginationMeta(total, limit, offset),
+	}, nil
 }
 
 func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequestObject) (api.GetMyBookingsResponseObject, error) {
@@ -324,10 +358,14 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 		}
 	}
 
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
+
 	// Fetch user bookings
 	bookings, err := s.db.Queries().ListBookingsByUser(ctx, db.ListBookingsByUserParams{
 		RequesterID: &user.ID,
 		Status:      status,
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		logger.Error("Failed to list bookings for user",
@@ -337,12 +375,24 @@ func (s Server) GetMyBookings(ctx context.Context, request api.GetMyBookingsRequ
 		return api.GetMyBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
 	}
 
+	total, err := s.db.Queries().CountBookingsByUser(ctx, db.CountBookingsByUserParams{
+		RequesterID: &user.ID,
+		Status:      status,
+	})
+	if err != nil {
+		logger.Error("Failed to count bookings for user", "error", err)
+		return api.GetMyBookings500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
+	}
+
 	response := make([]api.BookingResponse, 0, len(bookings))
 	for _, booking := range bookings {
 		response = append(response, convertToBookingResponseFromUserRow(booking))
 	}
 
-	return api.GetMyBookings200JSONResponse(response), nil
+	return api.GetMyBookings200JSONResponse{
+		Data: response,
+		Meta: buildPaginationMeta(total, limit, offset),
+	}, nil
 }
 
 // Permission: manage_all_bookings or manage_group_bookings

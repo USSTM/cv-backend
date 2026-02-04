@@ -12,6 +12,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAllItems = `-- name: CountAllItems :one
+SELECT COUNT(*) as count FROM items
+`
+
+func (q *Queries) CountAllItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countItemsByType = `-- name: CountItemsByType :one
+SELECT COUNT(*) as count FROM items WHERE type = $1
+`
+
+func (q *Queries) CountItemsByType(ctx context.Context, type_ ItemType) (int64, error) {
+	row := q.db.QueryRow(ctx, countItemsByType, type_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSearchItems = `-- name: CountSearchItems :one
+SELECT COUNT(*) as count
+FROM items
+WHERE ($1::TEXT IS NULL OR
+  to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', $1))
+  AND ($2::item_type IS NULL OR type = $2)
+  AND ($3::BOOLEAN IS NULL OR (stock > 0) = $3)
+`
+
+type CountSearchItemsParams struct {
+	Query    pgtype.Text  `json:"query"`
+	ItemType NullItemType `json:"item_type"`
+	InStock  pgtype.Bool  `json:"in_stock"`
+}
+
+func (q *Queries) CountSearchItems(ctx context.Context, arg CountSearchItemsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchItems, arg.Query, arg.ItemType, arg.InStock)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createItem = `-- name: CreateItem :one
 INSERT INTO items (name, description, type, stock, urls)
 VALUES ($1, $2, $3, $4, $5)
@@ -72,11 +116,16 @@ func (q *Queries) DeleteItem(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllItems = `-- name: GetAllItems :many
-SELECT id, name, description, type, stock, urls from items
+SELECT id, name, description, type, stock, urls from items ORDER BY name ASC LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetAllItems(ctx context.Context) ([]Item, error) {
-	rows, err := q.db.Query(ctx, getAllItems)
+type GetAllItemsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetAllItems(ctx context.Context, arg GetAllItemsParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, getAllItems, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -158,11 +207,17 @@ func (q *Queries) GetItemByName(ctx context.Context, name string) (Item, error) 
 }
 
 const getItemsByType = `-- name: GetItemsByType :many
-SELECT id, name, description, type, stock, urls FROM items WHERE type = $1
+SELECT id, name, description, type, stock, urls FROM items WHERE type = $1 ORDER BY name ASC LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) GetItemsByType(ctx context.Context, type_ ItemType) ([]Item, error) {
-	rows, err := q.db.Query(ctx, getItemsByType, type_)
+type GetItemsByTypeParams struct {
+	Type   ItemType `json:"type"`
+	Limit  int64    `json:"limit"`
+	Offset int64    `json:"offset"`
+}
+
+func (q *Queries) GetItemsByType(ctx context.Context, arg GetItemsByTypeParams) ([]Item, error) {
+	rows, err := q.db.Query(ctx, getItemsByType, arg.Type, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +298,83 @@ func (q *Queries) PatchItem(ctx context.Context, arg PatchItemParams) (Item, err
 		&i.Urls,
 	)
 	return i, err
+}
+
+const searchItems = `-- name: SearchItems :many
+WITH ranked_items AS (
+  SELECT id, name, description, type, stock, urls,
+    CASE 
+      WHEN $1::TEXT IS NOT NULL THEN
+        ts_rank(
+          to_tsvector('english', name || ' ' || COALESCE(description, '')),
+          plainto_tsquery('english', $1)
+        )
+      ELSE 0.0
+    END as rank
+  FROM items
+  WHERE ($1::TEXT IS NULL OR
+    to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', $1))
+    AND ($4::item_type IS NULL OR type = $4)
+    AND ($5::BOOLEAN IS NULL OR (stock > 0) = $5)
+)
+SELECT id, name, description, type, stock, urls, rank
+FROM ranked_items
+ORDER BY 
+  CASE WHEN $1::TEXT IS NOT NULL THEN rank END DESC NULLS LAST,
+  name ASC
+LIMIT $3 OFFSET $2
+`
+
+type SearchItemsParams struct {
+	Query    pgtype.Text  `json:"query"`
+	Offset   int64        `json:"offset"`
+	Limit    int64        `json:"limit"`
+	ItemType NullItemType `json:"item_type"`
+	InStock  pgtype.Bool  `json:"in_stock"`
+}
+
+type SearchItemsRow struct {
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Type        ItemType    `json:"type"`
+	Stock       int32       `json:"stock"`
+	Urls        []string    `json:"urls"`
+	Rank        float32     `json:"rank"`
+}
+
+func (q *Queries) SearchItems(ctx context.Context, arg SearchItemsParams) ([]SearchItemsRow, error) {
+	rows, err := q.db.Query(ctx, searchItems,
+		arg.Query,
+		arg.Offset,
+		arg.Limit,
+		arg.ItemType,
+		arg.InStock,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchItemsRow{}
+	for rows.Next() {
+		var i SearchItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Type,
+			&i.Stock,
+			&i.Urls,
+			&i.Rank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateItem = `-- name: UpdateItem :one

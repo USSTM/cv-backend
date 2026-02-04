@@ -77,6 +77,54 @@ func (q *Queries) ConfirmBooking(ctx context.Context, arg ConfirmBookingParams) 
 	return i, err
 }
 
+const countBookings = `-- name: CountBookings :one
+SELECT COUNT(*) as count
+FROM booking b
+JOIN user_availability ua ON b.availability_id = ua.id
+WHERE ($1::request_status IS NULL OR b.status = $1)
+  AND ($2::UUID IS NULL OR b.group_id = $2)
+  AND ($3::DATE IS NULL OR ua.date >= $3)
+  AND ($4::DATE IS NULL OR ua.date <= $4)
+`
+
+type CountBookingsParams struct {
+	Status   NullRequestStatus `json:"status"`
+	GroupID  *uuid.UUID        `json:"group_id"`
+	FromDate pgtype.Date       `json:"from_date"`
+	ToDate   pgtype.Date       `json:"to_date"`
+}
+
+func (q *Queries) CountBookings(ctx context.Context, arg CountBookingsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countBookings,
+		arg.Status,
+		arg.GroupID,
+		arg.FromDate,
+		arg.ToDate,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countBookingsByUser = `-- name: CountBookingsByUser :one
+SELECT COUNT(*) as count
+FROM booking b
+WHERE b.requester_id = $1
+  AND ($2::request_status IS NULL OR b.status = $2)
+`
+
+type CountBookingsByUserParams struct {
+	RequesterID *uuid.UUID        `json:"requester_id"`
+	Status      NullRequestStatus `json:"status"`
+}
+
+func (q *Queries) CountBookingsByUser(ctx context.Context, arg CountBookingsByUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countBookingsByUser, arg.RequesterID, arg.Status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBooking = `-- name: CreateBooking :one
 INSERT INTO booking (
     id, requester_id, manager_id, item_id, group_id, availability_id,
@@ -276,14 +324,17 @@ LEFT JOIN users manager ON b.manager_id = manager.id
 JOIN items i ON b.item_id = i.id
 JOIN groups g ON b.group_id = g.id
 JOIN user_availability ua ON b.availability_id = ua.id
-WHERE ($1::request_status IS NULL OR b.status = $1)
-  AND ($2::UUID IS NULL OR b.group_id = $2)
-  AND ($3::DATE IS NULL OR ua.date >= $3)
-  AND ($4::DATE IS NULL OR ua.date <= $4)
+WHERE ($3::request_status IS NULL OR b.status = $3)
+  AND ($4::UUID IS NULL OR b.group_id = $4)
+  AND ($5::DATE IS NULL OR ua.date >= $5)
+  AND ($6::DATE IS NULL OR ua.date <= $6)
 ORDER BY ua.date, b.pick_up_date
+LIMIT $1 OFFSET $2
 `
 
 type ListBookingsParams struct {
+	Limit    int64             `json:"limit"`
+	Offset   int64             `json:"offset"`
 	Status   NullRequestStatus `json:"status"`
 	GroupID  *uuid.UUID        `json:"group_id"`
 	FromDate pgtype.Date       `json:"from_date"`
@@ -314,6 +365,8 @@ type ListBookingsRow struct {
 
 func (q *Queries) ListBookings(ctx context.Context, arg ListBookingsParams) ([]ListBookingsRow, error) {
 	rows, err := q.db.Query(ctx, listBookings,
+		arg.Limit,
+		arg.Offset,
 		arg.Status,
 		arg.GroupID,
 		arg.FromDate,
@@ -371,12 +424,15 @@ JOIN items i ON b.item_id = i.id
 JOIN user_availability ua ON b.availability_id = ua.id
 JOIN time_slots ts ON ua.time_slot_id = ts.id
 WHERE b.requester_id = $1
-  AND ($2::request_status IS NULL OR b.status = $2)
+  AND ($4::request_status IS NULL OR b.status = $4)
 ORDER BY ua.date DESC
+LIMIT $2 OFFSET $3
 `
 
 type ListBookingsByUserParams struct {
 	RequesterID *uuid.UUID        `json:"requester_id"`
+	Limit       int64             `json:"limit"`
+	Offset      int64             `json:"offset"`
 	Status      NullRequestStatus `json:"status"`
 }
 
@@ -403,7 +459,12 @@ type ListBookingsByUserRow struct {
 }
 
 func (q *Queries) ListBookingsByUser(ctx context.Context, arg ListBookingsByUserParams) ([]ListBookingsByUserRow, error) {
-	rows, err := q.db.Query(ctx, listBookingsByUser, arg.RequesterID, arg.Status)
+	rows, err := q.db.Query(ctx, listBookingsByUser,
+		arg.RequesterID,
+		arg.Limit,
+		arg.Offset,
+		arg.Status,
+	)
 	if err != nil {
 		return nil, err
 	}

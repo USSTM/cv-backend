@@ -36,3 +36,12 @@ FROM item_takings
 WHERE item_id = $1
   AND taken_at >= $2
   AND taken_at <= $3;
+
+-- name: CountTakingHistoryByUserId :one
+SELECT COUNT(*) as count FROM item_takings WHERE user_id = $1;
+
+-- name: CountTakingHistoryByUserIdWithGroupFilter :one
+SELECT COUNT(*) as count FROM item_takings WHERE user_id = $1 AND group_id = $2;
+
+-- name: CountTakingHistoryByItemId :one
+SELECT COUNT(*) as count FROM item_takings WHERE item_id = $1;

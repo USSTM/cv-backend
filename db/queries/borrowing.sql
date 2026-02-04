@@ -51,7 +51,8 @@ SELECT id, user_id, group_id, item_id, quantity,
        before_condition, before_condition_url,
        after_condition, after_condition_url
 FROM borrowings
-WHERE user_id = $1;
+WHERE user_id = $1
+ORDER BY borrowed_at DESC LIMIT $2 OFFSET $3;
 
 -- name: GetActiveBorrowedItemsByUserId :many
 SELECT id, user_id, group_id, item_id, quantity,
@@ -59,7 +60,8 @@ SELECT id, user_id, group_id, item_id, quantity,
        before_condition, before_condition_url,
        after_condition, after_condition_url
 FROM borrowings
-WHERE user_id = $1 AND returned_at IS NULL;
+WHERE user_id = $1 AND returned_at IS NULL
+ORDER BY borrowed_at DESC LIMIT $2 OFFSET $3;
 
 -- name: GetReturnedItemsByUserId :many
 SELECT id, user_id, group_id, item_id, quantity,
@@ -67,7 +69,8 @@ SELECT id, user_id, group_id, item_id, quantity,
        before_condition, before_condition_url,
        after_condition, after_condition_url
 FROM borrowings
-WHERE user_id = $1 AND returned_at IS NOT NULL;
+WHERE user_id = $1 AND returned_at IS NOT NULL
+ORDER BY returned_at DESC LIMIT $2 OFFSET $3;
 
 -- name: GetAllActiveBorrowedItems :many
 SELECT id, user_id, group_id, item_id, quantity,
@@ -75,7 +78,8 @@ SELECT id, user_id, group_id, item_id, quantity,
        before_condition, before_condition_url,
        after_condition, after_condition_url
 FROM borrowings
-WHERE returned_at IS NULL;
+WHERE returned_at IS NULL
+ORDER BY borrowed_at DESC LIMIT $1 OFFSET $2;
 
 -- name: GetAllReturnedItems :many
 SELECT id, user_id, group_id, item_id, quantity,
@@ -83,7 +87,8 @@ SELECT id, user_id, group_id, item_id, quantity,
        before_condition, before_condition_url,
        after_condition, after_condition_url
 FROM borrowings
-WHERE returned_at IS NOT NULL;
+WHERE returned_at IS NOT NULL
+ORDER BY returned_at DESC LIMIT $1 OFFSET $2;
 
 -- name: GetActiveBorrowedItemsToBeReturnedByDate :many
 SELECT id, user_id, group_id, item_id, quantity,
@@ -92,3 +97,18 @@ SELECT id, user_id, group_id, item_id, quantity,
        after_condition, after_condition_url
 FROM borrowings
 WHERE returned_at IS NULL AND due_date <= $1;
+
+-- name: CountAllActiveBorrowedItems :one
+SELECT COUNT(*) as count FROM borrowings WHERE returned_at IS NULL;
+
+-- name: CountAllReturnedItems :one
+SELECT COUNT(*) as count FROM borrowings WHERE returned_at IS NOT NULL;
+
+-- name: CountBorrowedItemHistoryByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1;
+
+-- name: CountActiveBorrowedItemsByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1 AND returned_at IS NULL;
+
+-- name: CountReturnedItemsByUserId :one
+SELECT COUNT(*) as count FROM borrowings WHERE user_id = $1 AND returned_at IS NOT NULL;

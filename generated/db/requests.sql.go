@@ -12,13 +12,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getAllRequests = `-- name: GetAllRequests :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
-ORDER BY requested_at DESC
+const countAllRequests = `-- name: CountAllRequests :one
+SELECT COUNT(*) as count FROM requests
 `
 
-func (q *Queries) GetAllRequests(ctx context.Context) ([]Request, error) {
-	rows, err := q.db.Query(ctx, getAllRequests)
+func (q *Queries) CountAllRequests(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllRequests)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countPendingRequests = `-- name: CountPendingRequests :one
+SELECT COUNT(*) as count FROM requests WHERE status = 'pending'
+`
+
+func (q *Queries) CountPendingRequests(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPendingRequests)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getAllRequests = `-- name: GetAllRequests :many
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+ORDER BY requested_at DESC LIMIT $1 OFFSET $2
+`
+
+type GetAllRequestsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetAllRequests(ctx context.Context, arg GetAllRequestsParams) ([]Request, error) {
+	rows, err := q.db.Query(ctx, getAllRequests, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +115,16 @@ func (q *Queries) GetApprovedRequestForUserAndItem(ctx context.Context, arg GetA
 const getPendingRequests = `-- name: GetPendingRequests :many
 SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE status = 'pending'
-ORDER BY requested_at ASC
+ORDER BY requested_at ASC LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetPendingRequests(ctx context.Context) ([]Request, error) {
-	rows, err := q.db.Query(ctx, getPendingRequests)
+type GetPendingRequestsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+func (q *Queries) GetPendingRequests(ctx context.Context, arg GetPendingRequestsParams) ([]Request, error) {
+	rows, err := q.db.Query(ctx, getPendingRequests, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

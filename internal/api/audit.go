@@ -31,17 +31,10 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 		return api.GetUserTakingHistory403JSONResponse(PermissionDenied("Insufficient permissions to view this user's data").Create()), nil
 	}
 
-	// basic pagination attempt
-	limit := int64(50)
-	offset := int64(0)
-	if request.Params.Limit != nil {
-		limit = int64(*request.Params.Limit)
-	}
-	if request.Params.Offset != nil {
-		offset = int64(*request.Params.Offset)
-	}
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
 	var response []api.TakingHistoryResponse
+	var total int64
 
 	// If group is provided, use filtered query
 	if groupIDFilter != nil {
@@ -65,6 +58,13 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 				TakenAt:  taking.TakenAt.Time,
 			})
 		}
+		total, err = s.db.Queries().CountTakingHistoryByUserIdWithGroupFilter(ctx, db.CountTakingHistoryByUserIdWithGroupFilterParams{
+			UserID:  targetUserID,
+			GroupID: *groupIDFilter,
+		})
+		if err != nil {
+			return api.GetUserTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
+		}
 	} else {
 		takings, err := s.db.Queries().GetTakingHistoryByUserId(ctx, db.GetTakingHistoryByUserIdParams{
 			UserID: targetUserID,
@@ -85,15 +85,20 @@ func (s Server) GetUserTakingHistory(ctx context.Context, request api.GetUserTak
 				TakenAt:  taking.TakenAt.Time,
 			})
 		}
+		total, err = s.db.Queries().CountTakingHistoryByUserId(ctx, targetUserID)
+		if err != nil {
+			return api.GetUserTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
+		}
 	}
 
-	// no response, empty array
-	if len(response) == 0 {
-		return api.GetUserTakingHistory200JSONResponse([]api.TakingHistoryResponse{}), nil
+	if response == nil {
+		response = []api.TakingHistoryResponse{}
 	}
 
-	// else, return response
-	return api.GetUserTakingHistory200JSONResponse(response), nil
+	return api.GetUserTakingHistory200JSONResponse{
+		Data: response,
+		Meta: buildPaginationMeta(total, limit, offset),
+	}, nil
 }
 
 // determine if authenticated user can view target user's taking history
@@ -145,21 +150,18 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 		return api.GetItemTakingHistory403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
-	// basic pagination
-	limit := int64(50)
-	offset := int64(0)
-	if request.Params.Limit != nil {
-		limit = int64(*request.Params.Limit)
-	}
-	if request.Params.Offset != nil {
-		offset = int64(*request.Params.Offset)
-	}
+	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
 	takings, err := s.db.Queries().GetTakingHistoryByItemId(ctx, db.GetTakingHistoryByItemIdParams{
 		ItemID: request.ItemId,
 		Limit:  limit,
 		Offset: offset,
 	})
+	if err != nil {
+		return api.GetItemTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
+	}
+
+	total, err := s.db.Queries().CountTakingHistoryByItemId(ctx, request.ItemId)
 	if err != nil {
 		return api.GetItemTakingHistory500JSONResponse(InternalError("Failed to get history").Create()), nil
 	}
@@ -177,11 +179,14 @@ func (s Server) GetItemTakingHistory(ctx context.Context, request api.GetItemTak
 		})
 	}
 
-	if len(response) == 0 {
-		return api.GetItemTakingHistory200JSONResponse([]api.ItemTakingHistoryResponse{}), nil
+	if response == nil {
+		response = []api.ItemTakingHistoryResponse{}
 	}
 
-	return api.GetItemTakingHistory200JSONResponse(response), nil
+	return api.GetItemTakingHistory200JSONResponse{
+		Data: response,
+		Meta: buildPaginationMeta(total, limit, offset),
+	}, nil
 }
 
 // admin only handler
