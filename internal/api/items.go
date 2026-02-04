@@ -30,6 +30,82 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
+	// check if filter
+	hasFilters := request.Params.Q != nil || request.Params.Type != nil || request.Params.InStock != nil
+
+	var response []api.ItemResponse
+
+	if hasFilters {
+		// query with offset/limit
+		searchParams := db.SearchItemsParams{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		// query with filter
+		if request.Params.Q != nil {
+			searchParams.Query = pgtype.Text{String: *request.Params.Q, Valid: true}
+		}
+
+		// query with item type filter
+		if request.Params.Type != nil {
+			searchParams.ItemType = db.NullItemType{
+				ItemType: db.ItemType(*request.Params.Type),
+				Valid:    true,
+			}
+		}
+
+		// query with stock filter
+		if request.Params.InStock != nil {
+			searchParams.InStock = pgtype.Bool{Bool: *request.Params.InStock, Valid: true}
+		}
+
+		items, err := s.db.Queries().SearchItems(ctx, searchParams)
+		if err != nil {
+			logger.Error("Failed to search items", "error", err)
+			return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+		}
+
+		for _, item := range items {
+			id := item.ID
+			name := item.Name
+			description := item.Description.String
+			itemType := api.ItemType(item.Type)
+			stock := int(item.Stock)
+			urls := item.Urls
+
+			itemResponse := api.ItemResponse{
+				Id:          id,
+				Name:        name,
+				Description: &description,
+				Type:        itemType,
+				Stock:       stock,
+				Urls:        &urls,
+			}
+			response = append(response, itemResponse)
+		}
+
+		total, err := s.db.Queries().CountSearchItems(ctx, db.CountSearchItemsParams{
+			Query:    searchParams.Query,
+			ItemType: searchParams.ItemType,
+			InStock:  searchParams.InStock,
+		})
+		if err != nil {
+			logger.Error("Failed to count search items", "error", err)
+			return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+		}
+
+		if response == nil {
+			response = []api.ItemResponse{}
+		}
+
+		return api.GetItems200JSONResponse{
+			Data: response,
+			Meta: buildPaginationMeta(total, limit, offset),
+		}, nil
+	}
+
+	// no filter or query shenanigans
 	items, err := s.db.Queries().GetAllItems(ctx, db.GetAllItemsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		logger.Error("Failed to get items", "error", err)
@@ -42,8 +118,6 @@ func (s Server) GetItems(ctx context.Context, request api.GetItemsRequestObject)
 		return api.GetItems500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	// Convert database items to API response format
-	var response []api.ItemResponse
 	for _, item := range items {
 		id := item.ID
 		name := item.Name

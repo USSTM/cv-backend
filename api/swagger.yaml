@@ -2002,8 +2002,8 @@ paths:
     get:
       tags:
         - Items
-      summary: Get all items
-      description: Retrieve all items from the catalog
+      summary: Get all items with search and filtering
+      description: Retrieve all items from the catalog with optional search and filtering capabilities
       operationId: getItems
       security:
         - BearerAuth: []
@@ -2020,6 +2020,21 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: q
+          in: query
+          description: Search query for name and description
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Filter by item type
+          schema:
+            $ref: "#/components/schemas/ItemType"
+        - name: in_stock
+          in: query
+          description: Filter by availability (stock > 0)
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of items

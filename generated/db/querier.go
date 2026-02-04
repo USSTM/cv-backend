@@ -37,6 +37,7 @@ type Querier interface {
 	CountItemsByType(ctx context.Context, type_ ItemType) (int64, error)
 	CountPendingRequests(ctx context.Context) (int64, error)
 	CountReturnedItemsByUserId(ctx context.Context, userID *uuid.UUID) (int64, error)
+	CountSearchItems(ctx context.Context, arg CountSearchItemsParams) (int64, error)
 	CountTakingHistoryByItemId(ctx context.Context, itemID uuid.UUID) (int64, error)
 	CountTakingHistoryByUserId(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg CountTakingHistoryByUserIdWithGroupFilterParams) (int64, error)
@@ -125,6 +126,7 @@ type Querier interface {
 	ReturnItem(ctx context.Context, arg ReturnItemParams) (Borrowing, error)
 	// this function updates the status of a request (approve or deny) and records who reviewed it and when
 	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
+	SearchItems(ctx context.Context, arg SearchItemsParams) ([]SearchItemsRow, error)
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
