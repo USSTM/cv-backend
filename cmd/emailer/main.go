@@ -22,17 +22,21 @@ type LocalStackEmail struct {
 	Body        EmailBody `json:"Body"`
 	Destination Dest      `json:"Destination"`
 }
+
 type EmailBody struct {
 	Text string `json:"text_part"`
 	HTML string `json:"html_part"`
 }
+
 type Dest struct {
 	ToAddresses []string `json:"ToAddresses"`
 }
+
 type LocalStackResponse struct {
 	Messages []LocalStackEmail `json:"messages"`
 }
 
+// flags for make go script
 var (
 	enqueuePtr = flag.Bool("enqueue", false, "Enqueue the email task instead of sending directly")
 	viewPtr    = flag.Bool("view", false, "View the emails")
@@ -48,7 +52,7 @@ func main() {
 	subject := "Test Email from LocalStack"
 	body := "Sup ladies and gentlemen"
 
-	// this is for make email-enqueue (enqueueing the email to redis/asynq to then be processed by the worker)
+	// this is for make email flag=enqueue (enqueueing the email to redis/asynq to then be processed by the worker)
 	if *enqueuePtr {
 		log.Println("Initializing Redis queue...")
 		q, err := queue.NewQueue(&cfg.Redis)
@@ -73,13 +77,13 @@ func main() {
 		return
 	}
 
-	// this is for make email-view (viewing the emails)
+	// this is for make email flag=view (viewing the emails)
 	if *viewPtr {
 		viewEmails()
 		return
 	}
 
-	// this is for make email-test (testing to send an email directly)
+	// this is for make email flag=test (testing to send an email directly)
 	if *testPtr {
 		log.Println("Initializing email service...")
 		svc, err := emailSvc.NewEmailService(cfg.AWS)
