@@ -16,7 +16,7 @@ type EmailService struct {
 	sender string
 }
 
-func NewEmailService(ctx context.Context, cfg config.AWSConfig) (*EmailService, error) {
+func NewEmailService(cfg config.AWSConfig) (*EmailService, error) {
 	opts := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithRegion(cfg.Region),
 	}
@@ -30,7 +30,7 @@ func NewEmailService(ctx context.Context, cfg config.AWSConfig) (*EmailService, 
 		})))
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
+	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}

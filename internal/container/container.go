@@ -1,8 +1,6 @@
 package container
 
 import (
-	"context"
-
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/aws"
@@ -40,7 +38,7 @@ func New(cfg config.Config) (*Container, error) {
 
 	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
 
-	sesService, err := aws.NewEmailService(context.Background(), cfg.AWS)
+	sesService, err := aws.NewEmailService(cfg.AWS)
 	if err != nil {
 		return nil, err
 	}
