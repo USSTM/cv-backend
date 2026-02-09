@@ -756,7 +756,7 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.IsType(t, api.GetBorrowedItemHistoryByUserId200JSONResponse{}, response)
 
 		historyResp := response.(api.GetBorrowedItemHistoryByUserId200JSONResponse)
-		assert.Len(t, historyResp, 2) // Should have 2 borrowings (1 returned, 1 active)
+		assert.Len(t, historyResp.Data, 2) // Should have 2 borrowings (1 returned, 1 active)
 	})
 
 	t.Run("user attempts to view another user's history", func(t *testing.T) {
@@ -836,8 +836,8 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.IsType(t, api.GetActiveBorrowedItemsByUserId200JSONResponse{}, response)
 
 		activeResp := response.(api.GetActiveBorrowedItemsByUserId200JSONResponse)
-		assert.Len(t, activeResp, 1)
-		assert.Nil(t, activeResp[0].ReturnedAt)
+		assert.Len(t, activeResp.Data, 1)
+		assert.Nil(t, activeResp.Data[0].ReturnedAt)
 	})
 
 	t.Run("user views their own returned items", func(t *testing.T) {
@@ -904,8 +904,8 @@ func TestServer_UserBorrowingHistory(t *testing.T) {
 		require.IsType(t, api.GetReturnedItemsByUserId200JSONResponse{}, response)
 
 		returnedResp := response.(api.GetReturnedItemsByUserId200JSONResponse)
-		assert.Len(t, returnedResp, 1)
-		assert.NotNil(t, returnedResp[0].ReturnedAt)
+		assert.Len(t, returnedResp.Data, 1)
+		assert.NotNil(t, returnedResp.Data[0].ReturnedAt)
 	})
 }
 
@@ -971,7 +971,7 @@ func TestServer_AdminBorrowingViews(t *testing.T) {
 		require.IsType(t, api.GetAllActiveBorrowedItems200JSONResponse{}, response)
 
 		activeResp := response.(api.GetAllActiveBorrowedItems200JSONResponse)
-		assert.GreaterOrEqual(t, len(activeResp), 1)
+		assert.GreaterOrEqual(t, len(activeResp.Data), 1)
 	})
 
 	t.Run("member attempts to view all borrowings", func(t *testing.T) {
@@ -1688,7 +1688,7 @@ func TestServer_GetAllRequests(t *testing.T) {
 		require.IsType(t, api.GetAllRequests200JSONResponse{}, response)
 
 		requestsResp := response.(api.GetAllRequests200JSONResponse)
-		assert.GreaterOrEqual(t, len(requestsResp), 1)
+		assert.GreaterOrEqual(t, len(requestsResp.Data), 1)
 	})
 
 	t.Run("member cannot view all requests", func(t *testing.T) {
@@ -1765,10 +1765,10 @@ func TestServer_GetPendingRequests(t *testing.T) {
 		require.IsType(t, api.GetPendingRequests200JSONResponse{}, response)
 
 		pendingResp := response.(api.GetPendingRequests200JSONResponse)
-		assert.GreaterOrEqual(t, len(pendingResp), 1)
+		assert.GreaterOrEqual(t, len(pendingResp.Data), 1)
 
 		// Verify all returned requests are pending
-		for _, req := range pendingResp {
+		for _, req := range pendingResp.Data {
 			assert.Equal(t, api.Pending, req.Status)
 		}
 	})

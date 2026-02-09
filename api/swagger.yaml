@@ -48,10 +48,84 @@ components:
         - role_name
         - scope
 
-    GetItemByTypeResponse:
-      type: array
-      items:
-        $ref: "#/components/schemas/ItemResponse"
+    PaginationMeta:
+      type: object
+      required: [total, limit, offset, has_more]
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+
+    PaginatedItemResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedBorrowingResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BorrowingResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedRequestResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequestItemResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedBookingResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookingResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedTakingHistoryResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TakingHistoryResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginatedItemTakingHistoryResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemTakingHistoryResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
 
     ItemResponse:
       type: object
@@ -1404,15 +1478,24 @@ paths:
           schema:
             type: string
             format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of bookings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BookingResponse"
+                $ref: "#/components/schemas/PaginatedBookingResponse"
         "401":
           description: Unauthorized
           content:
@@ -1448,15 +1531,24 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/RequestStatus"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: User's bookings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BookingResponse"
+                $ref: "#/components/schemas/PaginatedBookingResponse"
         "401":
           description: Unauthorized
           content:
@@ -1910,19 +2002,46 @@ paths:
     get:
       tags:
         - Items
-      summary: Get all items
-      description: Retrieve all items from the catalog
+      summary: Get all items with search and filtering
+      description: Retrieve all items from the catalog with optional search and filtering capabilities
       operationId: getItems
       security:
         - BearerAuth: []
         - OAuth2: [view_items]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: q
+          in: query
+          description: Search query for name and description
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Filter by item type
+          schema:
+            $ref: "#/components/schemas/ItemType"
+        - name: in_stock
+          in: query
+          description: Filter by availability (stock > 0)
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of items
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetItemByTypeResponse"
+                $ref: "#/components/schemas/PaginatedItemResponse"
         "401":
           description: Unauthorized
           content:
@@ -2047,13 +2166,24 @@ paths:
             $ref: "#/components/schemas/ItemType"
           example:
             type: "high"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of items by type
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetItemByTypeResponse"
+                $ref: "#/components/schemas/PaginatedItemResponse"
         "401":
           description: Unauthorized
           content:
@@ -3117,9 +3247,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TakingHistoryResponse"
+                $ref: "#/components/schemas/PaginatedTakingHistoryResponse"
         "401":
           description: Unauthorized
           content:
@@ -3171,9 +3299,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ItemTakingHistoryResponse"
+                $ref: "#/components/schemas/PaginatedItemTakingHistoryResponse"
         "401":
           description: Unauthorized
           content:
@@ -3446,15 +3572,25 @@ paths:
       security:
         - BearerAuth: []
         - OAuth2: [view_all_data]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of active borrowings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BorrowingResponse"
+                $ref: "#/components/schemas/PaginatedBorrowingResponse"
         "400":
           description: Bad Request - invalid input
           content:
@@ -3502,15 +3638,25 @@ paths:
       security:
         - BearerAuth: []
         - OAuth2: [view_all_data]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of returned borrowings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BorrowingResponse"
+                $ref: "#/components/schemas/PaginatedBorrowingResponse"
         "400":
           description: Bad Request - invalid input
           content:
@@ -3627,15 +3773,24 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/UUID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of borrowings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BorrowingResponse"
+                $ref: "#/components/schemas/PaginatedBorrowingResponse"
         "400":
           description: Bad Request - invalid input
           content:
@@ -3689,15 +3844,24 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/UUID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of current active borrowings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BorrowingResponse"
+                $ref: "#/components/schemas/PaginatedBorrowingResponse"
         "400":
           description: Bad Request - invalid input
           content:
@@ -3751,15 +3915,24 @@ paths:
           required: true
           schema:
             $ref: "#/components/schemas/UUID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of returned borrowings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BorrowingResponse"
+                $ref: "#/components/schemas/PaginatedBorrowingResponse"
         "400":
           description: Bad Request - invalid input
           content:
@@ -3914,15 +4087,25 @@ paths:
       security:
         - BearerAuth: []
         - OAuth2: [view_all_data]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of all requests
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/RequestItemResponse"
+                $ref: "#/components/schemas/PaginatedRequestResponse"
         "401":
           description: Unauthorized
           content:
@@ -3952,15 +4135,25 @@ paths:
       security:
         - BearerAuth: []
         - OAuth2: [approve_all_requests]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
           description: List of pending requests
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/RequestItemResponse"
+                $ref: "#/components/schemas/PaginatedRequestResponse"
         "401":
           description: Unauthorized
           content:

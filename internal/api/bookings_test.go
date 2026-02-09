@@ -187,10 +187,10 @@ func TestServer_GetMyBookings(t *testing.T) {
 		require.IsType(t, api.GetMyBookings200JSONResponse{}, response)
 
 		resp := response.(api.GetMyBookings200JSONResponse)
-		assert.Len(t, resp, 2) // Returned only user's bookings
+		assert.Len(t, resp.Data, 2) // Returned only user's bookings
 
 		// Verify IDs
-		bookingIDs := []uuid.UUID{resp[0].Id, resp[1].Id}
+		bookingIDs := []uuid.UUID{resp.Data[0].Id, resp.Data[1].Id}
 		assert.Contains(t, bookingIDs, booking1.ID)
 		assert.Contains(t, bookingIDs, booking2.ID)
 	})
@@ -229,9 +229,9 @@ func TestServer_GetMyBookings(t *testing.T) {
 		require.IsType(t, api.GetMyBookings200JSONResponse{}, response)
 
 		resp := response.(api.GetMyBookings200JSONResponse)
-		assert.Len(t, resp, 1)
-		assert.Equal(t, confirmed.ID, resp[0].Id)
-		assert.Equal(t, api.RequestStatus("confirmed"), resp[0].Status)
+		assert.Len(t, resp.Data, 1)
+		assert.Equal(t, confirmed.ID, resp.Data[0].Id)
+		assert.Equal(t, api.RequestStatus("confirmed"), resp.Data[0].Status)
 	})
 
 	t.Run("empty results when user has no bookings", func(t *testing.T) {
@@ -246,7 +246,7 @@ func TestServer_GetMyBookings(t *testing.T) {
 		require.IsType(t, api.GetMyBookings200JSONResponse{}, response)
 
 		resp := response.(api.GetMyBookings200JSONResponse)
-		assert.Len(t, resp, 0)
+		assert.Len(t, resp.Data, 0)
 	})
 
 	t.Run("unauthorized", func(t *testing.T) {
@@ -427,7 +427,7 @@ func TestServer_ListBookings(t *testing.T) {
 		require.IsType(t, api.ListBookings200JSONResponse{}, response)
 
 		resp := response.(api.ListBookings200JSONResponse)
-		assert.Len(t, resp, 2) // Both bookings visible
+		assert.Len(t, resp.Data, 2) // Both bookings visible
 	})
 
 	t.Run("regular user only sees own bookings", func(t *testing.T) {
@@ -462,8 +462,8 @@ func TestServer_ListBookings(t *testing.T) {
 		require.IsType(t, api.ListBookings200JSONResponse{}, response)
 
 		resp := response.(api.ListBookings200JSONResponse)
-		assert.Len(t, resp, 1) // Only user's booking visible
-		assert.Equal(t, user.ID, resp[0].RequesterId)
+		assert.Len(t, resp.Data, 1) // Only user's booking visible
+		assert.Equal(t, user.ID, resp.Data[0].RequesterId)
 	})
 }
 
