@@ -34,7 +34,7 @@ run: build
 # make s3 flag=buckets
 # make s3 flag=link value=/path/to/file
 s3:
-	@export $$(cat .env | xargs) && go run cmd/object-storage/main.go -$(flag) $(value)
+	@export $$(cat .env | xargs) && go run cmd/object-storage/main.go --$(flag) $(value)
 
 email:
 	@export $$(cat .env | xargs) && go run cmd/emailer/main.go --$(flag)

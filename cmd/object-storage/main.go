@@ -50,7 +50,7 @@ func main() {
 		key := filepath.Base(filePath)
 		contentType := "application/octet-stream"
 
-		fmt.Printf("Uploading %s to %s/%s...", filePath, cfg.AWS.Bucket, key)
+		fmt.Printf("Uploading %s to %s/%s...\n", filePath, cfg.AWS.Bucket, key)
 		if err := s3Service.PutObject(ctx, key, file, contentType); err != nil {
 			log.Fatalf("Failed to upload file: %v", err)
 		}
@@ -61,7 +61,7 @@ func main() {
 
 	if *getPtr != "" {
 		key := *getPtr
-		fmt.Printf("Retrieving %s from %s...", key, cfg.AWS.Bucket)
+		fmt.Printf("Retrieving %s from %s...\n", key, cfg.AWS.Bucket)
 
 		body, err := s3Service.GetObject(ctx, key)
 		if err != nil {
