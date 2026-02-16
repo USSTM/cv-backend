@@ -1,6 +1,8 @@
 package container
 
 import (
+	"context"
+
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/aws"
@@ -16,8 +18,10 @@ type Container struct {
 	Queue         *queue.TaskQueue
 	JWTService    *auth.JWTService
 	EmailService  *aws.EmailService
+	S3Service     *aws.S3Service
 	Authenticator *auth.Authenticator
 	Server        *api.Server
+	Worker        *queue.Worker
 }
 
 func New(cfg config.Config) (*Container, error) {
@@ -43,7 +47,19 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
-	server := api.NewServer(db, taskQueue, jwtService, authenticator, sesService)
+	// verify email identity for LocalStack (this is unnecessary when using actual AWS SES)
+	if _, err := sesService.VerifyEmailIdentity(context.Background()); err != nil {
+		logging.Error("Failed to verify email identity", "error", err)
+	}
+
+	s3Service, err := aws.NewS3Service(cfg.AWS)
+	if err != nil {
+		return nil, err
+	}
+
+	worker := queue.NewWorker(&cfg.Redis, sesService)
+
+	server := api.NewServer(db, taskQueue, jwtService, authenticator, sesService, s3Service)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
@@ -55,8 +71,10 @@ func New(cfg config.Config) (*Container, error) {
 		Queue:         taskQueue,
 		JWTService:    jwtService,
 		EmailService:  sesService,
+		S3Service:     s3Service,
 		Authenticator: authenticator,
 		Server:        server,
+		Worker:        worker,
 	}, nil
 }
 
@@ -64,5 +82,9 @@ func (c *Container) Cleanup() {
 	if c.Database != nil {
 		c.Database.Close()
 		logging.Info("Database connection closed")
+	}
+	if c.Worker != nil {
+		c.Worker.Close()
+		logging.Info("Worker closed")
 	}
 }

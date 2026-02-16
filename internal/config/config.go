@@ -24,6 +24,7 @@ type AWSConfig struct {
 	SecretAccessKey string
 	EndpointURL     string
 	Sender          string
+	Bucket          string
 }
 
 type DatabaseConfig struct {
@@ -119,6 +120,7 @@ func Load() *Config {
 			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
 			EndpointURL:     getEnv("AWS_ENDPOINT_URL", ""),
 			Sender:          getEnv("AWS_EMAIL_SENDER", "test@example.com"),
+			Bucket:          getEnv("AWS_BUCKET", "cv-backend-test-bucket"),
 		},
 	}
 }

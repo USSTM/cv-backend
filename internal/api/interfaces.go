@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
@@ -36,4 +38,11 @@ type RedisQueueService interface {
 // EmailService defines the interface for email operations
 type EmailService interface {
 	SendEmail(ctx context.Context, to string, subject string, body string) error
+}
+
+// S3Service defines the interface for S3 operations
+type S3Service interface {
+	PutObject(ctx context.Context, key string, body io.Reader, contentType string) error
+	GetObject(ctx context.Context, key string) (io.ReadCloser, error)
+	GeneratePresignedURL(ctx context.Context, method string, key string, duration time.Duration) (string, error)
 }

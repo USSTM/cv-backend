@@ -45,6 +45,10 @@ func (q *TaskQueue) Enqueue(taskType string, data interface{}) (*asynq.TaskInfo,
 	return t, err
 }
 
+func (q *TaskQueue) Close() error {
+	return q.client.Close()
+}
+
 const (
 	TypeEmailDelivery = "email:delivery"
 )
@@ -90,7 +94,13 @@ func (w *Worker) Start() error {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(TypeEmailDelivery, w.HandleEmailDelivery)
 
-	return w.server.Run(mux)
+	return w.server.Start(mux)
+}
+
+func (w *Worker) Close() {
+	if w.server != nil {
+		w.server.Shutdown()
+	}
 }
 
 func (w *Worker) HandleEmailDelivery(ctx context.Context, t *asynq.Task) error {
@@ -105,8 +115,4 @@ func (w *Worker) HandleEmailDelivery(ctx context.Context, t *asynq.Task) error {
 	}
 
 	return nil
-}
-
-func (q *TaskQueue) Close() error {
-	return q.client.Close()
 }

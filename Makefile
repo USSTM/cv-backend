@@ -28,6 +28,14 @@ build: generate
 run: build
 	export $$(cat .env | xargs) && ./bin/server
 
+# make s3 flag=upload value=/path/to/file
+# make s3 flag=get value=/path/to/file
+# make s3 flag=list
+# make s3 flag=buckets
+# make s3 flag=link value=/path/to/file
+s3:
+	@export $$(cat .env | xargs) && go run cmd/object-storage/main.go -$(flag) $(value)
+
 email:
 	@export $$(cat .env | xargs) && go run cmd/emailer/main.go --$(flag)
 
