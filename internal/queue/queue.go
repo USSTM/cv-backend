@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/USSTM/cv-backend/internal/aws"
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/logging"
 	"github.com/hibiken/asynq"
 )
+
+type EmailSender interface {
+	SendEmail(ctx context.Context, to, subject, body string) error
+}
 
 type TaskQueue struct {
 	client *asynq.Client
@@ -61,10 +64,10 @@ type EmailDeliveryPayload struct {
 
 type Worker struct {
 	server       *asynq.Server
-	emailService aws.EmailService
+	emailService EmailSender
 }
 
-func NewWorker(cfg *config.RedisConfig, emailService *aws.EmailService) *Worker {
+func NewWorker(cfg *config.RedisConfig, emailService EmailSender) *Worker {
 	server := asynq.NewServer(
 		asynq.RedisClientOpt{
 			Addr:     cfg.Addr,
@@ -86,7 +89,7 @@ func NewWorker(cfg *config.RedisConfig, emailService *aws.EmailService) *Worker 
 
 	return &Worker{
 		server:       server,
-		emailService: *emailService,
+		emailService: emailService,
 	}
 }
 

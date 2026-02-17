@@ -6,7 +6,6 @@ import (
 
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
@@ -17,22 +16,9 @@ type EmailService struct {
 }
 
 func NewEmailService(cfg config.AWSConfig) (*EmailService, error) {
-	opts := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithRegion(cfg.Region),
-	}
-
-	if cfg.AccessKeyID != "" && cfg.SecretAccessKey != "" {
-		opts = append(opts, awsconfig.WithCredentialsProvider(aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
-			return aws.Credentials{
-				AccessKeyID:     cfg.AccessKeyID,
-				SecretAccessKey: cfg.SecretAccessKey,
-			}, nil
-		})))
-	}
-
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(), opts...)
+	awsCfg, err := LoadAWSConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+		return nil, err
 	}
 
 	// create SES client, overriding endpoint if provided (for LocalStack)

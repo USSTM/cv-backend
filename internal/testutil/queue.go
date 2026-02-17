@@ -84,10 +84,13 @@ func (tQ *TestQueue) Enqueue(taskType string, data interface{}) (*asynq.TaskInfo
 }
 
 func (tQ *TestQueue) Cleanup(t *testing.T) {
-	ctx := context.Background()
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	err := tQ.Redis.FlushDB(ctx).Err()
-	require.NoError(t, err, "Failed to flush Redis database")
+	if err := tQ.Redis.FlushDB(ctx).Err(); err != nil {
+		t.Logf("WARNING: failed to flush Redis between tests: %v", err)
+	}
 }
 
 func (tq *TestQueue) Close() {

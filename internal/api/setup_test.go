@@ -15,24 +15,27 @@ import (
 )
 
 var (
-	sharedTestDB *testutil.TestDatabase
+	sharedTestDB     *testutil.TestDatabase
+	sharedQueue      *testutil.TestQueue
+	sharedLocalStack *testutil.TestLocalStack
 )
 
 // TestMain runs once before all tests
 func TestMain(m *testing.M) {
-	// Create container and pool
-	sharedTestDB = testutil.NewTestDatabase(&testing.T{})
+	t := &testing.T{}
 
-	// Run migrations once
-	sharedTestDB.RunMigrations(&testing.T{})
+	sharedTestDB = testutil.NewTestDatabase(t)
+	sharedTestDB.RunMigrations(t)
+	sharedQueue = testutil.NewTestQueue(t)
+	sharedLocalStack = testutil.NewTestLocalStack(t)
 
-	// Run all tests
 	code := m.Run()
 
-	// Cleanup
 	if sharedTestDB.Pool() != nil {
 		sharedTestDB.Pool().Close()
 	}
+	sharedLocalStack.Close()
+	sharedQueue.Close()
 
 	os.Exit(code)
 }
@@ -47,11 +50,10 @@ func getSharedTestDatabase(t *testing.T) *testutil.TestDatabase {
 // test server initializer
 func newTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
+	sharedQueue.Cleanup(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	mockLocalStack := testutil.NewTestLocalStack(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth, mockLocalStack, mockLocalStack)
+	server := NewServer(testDB, sharedQueue, mockJWT, mockAuth, sharedLocalStack, sharedLocalStack)
 	return server, testDB, mockAuth
 }
 

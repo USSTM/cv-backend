@@ -83,10 +83,6 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		S3:        s3Client,
 	}
 
-	t.Cleanup(func() {
-		ls.Close()
-	})
-
 	return ls
 }
 
@@ -97,7 +93,8 @@ func (ls *TestLocalStack) Close() {
 }
 
 func (ls *TestLocalStack) Cleanup(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	listOut, err := ls.SES.ListIdentities(ctx, &ses.ListIdentitiesInput{})
 	if err != nil {
@@ -114,9 +111,11 @@ func (ls *TestLocalStack) Cleanup(t *testing.T) {
 		}
 	}
 
-	ls.S3.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	if _, err := ls.S3.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String("cv-backend-test-bucket"),
-	})
+	}); err != nil {
+		t.Logf("Failed to delete S3 bucket: %v", err)
+	}
 }
 
 func (ls *TestLocalStack) SendEmail(ctx context.Context, to, subject, body string) error {

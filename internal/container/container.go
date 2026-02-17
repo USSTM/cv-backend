@@ -47,14 +47,23 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
-	// verify email identity for LocalStack (this is unnecessary when using actual AWS SES)
-	if _, err := sesService.VerifyEmailIdentity(context.Background()); err != nil {
-		logging.Error("Failed to verify email identity", "error", err)
+	// localstack-specific config (email identity not managed by app in prod)
+	if cfg.AWS.EndpointURL != "" {
+		if _, err := sesService.VerifyEmailIdentity(context.Background()); err != nil {
+			logging.Error("Failed to verify email identity", "error", err)
+		}
 	}
 
 	s3Service, err := aws.NewS3Service(cfg.AWS)
 	if err != nil {
 		return nil, err
+	}
+
+	// localstack-specific config (buckets are not managed by app in prod)
+	if cfg.AWS.EndpointURL != "" {
+		if err := s3Service.CreateBucket(context.Background()); err != nil {
+			logging.Info("S3 bucket creation attempted", "bucket", cfg.AWS.Bucket, "result", err)
+		}
 	}
 
 	worker := queue.NewWorker(&cfg.Redis, sesService)

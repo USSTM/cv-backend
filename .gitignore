@@ -14,3 +14,4 @@ Thumbs.db
 bin/
 seeder
 logs/
+*.png
