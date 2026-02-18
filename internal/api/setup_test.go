@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"flag"
 	"os"
 	"testing"
 	"time"
@@ -22,6 +23,11 @@ var (
 
 // TestMain runs once before all tests
 func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() {
+		os.Exit(0)
+	}
+
 	t := &testing.T{}
 
 	sharedTestDB = testutil.NewTestDatabase(t)

@@ -88,12 +88,16 @@ func New(cfg config.Config) (*Container, error) {
 }
 
 func (c *Container) Cleanup() {
-	if c.Database != nil {
-		c.Database.Close()
-		logging.Info("Database connection closed")
+	if c.Queue != nil {
+		c.Queue.Close()
+		logging.Info("Queue client closed")
 	}
 	if c.Worker != nil {
 		c.Worker.Close()
 		logging.Info("Worker closed")
+	}
+	if c.Database != nil {
+		c.Database.Close()
+		logging.Info("Database connection closed")
 	}
 }

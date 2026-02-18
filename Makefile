@@ -1,13 +1,13 @@
 .PHONY: seed generate-api generate-db generate build run clean migrate-up migrate-down migrate-status migrate-create db-reset test test-unit test-integration test-colima test-verbose
 
 seed:
-	export $$(cat .env | xargs) && go run cmd/seeder/main.go seed --file config/dev-seed.yaml
+	export $$(cat .env | xargs) && go run scripts/seeder/main.go seed --file config/dev-seed.yaml
 
 nuke:
-	export $$(cat .env | xargs) && go run cmd/seeder/main.go nuke --force
+	export $$(cat .env | xargs) && go run scripts/seeder/main.go nuke --force
 
 reseed: nuke
-	export $$(cat .env | xargs) && go run cmd/seeder/main.go seed --file config/dev-seed.yaml
+	export $$(cat .env | xargs) && go run scripts/seeder/main.go seed --file config/dev-seed.yaml
 
 # Generate API boilerplate from OpenAPI spec
 generate-api:
@@ -34,13 +34,13 @@ run: build
 # make s3 flag=buckets
 # make s3 flag=link value=/path/to/file
 s3:
-	@export $$(cat .env | xargs) && go run cmd/object-storage/main.go --$(flag) $(value)
+	@export $$(cat .env | xargs) && go run scripts/object-storage/main.go --$(flag) $(value)
 
 email:
-	@export $$(cat .env | xargs) && go run cmd/emailer/main.go --$(flag)
+	@export $$(cat .env | xargs) && go run scripts/emailer/main.go --$(flag)
 
 run-worker:
-	export $$(cat .env | xargs) && go run cmd/worker/main.go
+	export $$(cat .env | xargs) && go run scripts/worker/main.go
 
 # Clean build artifacts
 clean:
