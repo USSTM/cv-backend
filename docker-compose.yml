@@ -19,6 +19,17 @@ services:
         volumes:
             - redisdata:/data
 
+    localstack:
+        image: localstack/localstack:3.0
+        ports:
+            - "4566:4566"
+        environment:
+            - SERVICES=ses,s3
+            - DEBUG=${DEBUG:-0}
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+
+
 volumes:
     pgdata:
     redisdata:

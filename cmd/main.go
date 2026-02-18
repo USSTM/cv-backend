@@ -92,6 +92,13 @@ func main() {
 		os.Exit(0)
 	}()
 
+	logging.Info("Starting queue worker...")
+	if err := c.Worker.Start(); err != nil {
+		logging.Error("Worker failed to start", "error", err)
+		log.Fatal(err)
+	}
+	defer c.Worker.Close()
+
 	logging.Info("Server starting", "address", addr)
 	if err := s.ListenAndServe(); err != nil {
 		logging.Error("Server failed", "error", err)

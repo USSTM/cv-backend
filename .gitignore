@@ -12,5 +12,6 @@ ENV/
 Thumbs.db
 .env
 bin/
-seeder
+/seeder
 logs/
+*.png

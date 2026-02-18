@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"flag"
 	"os"
 	"testing"
 	"time"
@@ -15,24 +16,32 @@ import (
 )
 
 var (
-	sharedTestDB *testutil.TestDatabase
+	sharedTestDB     *testutil.TestDatabase
+	sharedQueue      *testutil.TestQueue
+	sharedLocalStack *testutil.TestLocalStack
 )
 
 // TestMain runs once before all tests
 func TestMain(m *testing.M) {
-	// Create container and pool
-	sharedTestDB = testutil.NewTestDatabase(&testing.T{})
+	flag.Parse()
+	if testing.Short() {
+		os.Exit(0)
+	}
 
-	// Run migrations once
-	sharedTestDB.RunMigrations(&testing.T{})
+	t := &testing.T{}
 
-	// Run all tests
+	sharedTestDB = testutil.NewTestDatabase(t)
+	sharedTestDB.RunMigrations(t)
+	sharedQueue = testutil.NewTestQueue(t)
+	sharedLocalStack = testutil.NewTestLocalStack(t)
+
 	code := m.Run()
 
-	// Cleanup
 	if sharedTestDB.Pool() != nil {
 		sharedTestDB.Pool().Close()
 	}
+	sharedLocalStack.Close()
+	sharedQueue.Close()
 
 	os.Exit(code)
 }
@@ -47,10 +56,10 @@ func getSharedTestDatabase(t *testing.T) *testutil.TestDatabase {
 // test server initializer
 func newTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
+	sharedQueue.Cleanup(t)
 	mockJWT := testutil.NewMockJWTService(t)
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server := NewServer(testDB, sharedQueue, mockJWT, mockAuth, sharedLocalStack, sharedLocalStack)
 	return server, testDB, mockAuth
 }
 

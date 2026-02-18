@@ -14,16 +14,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newAuthTestServer is a local newTestServer impl that returns the JWT mock,
+// needed for tests that assert on token generation.
+func newAuthTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator, *testutil.MockJWTService) {
+	testDB := getSharedTestDatabase(t)
+	sharedQueue.Cleanup(t)
+	mockJWT := testutil.NewMockJWTService(t)
+	mockAuth := testutil.NewMockAuthenticator(t)
+	server := NewServer(testDB, sharedQueue, mockJWT, mockAuth, sharedLocalStack, sharedLocalStack)
+	return server, testDB, mockAuth, mockJWT
+}
+
 func TestServer_LoginUser(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration tests in short mode")
 	}
 
-	testDB := getSharedTestDatabase(t)
-	testQueue := testutil.NewTestQueue(t)
-	mockJWT := testutil.NewMockJWTService(t)
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, testQueue, mockJWT, mockAuth)
+	server, testDB, _, mockJWT := newAuthTestServer(t)
 
 	t.Run("successful login", func(t *testing.T) {
 		// Create test user in database using builder

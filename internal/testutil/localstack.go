@@ -2,11 +2,13 @@ package testutil
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/stretchr/testify/require"
@@ -19,6 +21,7 @@ type TestLocalStack struct {
 	Container *localstack.LocalStackContainer
 	Config    aws.Config
 	SES       *ses.Client
+	S3        *s3.Client
 }
 
 func NewTestLocalStack(t *testing.T) *TestLocalStack {
@@ -30,7 +33,7 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Env: map[string]string{
-					"SERVICES": "ses",
+					"SERVICES": "ses,s3",
 				},
 			},
 		}),
@@ -68,15 +71,17 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		o.BaseEndpoint = aws.String(endpoint)
 	})
 
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
+		o.UsePathStyle = true
+	})
+
 	ls := &TestLocalStack{
 		Container: container,
 		Config:    cfg,
 		SES:       sesClient,
+		S3:        s3Client,
 	}
-
-	t.Cleanup(func() {
-		ls.Close()
-	})
 
 	return ls
 }
@@ -88,7 +93,8 @@ func (ls *TestLocalStack) Close() {
 }
 
 func (ls *TestLocalStack) Cleanup(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	listOut, err := ls.SES.ListIdentities(ctx, &ses.ListIdentitiesInput{})
 	if err != nil {
@@ -103,6 +109,12 @@ func (ls *TestLocalStack) Cleanup(t *testing.T) {
 		if err != nil {
 			t.Logf("Failed to delete identity %s: %v", identity, err)
 		}
+	}
+
+	if _, err := ls.S3.DeleteBucket(ctx, &s3.DeleteBucketInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+	}); err != nil {
+		t.Logf("Failed to delete S3 bucket: %v", err)
 	}
 }
 
@@ -126,4 +138,38 @@ func (ls *TestLocalStack) SendEmail(ctx context.Context, to, subject, body strin
 
 	_, err := ls.SES.SendEmail(ctx, input)
 	return err
+}
+
+func (ls *TestLocalStack) PutObject(ctx context.Context, key string, body io.Reader, contentType string) error {
+	_, err := ls.S3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String("cv-backend-test-bucket"),
+		Key:         aws.String(key),
+		Body:        body,
+		ContentType: aws.String(contentType),
+	})
+	return err
+}
+
+func (ls *TestLocalStack) GetObject(ctx context.Context, key string) (io.ReadCloser, error) {
+	output, err := ls.S3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output.Body, nil
+}
+
+func (ls *TestLocalStack) GeneratePresignedURL(ctx context.Context, method string, key string, duration time.Duration) (string, error) {
+	presignClient := s3.NewPresignClient(ls.S3)
+	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(duration))
+
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
 }
