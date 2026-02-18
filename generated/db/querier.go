@@ -49,7 +49,7 @@ type Querier interface {
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
 	CreateSignUpCode(ctx context.Context, arg CreateSignUpCodeParams) (SignupCode, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	CreateUser(ctx context.Context, email string) (User, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
@@ -65,7 +65,7 @@ type Querier interface {
 	GetAllItems(ctx context.Context, arg GetAllItemsParams) ([]Item, error)
 	GetAllRequests(ctx context.Context, arg GetAllRequestsParams) ([]Request, error)
 	GetAllReturnedItems(ctx context.Context, arg GetAllReturnedItemsParams) ([]Borrowing, error)
-	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
+	GetAllUsers(ctx context.Context) ([]User, error)
 	GetApprovedRequestForUserAndItem(ctx context.Context, arg GetApprovedRequestForUserAndItemParams) (Request, error)
 	// Get all approvers available on a specific date
 	GetAvailabilityByDate(ctx context.Context, date pgtype.Date) ([]GetAvailabilityByDateRow, error)
@@ -73,7 +73,7 @@ type Querier interface {
 	// Get count of availability entries for a user in a date range
 	GetAvailabilityCountByUser(ctx context.Context, arg GetAvailabilityCountByUserParams) (int64, error)
 	// Find all approvers available for a specific date/time slot
-	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]GetAvailableApproversForSlotRow, error)
+	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]User, error)
 	GetBookingByID(ctx context.Context, id uuid.UUID) (GetBookingByIDRow, error)
 	GetBookingByIDForUpdate(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBorrowedItemHistoryByUserIdParams) ([]Borrowing, error)
@@ -102,7 +102,7 @@ type Querier interface {
 	// Get a specific user's availability schedule
 	GetUserAvailability(ctx context.Context, arg GetUserAvailabilityParams) ([]GetUserAvailabilityRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
-	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
@@ -126,12 +126,12 @@ type Querier interface {
 	ReturnItem(ctx context.Context, arg ReturnItemParams) (Borrowing, error)
 	// this function updates the status of a request (approve or deny) and records who reviewed it and when
 	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
+	// if query null then alphabetical, else sort by rank
 	SearchItems(ctx context.Context, arg SearchItemsParams) ([]SearchItemsRow, error)
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
-	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 
 var _ Querier = (*Queries)(nil)

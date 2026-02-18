@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
-	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,10 +18,12 @@ type DatabaseService interface {
 	Close()
 }
 
-// JWTService defines the interface for JWT operations
-type JWTService interface {
-	GenerateToken(ctx context.Context, userID uuid.UUID) (string, error)
-	ValidateToken(ctx context.Context, token string) (*auth.TokenClaims, error)
+// AuthService defines the interface for passwordless OTP + refresh token auth
+type AuthService interface {
+	RequestOTP(ctx context.Context, email string) (string, error)
+	VerifyOTP(ctx context.Context, email, code string) (string, string, error)
+	Refresh(ctx context.Context, refreshToken string) (string, string, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 // AuthenticatorService defines the interface for authentication operations

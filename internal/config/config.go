@@ -13,6 +13,7 @@ type Config struct {
 	Redis    RedisConfig
 	Server   ServerConfig
 	JWT      JWTConfig
+	Auth     AuthConfig
 	Logging  LoggingConfig
 	CORS     CORSConfig
 	AWS      AWSConfig
@@ -50,6 +51,13 @@ type JWTConfig struct {
 	SigningKey string
 	Issuer     string
 	Expiry     time.Duration
+}
+
+type AuthConfig struct {
+	OTPExpiry      time.Duration
+	OTPCooldown    time.Duration
+	OTPMaxAttempts int
+	RefreshExpiry  time.Duration
 }
 
 type LoggingConfig struct {
@@ -92,7 +100,13 @@ func Load() *Config {
 		JWT: JWTConfig{
 			SigningKey: getEnv("JWT_SIGNING_KEY", "default-signing-key-change-in-production"),
 			Issuer:     getEnv("JWT_ISSUER", "campus-vault"),
-			Expiry:     getEnvDuration("JWT_EXPIRY", 24*time.Hour),
+			Expiry:     getEnvDuration("JWT_EXPIRY", 15*time.Minute),
+		},
+		Auth: AuthConfig{
+			OTPExpiry:      getEnvDuration("OTP_EXPIRY", 5*time.Minute),
+			OTPCooldown:    getEnvDuration("OTP_COOLDOWN", 60*time.Second),
+			OTPMaxAttempts: getEnvAs("OTP_MAX_ATTEMPTS", 3, strconv.Atoi),
+			RefreshExpiry:  getEnvDuration("REFRESH_TOKEN_EXPIRY", 168*time.Hour),
 		},
 		Logging: LoggingConfig{
 			Level:      getEnv("LOG_LEVEL", "info"),

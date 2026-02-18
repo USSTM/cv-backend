@@ -77,24 +77,14 @@ func (q *Queries) CreateRolePermission(ctx context.Context, arg CreateRolePermis
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, password_hash) 
-VALUES ($1, $2) 
+INSERT INTO users (email)
+VALUES ($1)
 RETURNING id, email
 `
 
-type CreateUserParams struct {
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-}
-
-type CreateUserRow struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash)
-	var i CreateUserRow
+func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, email)
+	var i User
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
@@ -121,13 +111,13 @@ func (q *Queries) CreateUserRole(ctx context.Context, arg CreateUserRoleParams) 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash FROM users WHERE email = $1
+SELECT id, email FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i User
-	err := row.Scan(&i.ID, &i.Email, &i.PasswordHash)
+	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
 
@@ -135,14 +125,9 @@ const getUserByID = `-- name: GetUserByID :one
 SELECT id, email FROM users WHERE id = $1
 `
 
-type GetUserByIDRow struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-}
-
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i GetUserByIDRow
+	var i User
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
@@ -224,18 +209,4 @@ func (q *Queries) GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUse
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateUserPassword = `-- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = $2 WHERE id = $1
-`
-
-type UpdateUserPasswordParams struct {
-	ID           uuid.UUID `json:"id"`
-	PasswordHash string    `json:"password_hash"`
-}
-
-func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
-	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
-	return err
 }

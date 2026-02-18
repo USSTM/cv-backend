@@ -1,16 +1,13 @@
 -- name: GetUserByEmail :one
-SELECT id, email, password_hash FROM users WHERE email = $1;
+SELECT id, email FROM users WHERE email = $1;
 
 -- name: CreateUser :one
-INSERT INTO users (email, password_hash) 
-VALUES ($1, $2) 
+INSERT INTO users (email)
+VALUES ($1)
 RETURNING id, email;
 
 -- name: GetUserByID :one
 SELECT id, email FROM users WHERE id = $1;
-
--- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = $2 WHERE id = $1;
 
 -- name: GetUserPermissions :many
 SELECT DISTINCT p.name, p.description, ur.scope, ur.scope_id
@@ -45,4 +42,3 @@ INSERT INTO role_permissions (role_name, permission_name) VALUES ($1, $2);
 
 -- name: CreateUserRole :exec
 INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4);
-

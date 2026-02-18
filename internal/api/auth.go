@@ -2,59 +2,127 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
-	"github.com/USSTM/cv-backend/internal/auth"
+	internalauth "github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/rbac"
-	"golang.org/x/crypto/bcrypt"
 )
 
-func (s Server) LoginUser(ctx context.Context, request api.LoginUserRequestObject) (api.LoginUserResponseObject, error) {
+func (s Server) RequestOTP(ctx context.Context, request api.RequestOTPRequestObject) (api.RequestOTPResponseObject, error) {
 	if request.Body == nil {
-		return api.LoginUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+		return api.RequestOTP400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+
+	logger := middleware.GetLoggerFromContext(ctx)
+	email := string(request.Body.Email)
+
+	code, err := s.authService.RequestOTP(ctx, email)
+	if err != nil {
+		if errors.Is(err, internalauth.ErrUserNotFound) {
+			return api.RequestOTP200JSONResponse{Message: "A login code has been sent if your email is registered."}, nil
+		}
+		if errors.Is(err, internalauth.ErrOTPCooldown) {
+			logger.Warn("OTP request blocked by cooldown", "email", email)
+			return api.RequestOTP429JSONResponse(ValidationErr("Please wait before requesting another code.", nil).Create()), nil
+		}
+		logger.Error("Failed to generate OTP", "email", email, "error", err)
+		return api.RequestOTP500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	_, err = s.queue.Enqueue(queue.TypeEmailDelivery, queue.EmailDeliveryPayload{
+		To:      email,
+		Subject: "Your Campus Vault login code",
+		Body:    "Your one-time login code is: " + code + "\n\nThis code expires in 5 minutes.",
+	})
+	if err != nil {
+		logger.Error("Failed to enqueue OTP email", "email", email, "error", err)
+		return api.RequestOTP500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	logger.Info("OTP requested", "email", email)
+	return api.RequestOTP200JSONResponse{Message: "A login code has been sent if your email is registered."}, nil
+}
+
+func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObject) (api.VerifyOTPResponseObject, error) {
+	if request.Body == nil {
+		return api.VerifyOTP400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+
+	logger := middleware.GetLoggerFromContext(ctx)
+	email := string(request.Body.Email)
+	code := request.Body.Code
+
+	accessToken, refreshToken, err := s.authService.VerifyOTP(ctx, email, code)
+	if err != nil {
+		if errors.Is(err, internalauth.ErrOTPInvalid) {
+			logger.Warn("OTP verification failed: invalid code", "email", email)
+			return api.VerifyOTP400JSONResponse(ValidationErr("Invalid or expired code.", nil).Create()), nil
+		}
+		if errors.Is(err, internalauth.ErrOTPMaxAttempts) {
+			logger.Warn("OTP verification failed: max attempts exceeded", "email", email)
+			return api.VerifyOTP400JSONResponse(ValidationErr("Invalid or expired code.", nil).Create()), nil
+		}
+		if errors.Is(err, internalauth.ErrUserNotFound) {
+			logger.Warn("OTP verification failed: unknown email", "email", email)
+			return api.VerifyOTP400JSONResponse(ValidationErr("No account found for this email.", nil).Create()), nil
+		}
+		logger.Error("Failed to verify OTP", "email", email, "error", err)
+		return api.VerifyOTP500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	logger.Info("User authenticated via OTP", "email", email)
+	return api.VerifyOTP200JSONResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
+	if request.Body == nil {
+		return api.RefreshToken401JSONResponse(Unauthorized("Request body is required").Create()), nil
 	}
 
 	logger := middleware.GetLoggerFromContext(ctx)
 
-	req := *request.Body
-	user, err := s.db.Queries().GetUserByEmail(ctx, string(req.Email))
+	accessToken, refreshToken, err := s.authService.Refresh(ctx, request.Body.RefreshToken)
 	if err != nil {
-		logger.Warn("User not found during login",
-			"email", req.Email,
-			"error", err)
-		return api.LoginUser400JSONResponse(ValidationErr("Invalid email or password.", nil).Create()), nil
+		if errors.Is(err, internalauth.ErrRefreshInvalid) {
+			logger.Warn("Refresh token rejected: invalid or expired")
+			return api.RefreshToken401JSONResponse(Unauthorized("Invalid or expired refresh token.").Create()), nil
+		}
+		logger.Error("Failed to refresh token", "error", err)
+		return api.RefreshToken500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		logger.Warn("Invalid password during login",
-			"email", req.Email,
-			"error", err)
-		return api.LoginUser400JSONResponse(ValidationErr("Invalid email or password.", nil).Create()), nil
-	}
-
-	userUUID := user.ID
-
-	token, err := s.jwtService.GenerateToken(ctx, userUUID)
-	if err != nil {
-		logger.Error("Failed to generate token",
-			"email", user.Email,
-			"user_id", userUUID,
-			"error", err)
-		return api.LoginUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
-	}
-
-	logger.Info("User logged in successfully", "email", user.Email)
-	return api.LoginUser200JSONResponse{
-		Token: &token,
+	return api.RefreshToken200JSONResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
+}
+
+func (s Server) Logout(ctx context.Context, request api.LogoutRequestObject) (api.LogoutResponseObject, error) {
+	if request.Body == nil {
+		return api.Logout400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+
+	logger := middleware.GetLoggerFromContext(ctx)
+
+	if err := s.authService.Logout(ctx, request.Body.RefreshToken); err != nil {
+		logger.Error("Failed to logout", "error", err)
+		return api.Logout500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	return api.Logout200JSONResponse{Message: "Logged out successfully."}, nil
 }
 
 func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequestObject) (api.PingProtectedResponseObject, error) {
 	logger := middleware.GetLoggerFromContext(ctx)
 
-	user, ok := auth.GetAuthenticatedUser(ctx)
+	user, ok := internalauth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.PingProtected401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}

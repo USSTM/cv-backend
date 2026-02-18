@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // TestItem represents a test item
@@ -195,15 +194,8 @@ func (ub *UserBuilder) WithCustomRole(roleName, scope string, groupID *uuid.UUID
 func (ub *UserBuilder) Create() *TestUser {
 	ctx := context.Background()
 
-	// Hash the password "password" using bcrypt
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	require.NoError(ub.t, err, "Failed to hash password")
-
 	// Create user in database
-	dbUser, err := ub.testDB.Queries().CreateUser(ctx, db.CreateUserParams{
-		Email:        ub.email,
-		PasswordHash: string(hashedPassword),
-	})
+	dbUser, err := ub.testDB.Queries().CreateUser(ctx, ub.email)
 	require.NoError(ub.t, err, "Failed to create user")
 
 	// Assign roles with proper scoping

@@ -305,9 +305,8 @@ type TimeSlot struct {
 }
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
 }
 
 type UserAvailability struct {

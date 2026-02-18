@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -53,14 +55,44 @@ func getSharedTestDatabase(t *testing.T) *testutil.TestDatabase {
 	return sharedTestDB
 }
 
-// test server initializer
 func newTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
 	testDB := getSharedTestDatabase(t)
 	sharedQueue.Cleanup(t)
-	mockJWT := testutil.NewMockJWTService(t)
+
+	jwtSvc, err := auth.NewJWTService([]byte("test-signing-key"), "test-issuer", 15*time.Minute)
+	require.NoError(t, err)
+
+	authSvc := auth.NewAuthService(sharedQueue.Redis, jwtSvc, testDB.Queries(), config.AuthConfig{
+		OTPExpiry:      5 * time.Minute,
+		OTPCooldown:    60 * time.Second,
+		OTPMaxAttempts: 3,
+		RefreshExpiry:  7 * 24 * time.Hour,
+	})
+
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, sharedQueue, mockJWT, mockAuth, sharedLocalStack, sharedLocalStack)
+	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack)
 	return server, testDB, mockAuth
+}
+
+// newAuthTestServer is like newTestServer but also returns the AuthService so auth
+// handler tests can set up state without going through email.
+func newAuthTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator, *auth.AuthService) {
+	testDB := getSharedTestDatabase(t)
+	sharedQueue.Cleanup(t)
+
+	jwtSvc, err := auth.NewJWTService([]byte("test-signing-key"), "test-issuer", 15*time.Minute)
+	require.NoError(t, err)
+
+	authSvc := auth.NewAuthService(sharedQueue.Redis, jwtSvc, testDB.Queries(), config.AuthConfig{
+		OTPExpiry:      5 * time.Minute,
+		OTPCooldown:    60 * time.Second,
+		OTPMaxAttempts: 3,
+		RefreshExpiry:  7 * 24 * time.Hour,
+	})
+
+	mockAuth := testutil.NewMockAuthenticator(t)
+	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack)
+	return server, testDB, mockAuth, authSvc
 }
 
 func toOpenAPIDate(t time.Time) openapi_types.Date {
