@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -36,7 +37,7 @@ func (s Server) RequestOTP(ctx context.Context, request api.RequestOTPRequestObj
 	_, err = s.queue.Enqueue(queue.TypeEmailDelivery, queue.EmailDeliveryPayload{
 		To:      email,
 		Subject: "Your Campus Vault login code",
-		Body:    "Your one-time login code is: " + code + "\n\nThis code expires in 5 minutes.",
+		Body:    fmt.Sprintf("Your one-time login code is: %s\n\nThis code expires in %d minutes.", code, int(s.authService.OTPExpiry().Minutes())),
 	})
 	if err != nil {
 		logger.Error("Failed to enqueue OTP email", "email", email, "error", err)
@@ -67,8 +68,8 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 			return api.VerifyOTP400JSONResponse(ValidationErr("Invalid or expired code.", nil).Create()), nil
 		}
 		if errors.Is(err, internalauth.ErrUserNotFound) {
-			logger.Warn("OTP verification failed: unknown email", "email", email)
-			return api.VerifyOTP400JSONResponse(ValidationErr("No account found for this email.", nil).Create()), nil
+			logger.Warn("OTP verification failed: user deleted between OTP request and verify", "email", email)
+			return api.VerifyOTP400JSONResponse(ValidationErr("Invalid or expired code.", nil).Create()), nil
 		}
 		logger.Error("Failed to verify OTP", "email", email, "error", err)
 		return api.VerifyOTP500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil

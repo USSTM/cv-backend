@@ -55,23 +55,10 @@ func getSharedTestDatabase(t *testing.T) *testutil.TestDatabase {
 	return sharedTestDB
 }
 
+// wrap around newAuthTestServer without breaking current tests
 func newTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil.MockAuthenticator) {
-	testDB := getSharedTestDatabase(t)
-	sharedQueue.Cleanup(t)
-
-	jwtSvc, err := auth.NewJWTService([]byte("test-signing-key"), "test-issuer", 15*time.Minute)
-	require.NoError(t, err)
-
-	authSvc := auth.NewAuthService(sharedQueue.Redis, jwtSvc, testDB.Queries(), config.AuthConfig{
-		OTPExpiry:      5 * time.Minute,
-		OTPCooldown:    60 * time.Second,
-		OTPMaxAttempts: 3,
-		RefreshExpiry:  7 * 24 * time.Hour,
-	})
-
-	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack)
-	return server, testDB, mockAuth
+	s, db, mock, _ := newAuthTestServer(t)
+	return s, db, mock
 }
 
 // newAuthTestServer is like newTestServer but also returns the AuthService so auth

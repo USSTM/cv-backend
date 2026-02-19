@@ -37,7 +37,7 @@ func (r *redisStore) deleteOTP(ctx context.Context, email string) error {
 func (r *redisStore) incrOTPAttempts(ctx context.Context, email string, ttl time.Duration) (int64, error) {
 	pipe := r.client.Pipeline()
 	incrCmd := pipe.Incr(ctx, otpAttemptsKey(email))
-	pipe.Expire(ctx, otpAttemptsKey(email), ttl)
+	pipe.ExpireNX(ctx, otpAttemptsKey(email), ttl)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return 0, err
 	}

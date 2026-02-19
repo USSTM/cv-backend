@@ -48,6 +48,11 @@ func NewAuthService(redisClient *redis.Client, jwtSvc *JWTService, queries *db.Q
 	}
 }
 
+// OTPExpiry returns the configured OTP expiry duration.
+func (s *AuthService) OTPExpiry() time.Duration {
+	return s.otpExpiry
+}
+
 // generates 6-digit OTP and return the plaintext code
 func (s *AuthService) RequestOTP(ctx context.Context, email string) (string, error) {
 	if _, err := s.db.GetUserByEmail(ctx, email); err != nil {
@@ -95,11 +100,6 @@ func (s *AuthService) VerifyOTP(ctx context.Context, email, code string) (access
 		return "", "", fmt.Errorf("incrementing OTP attempts: %w", err)
 	}
 
-	if attempts > int64(s.otpMaxAttempts) {
-		_ = s.store.deleteOTP(ctx, email)
-		return "", "", ErrOTPMaxAttempts
-	}
-
 	if hashString(code) != storedHash {
 		if attempts >= int64(s.otpMaxAttempts) {
 			_ = s.store.deleteOTP(ctx, email)
@@ -138,13 +138,13 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (newAcce
 		return "", "", fmt.Errorf("invalid user ID in refresh token: %w", err)
 	}
 
-	if err := s.store.deleteRefreshToken(ctx, hash); err != nil {
-		return "", "", fmt.Errorf("deleting refresh token: %w", err)
-	}
-
 	newAccess, newRefresh, err = s.issueTokenPair(ctx, userID)
 	if err != nil {
 		return "", "", err
+	}
+
+	if err := s.store.deleteRefreshToken(ctx, hash); err != nil {
+		return "", "", fmt.Errorf("deleting refresh token: %w", err)
 	}
 
 	logging.Info("refresh token rotated", "user_id", userID)

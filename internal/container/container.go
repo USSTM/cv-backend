@@ -14,16 +14,16 @@ import (
 )
 
 type Container struct {
-	Config       *config.Config
-	Database     *database.Database
-	Queue        *queue.TaskQueue
-	RedisClient  *redis.Client
-	AuthService  *auth.AuthService
-	EmailService *aws.EmailService
-	S3Service    *aws.S3Service
+	Config        *config.Config
+	Database      *database.Database
+	Queue         *queue.TaskQueue
+	RedisClient   *redis.Client
+	AuthService   *auth.AuthService
+	EmailService  *aws.EmailService
+	S3Service     *aws.S3Service
 	Authenticator *auth.Authenticator
-	Server       *api.Server
-	Worker       *queue.Worker
+	Server        *api.Server
+	Worker        *queue.Worker
 }
 
 func New(cfg config.Config) (*Container, error) {
@@ -37,6 +37,9 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
+	// Two separate Redis connection pools are used: the asynq task
+	// queue manages its own connection, and this client is used
+	// for auth state (OTP hashes, refresh tokens).
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,

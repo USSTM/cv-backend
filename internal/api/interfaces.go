@@ -24,6 +24,7 @@ type AuthService interface {
 	VerifyOTP(ctx context.Context, email, code string) (string, string, error)
 	Refresh(ctx context.Context, refreshToken string) (string, string, error)
 	Logout(ctx context.Context, refreshToken string) error
+	OTPExpiry() time.Duration
 }
 
 // AuthenticatorService defines the interface for authentication operations
