@@ -84,7 +84,7 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 
 func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
 	if request.Body == nil {
-		return api.RefreshToken401JSONResponse(Unauthorized("Request body is required").Create()), nil
+		return api.RefreshToken400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
 	logger := middleware.GetLoggerFromContext(ctx)

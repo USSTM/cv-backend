@@ -284,6 +284,9 @@ components:
           example: "user@torontomu.ca"
         code:
           type: string
+          minLength: 6
+          maxLength: 6
+          pattern: '^\d{6}$'
           example: "123456"
       required:
         - email
@@ -1150,6 +1153,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           description: Invalid or expired refresh token
           content:

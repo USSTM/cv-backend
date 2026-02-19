@@ -159,19 +159,36 @@ func TestAuthService_VerifyOTP(t *testing.T) {
 		_, err := svc.RequestOTP(ctx, user.Email)
 		require.NoError(t, err)
 
-		// 2 wrong attempts
-		for i := 0; i < 2; i++ {
+		// 3 wrong attempts (OTP_MAX_ATTEMPTS=3 means 3 allowed failures)
+		for i := 0; i < 3; i++ {
 			_, _, err = svc.VerifyOTP(ctx, user.Email, "000000")
 			assert.ErrorIs(t, err, auth.ErrOTPInvalid)
 		}
 
-		// OTP is deleted from spam
+		// 4th wrong attempt triggers lockout
 		_, _, err = svc.VerifyOTP(ctx, user.Email, "000000")
 		assert.ErrorIs(t, err, auth.ErrOTPMaxAttempts)
 
-		// no OTP in Redis
+		// OTP is deleted; further attempts return ErrOTPInvalid
 		_, _, err = svc.VerifyOTP(ctx, user.Email, "000000")
 		assert.ErrorIs(t, err, auth.ErrOTPInvalid)
+	})
+
+	t.Run("email normalization routes to same OTP", func(t *testing.T) {
+		sharedQueue.Cleanup(t)
+		sharedDB.CleanupDatabase(t)
+		svc := newTestAuthService(t)
+
+		user := sharedDB.NewUser(t).WithEmail("normalize@example.com").Create()
+
+		code, err := svc.RequestOTP(ctx, user.Email)
+		require.NoError(t, err)
+
+		// verify with mixed-case email should succeed
+		access, refresh, err := svc.VerifyOTP(ctx, "Normalize@Example.COM", code)
+		require.NoError(t, err)
+		assert.NotEmpty(t, access)
+		assert.NotEmpty(t, refresh)
 	})
 
 	t.Run("code can only be used once", func(t *testing.T) {

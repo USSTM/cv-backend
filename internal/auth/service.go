@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
@@ -55,6 +56,8 @@ func (s *AuthService) OTPExpiry() time.Duration {
 
 // generates 6-digit OTP and return the plaintext code
 func (s *AuthService) RequestOTP(ctx context.Context, email string) (string, error) {
+	email = strings.ToLower(email)
+
 	if _, err := s.db.GetUserByEmail(ctx, email); err != nil {
 		return "", ErrUserNotFound
 	}
@@ -87,6 +90,8 @@ func (s *AuthService) RequestOTP(ctx context.Context, email string) (string, err
 
 // checks the OTP code and returns a new access + refresh token pair.
 func (s *AuthService) VerifyOTP(ctx context.Context, email, code string) (accessToken, refreshToken string, err error) {
+	email = strings.ToLower(email)
+
 	storedHash, err := s.store.getOTPHash(ctx, email)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -95,14 +100,15 @@ func (s *AuthService) VerifyOTP(ctx context.Context, email, code string) (access
 		return "", "", fmt.Errorf("retrieving OTP hash: %w", err)
 	}
 
-	attempts, err := s.store.incrOTPAttempts(ctx, email, s.otpExpiry)
-	if err != nil {
-		return "", "", fmt.Errorf("incrementing OTP attempts: %w", err)
-	}
-
 	if hashString(code) != storedHash {
-		if attempts >= int64(s.otpMaxAttempts) {
-			_ = s.store.deleteOTP(ctx, email)
+		attempts, err := s.store.incrOTPAttempts(ctx, email, s.otpExpiry)
+		if err != nil {
+			return "", "", fmt.Errorf("incrementing OTP attempts: %w", err)
+		}
+		if attempts > int64(s.otpMaxAttempts) {
+			if err := s.store.deleteOTP(ctx, email); err != nil {
+				logging.Error("failed to delete OTP on max attempts", "email", email, "error", err)
+			}
 			return "", "", ErrOTPMaxAttempts
 		}
 		return "", "", ErrOTPInvalid

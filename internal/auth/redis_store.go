@@ -19,7 +19,11 @@ func newRedisStore(client *redis.Client) *redisStore {
 // OTP operations
 
 func (r *redisStore) storeOTPHash(ctx context.Context, email, hash string, ttl time.Duration) error {
-	return r.client.Set(ctx, otpCodeKey(email), hash, ttl).Err()
+	pipe := r.client.Pipeline()
+	pipe.Set(ctx, otpCodeKey(email), hash, ttl)
+	pipe.Del(ctx, otpAttemptsKey(email))
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 func (r *redisStore) getOTPHash(ctx context.Context, email string) (string, error) {
