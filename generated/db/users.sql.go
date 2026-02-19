@@ -56,20 +56,15 @@ const getAllUsers = `-- name: GetAllUsers :many
 SELECT id, email from users
 `
 
-type GetAllUsersRow struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-}
-
-func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
+func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 	rows, err := q.db.Query(ctx, getAllUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetAllUsersRow{}
+	items := []User{}
 	for rows.Next() {
-		var i GetAllUsersRow
+		var i User
 		if err := rows.Scan(&i.ID, &i.Email); err != nil {
 			return nil, err
 		}

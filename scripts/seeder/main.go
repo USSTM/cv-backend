@@ -19,7 +19,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
 )
 
@@ -50,8 +49,7 @@ type Item struct {
 }
 
 type User struct {
-	Email    string `yaml:"email"`
-	Password string `yaml:"password"`
+	Email string `yaml:"email"`
 }
 
 type UserRole struct {
@@ -333,16 +331,7 @@ func applySeedData(ctx context.Context, queries *db.Queries, data *SeedData) err
 	// create users , not dependent on other tables
 	userIDs := make(map[string]uuid.UUID)
 	for _, user := range data.Users {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return fmt.Errorf("failed to hash password for %s: %w", user.Email, err)
-		}
-
-		params := db.CreateUserParams{
-			Email:        user.Email,
-			PasswordHash: string(hashedPassword),
-		}
-		userResult, err := queries.CreateUser(ctx, params)
+		userResult, err := queries.CreateUser(ctx, user.Email)
 		if err != nil {
 			return fmt.Errorf("failed to create user %s: %w", user.Email, err)
 		}

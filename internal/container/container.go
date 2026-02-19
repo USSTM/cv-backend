@@ -10,13 +10,15 @@ import (
 	"github.com/USSTM/cv-backend/internal/database"
 	"github.com/USSTM/cv-backend/internal/logging"
 	"github.com/USSTM/cv-backend/internal/queue"
+	"github.com/redis/go-redis/v9"
 )
 
 type Container struct {
 	Config        *config.Config
 	Database      *database.Database
 	Queue         *queue.TaskQueue
-	JWTService    *auth.JWTService
+	RedisClient   *redis.Client
+	AuthService   *auth.AuthService
 	EmailService  *aws.EmailService
 	S3Service     *aws.S3Service
 	Authenticator *auth.Authenticator
@@ -35,10 +37,21 @@ func New(cfg config.Config) (*Container, error) {
 		return nil, err
 	}
 
+	// Two separate Redis connection pools are used: the asynq task
+	// queue manages its own connection, and this client is used
+	// for auth state (OTP hashes, refresh tokens).
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
 	jwtService, err := auth.NewJWTService([]byte(cfg.JWT.SigningKey), cfg.JWT.Issuer, cfg.JWT.Expiry)
 	if err != nil {
 		return nil, err
 	}
+
+	authService := auth.NewAuthService(redisClient, jwtService, db.Queries(), cfg.Auth)
 
 	authenticator := auth.NewAuthenticator(jwtService, db.Queries())
 
@@ -68,7 +81,7 @@ func New(cfg config.Config) (*Container, error) {
 
 	worker := queue.NewWorker(&cfg.Redis, sesService)
 
-	server := api.NewServer(db, taskQueue, jwtService, authenticator, sesService, s3Service)
+	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
@@ -78,7 +91,8 @@ func New(cfg config.Config) (*Container, error) {
 		Config:        &cfg,
 		Database:      db,
 		Queue:         taskQueue,
-		JWTService:    jwtService,
+		RedisClient:   redisClient,
+		AuthService:   authService,
 		EmailService:  sesService,
 		S3Service:     s3Service,
 		Authenticator: authenticator,
@@ -95,6 +109,10 @@ func (c *Container) Cleanup() {
 	if c.Worker != nil {
 		c.Worker.Close()
 		logging.Info("Worker closed")
+	}
+	if c.RedisClient != nil {
+		c.RedisClient.Close()
+		logging.Info("Redis client closed")
 	}
 	if c.Database != nil {
 		c.Database.Close()

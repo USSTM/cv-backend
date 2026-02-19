@@ -302,24 +302,27 @@ func (q *Queries) PatchItem(ctx context.Context, arg PatchItemParams) (Item, err
 
 const searchItems = `-- name: SearchItems :many
 WITH ranked_items AS (
-  SELECT id, name, description, type, stock, urls,
-    CASE 
+    -- get rankings (each row turned to rank, from vector/query relationship)
+    SELECT id, name, description, type, stock, urls,
+    CASE
       WHEN $1::TEXT IS NOT NULL THEN
         ts_rank(
           to_tsvector('english', name || ' ' || COALESCE(description, '')),
           plainto_tsquery('english', $1)
         )
-      ELSE 0.0
+        -- 0 if null query
+        ELSE 0.0
     END as rank
   FROM items
   WHERE ($1::TEXT IS NULL OR
+  -- if nulls, no ranking shenanigans
     to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', $1))
     AND ($4::item_type IS NULL OR type = $4)
     AND ($5::BOOLEAN IS NULL OR (stock > 0) = $5)
 )
 SELECT id, name, description, type, stock, urls, rank
 FROM ranked_items
-ORDER BY 
+ORDER BY
   CASE WHEN $1::TEXT IS NOT NULL THEN rank END DESC NULLS LAST,
   name ASC
 LIMIT $3 OFFSET $2
@@ -343,6 +346,7 @@ type SearchItemsRow struct {
 	Rank        float32     `json:"rank"`
 }
 
+// if query null then alphabetical, else sort by rank
 func (q *Queries) SearchItems(ctx context.Context, arg SearchItemsParams) ([]SearchItemsRow, error) {
 	rows, err := q.db.Query(ctx, searchItems,
 		arg.Query,

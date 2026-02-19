@@ -265,24 +265,67 @@ components:
       required:
         - error
 
-    LoginRequest:
+    RequestOTPRequest:
       type: object
       properties:
         email:
           type: string
           format: email
           example: "user@torontomu.ca"
-        password:
-          type: string
-          example: "password123"
       required:
         - email
-        - password
-    LoginResponse:
+
+    VerifyOTPRequest:
       type: object
       properties:
-        token:
+        email:
           type: string
+          format: email
+          example: "user@torontomu.ca"
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+          pattern: '^\d{6}$'
+          example: "123456"
+      required:
+        - email
+        - code
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+      required:
+        - access_token
+        - refresh_token
+
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+
+    LogoutRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
 
     PingResponse:
       type: object
@@ -1014,36 +1057,148 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReadinessResponse"
 
-  /auth/login:
+  /auth/request-otp:
     post:
       tags:
         - Authentication
       security: []
-      summary: Login User
-      description: Authenticates a user, returns a bearer token
-      operationId: loginUser
+      summary: Request OTP
+      description: Sends a one-time password to the user's email address
+      operationId: requestOTP
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginRequest"
+              $ref: "#/components/schemas/RequestOTPRequest"
       responses:
         "200":
-          description: Successful login
+          description: OTP sent successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
-        "400":
-          description: Bad Credentials
+                $ref: "#/components/schemas/MessageResponse"
+        "429":
+          description: Too many requests (cooldown active)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              example:
-                code: 400
-                message: "Invalid email or password."
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/verify-otp:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Verify OTP
+      description: Verifies the OTP and returns access and refresh tokens
+      operationId: verifyOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOTPRequest"
+      responses:
+        "200":
+          description: OTP verified, tokens returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Refresh Tokens
+      description: Exchanges a valid refresh token for a new access/refresh token pair
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Logout
+      description: Revokes the refresh token
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           description: Internal Server Error
           content:
@@ -1739,9 +1894,9 @@ paths:
     get:
       summary: Get all groups
       operationId: getAllGroups
-      tags: [ "Groups" ]
+      tags: ["Groups"]
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       responses:
         "200":
           description: List of all groups
@@ -1779,9 +1934,9 @@ paths:
     post:
       summary: Create a new group
       operationId: createGroup
-      tags: [ "Groups" ]
+      tags: ["Groups"]
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1824,9 +1979,9 @@ paths:
     get:
       summary: Get group by ID
       operationId: getGroupByID
-      tags: [ "Groups" ]
+      tags: ["Groups"]
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1868,9 +2023,9 @@ paths:
     put:
       summary: Update group
       operationId: updateGroup
-      tags: [ "Groups" ]
+      tags: ["Groups"]
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1924,9 +2079,9 @@ paths:
     delete:
       summary: Delete group
       operationId: deleteGroup
-      tags: [ "Groups" ]
+      tags: ["Groups"]
       security:
-        - BearerAuth: [ ]
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1960,7 +2115,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-
 
   /ping:
     get:
