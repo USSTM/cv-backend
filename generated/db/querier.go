@@ -43,8 +43,10 @@ type Querier interface {
 	CountTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg CountTakingHistoryByUserIdWithGroupFilterParams) (int64, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (UserAvailability, error)
 	CreateBooking(ctx context.Context, arg CreateBookingParams) (Booking, error)
+	CreateBorrowingImage(ctx context.Context, arg CreateBorrowingImageParams) (BorrowingImage, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
+	CreateItemImage(ctx context.Context, arg CreateItemImageParams) (ItemImage, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
@@ -54,8 +56,10 @@ type Querier interface {
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
 	DeleteAvailability(ctx context.Context, id uuid.UUID) error
+	DeleteBorrowingImage(ctx context.Context, id uuid.UUID) error
 	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteItem(ctx context.Context, id uuid.UUID) error
+	DeleteItemImage(ctx context.Context, id uuid.UUID) error
 	GetActiveBorrowedItemsByUserId(ctx context.Context, arg GetActiveBorrowedItemsByUserIdParams) ([]Borrowing, error)
 	GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, dueDate pgtype.Timestamp) ([]Borrowing, error)
 	// this function gets an active borrowing by item_id and user_id, used to validate ownership before return
@@ -77,6 +81,7 @@ type Querier interface {
 	GetBookingByID(ctx context.Context, id uuid.UUID) (GetBookingByIDRow, error)
 	GetBookingByIDForUpdate(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBorrowedItemHistoryByUserIdParams) ([]Borrowing, error)
+	GetBorrowingImageByID(ctx context.Context, id uuid.UUID) (BorrowingImage, error)
 	GetCartByUser(ctx context.Context, arg GetCartByUserParams) ([]GetCartByUserRow, error)
 	GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error)
 	GetCartItemsForCheckout(ctx context.Context, arg GetCartItemsForCheckoutParams) ([]GetCartItemsForCheckoutRow, error)
@@ -86,6 +91,7 @@ type Querier interface {
 	GetItemByID(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemByIDForUpdate(ctx context.Context, id uuid.UUID) (Item, error)
 	GetItemByName(ctx context.Context, name string) (Item, error)
+	GetItemImageByID(ctx context.Context, id uuid.UUID) (ItemImage, error)
 	GetItemsByType(ctx context.Context, arg GetItemsByTypeParams) ([]Item, error)
 	GetPendingRequests(ctx context.Context, arg GetPendingRequestsParams) ([]Request, error)
 	GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error)
@@ -112,6 +118,8 @@ type Querier interface {
 	ListAvailability(ctx context.Context, arg ListAvailabilityParams) ([]ListAvailabilityRow, error)
 	ListBookings(ctx context.Context, arg ListBookingsParams) ([]ListBookingsRow, error)
 	ListBookingsByUser(ctx context.Context, arg ListBookingsByUserParams) ([]ListBookingsByUserRow, error)
+	ListBorrowingImagesByBorrowing(ctx context.Context, borrowingID uuid.UUID) ([]BorrowingImage, error)
+	ListItemImagesByItem(ctx context.Context, itemID uuid.UUID) ([]ItemImage, error)
 	ListPendingConfirmation(ctx context.Context, groupID *uuid.UUID) ([]ListPendingConfirmationRow, error)
 	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
@@ -128,8 +136,11 @@ type Querier interface {
 	ReviewRequest(ctx context.Context, arg ReviewRequestParams) (ReviewRequestRow, error)
 	// if query null then alphabetical, else sort by rank
 	SearchItems(ctx context.Context, arg SearchItemsParams) ([]SearchItemsRow, error)
+	SetItemImageAsPrimary(ctx context.Context, id uuid.UUID) error
+	UnsetPrimaryItemImages(ctx context.Context, itemID uuid.UUID) error
 	UpdateCartItemQuantity(ctx context.Context, arg UpdateCartItemQuantityParams) (UpdateCartItemQuantityRow, error)
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
+	UpdateGroupLogo(ctx context.Context, arg UpdateGroupLogoParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
 }

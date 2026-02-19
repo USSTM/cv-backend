@@ -173,3 +173,11 @@ func (ls *TestLocalStack) GeneratePresignedURL(ctx context.Context, method strin
 	}
 	return req.URL, nil
 }
+
+func (ls *TestLocalStack) DeleteObject(ctx context.Context, key string) error {
+	_, err := ls.S3.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+		Key:    aws.String(key),
+	})
+	return err
+}

@@ -223,6 +223,15 @@ type Borrowing struct {
 	AfterConditionUrl  pgtype.Text      `json:"after_condition_url"`
 }
 
+type BorrowingImage struct {
+	ID          uuid.UUID        `json:"id"`
+	BorrowingID uuid.UUID        `json:"borrowing_id"`
+	S3Key       string           `json:"s3_key"`
+	ImageType   string           `json:"image_type"`
+	UploadedBy  *uuid.UUID       `json:"uploaded_by"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+}
+
 type Cart struct {
 	GroupID   uuid.UUID        `json:"group_id"`
 	UserID    uuid.UUID        `json:"user_id"`
@@ -232,9 +241,11 @@ type Cart struct {
 }
 
 type Group struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
+	ID                 uuid.UUID   `json:"id"`
+	Name               string      `json:"name"`
+	Description        pgtype.Text `json:"description"`
+	LogoS3Key          pgtype.Text `json:"logo_s3_key"`
+	LogoThumbnailS3Key pgtype.Text `json:"logo_thumbnail_s3_key"`
 }
 
 type Item struct {
@@ -244,6 +255,19 @@ type Item struct {
 	Type        ItemType    `json:"type"`
 	Stock       int32       `json:"stock"`
 	Urls        []string    `json:"urls"`
+}
+
+type ItemImage struct {
+	ID             uuid.UUID        `json:"id"`
+	ItemID         uuid.UUID        `json:"item_id"`
+	OriginalS3Key  string           `json:"original_s3_key"`
+	ThumbnailS3Key string           `json:"thumbnail_s3_key"`
+	DisplayOrder   int32            `json:"display_order"`
+	IsPrimary      bool             `json:"is_primary"`
+	Width          int32            `json:"width"`
+	Height         int32            `json:"height"`
+	UploadedBy     *uuid.UUID       `json:"uploaded_by"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
 }
 
 type ItemTaking struct {
