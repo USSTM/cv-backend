@@ -83,7 +83,7 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		S3:        s3Client,
 	}
 
-	// Ensure the test bucket exists (idempotent — ignore "already exists" errors).
+	// ensure bucket exists before tests run (since have manual cleanup func)
 	_, _ = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String("cv-backend-test-bucket"),
 	})
