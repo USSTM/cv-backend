@@ -1,19 +1,176 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"time"
 
 	genapi "github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/auth"
+	cvimage "github.com/USSTM/cv-backend/internal/image"
+	"github.com/USSTM/cv-backend/internal/rbac"
+	"github.com/google/uuid"
 )
 
+func (s Server) buildBorrowingImageResponse(ctx context.Context, img db.BorrowingImage) genapi.BorrowingImage {
+	url, _ := s.s3Service.GeneratePresignedURL(ctx, "GET", img.S3Key, time.Hour)
+	return genapi.BorrowingImage{
+		Id:          img.ID,
+		BorrowingId: img.BorrowingID,
+		Url:         url,
+		ImageType:   genapi.BorrowingImageImageType(img.ImageType),
+		CreatedAt:   img.CreatedAt.Time,
+	}
+}
+
+// returns true if the user may manage images for the given borrowing.
+// users with manage_all_bookings may access any borrowing; others need request_items and must 'own' it.
+func (s Server) checkBorrowingAccess(ctx context.Context, userID, borrowingID uuid.UUID) (bool, error) {
+	canManageAll, err := s.authenticator.CheckPermission(ctx, userID, rbac.ManageAllBookings, nil)
+	if err != nil {
+		return false, err
+	}
+	if canManageAll {
+		return true, nil
+	}
+
+	canOwn, err := s.authenticator.CheckPermission(ctx, userID, rbac.RequestItems, nil)
+	if err != nil {
+		return false, err
+	}
+	if !canOwn {
+		return false, nil
+	}
+
+	borrowing, err := s.db.Queries().GetBorrowingByID(ctx, borrowingID)
+	if err != nil {
+		return false, nil
+	}
+	return borrowing.UserID != nil && *borrowing.UserID == userID, nil
+}
+
 func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadBorrowingImageRequestObject) (genapi.UploadBorrowingImageResponseObject, error) {
-	return genapi.UploadBorrowingImage500JSONResponse(InternalError("not implemented").Create()), nil
+	user, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return genapi.UploadBorrowingImage401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+
+	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err != nil {
+		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return genapi.UploadBorrowingImage403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+
+	form, err := request.Body.ReadForm(32 << 20)
+	if err != nil {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Failed to parse multipart form", nil).Create()), nil
+	}
+
+	imageTypeVals := form.Value["image_type"]
+	if len(imageTypeVals) == 0 || imageTypeVals[0] == "" {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Missing image_type field", nil).Create()), nil
+	}
+	imageType := imageTypeVals[0]
+	if imageType != "before" && imageType != "after" {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("image_type must be 'before' or 'after'", nil).Create()), nil
+	}
+
+	files, ok := form.File["image"]
+	if !ok || len(files) == 0 {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Missing image field", nil).Create()), nil
+	}
+	fileHeader := files[0]
+	file, err := fileHeader.Open()
+	if err != nil {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Failed to open image", nil).Create()), nil
+	}
+	defer file.Close()
+
+	processed, err := cvimage.ValidateAndProcess(file, fileHeader)
+	if err != nil {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr(err.Error(), nil).Create()), nil
+	}
+
+	ext := "jpg"
+	if processed.ContentType == "image/png" {
+		ext = "png"
+	}
+	id := uuid.New()
+	s3Key := fmt.Sprintf("borrowings/%s/%s-%s.%s", request.BorrowingId, id.String()[:8], imageType, ext)
+
+	if err := s.s3Service.PutObject(ctx, s3Key, bytes.NewReader(processed.Original), processed.ContentType); err != nil {
+		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to upload image").Create()), nil
+	}
+
+	img, err := s.db.Queries().CreateBorrowingImage(ctx, db.CreateBorrowingImageParams{
+		ID:          id,
+		BorrowingID: request.BorrowingId,
+		S3Key:       s3Key,
+		ImageType:   imageType,
+		UploadedBy:  &user.ID,
+	})
+	if err != nil {
+		_ = s.s3Service.DeleteObject(ctx, s3Key)
+		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to save image record").Create()), nil
+	}
+
+	return genapi.UploadBorrowingImage201JSONResponse(s.buildBorrowingImageResponse(ctx, img)), nil
 }
 
 func (s Server) ListBorrowingImages(ctx context.Context, request genapi.ListBorrowingImagesRequestObject) (genapi.ListBorrowingImagesResponseObject, error) {
-	return genapi.ListBorrowingImages500JSONResponse(InternalError("not implemented").Create()), nil
+	user, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return genapi.ListBorrowingImages401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+
+	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err != nil {
+		return genapi.ListBorrowingImages500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return genapi.ListBorrowingImages403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+
+	images, err := s.db.Queries().ListBorrowingImagesByBorrowing(ctx, request.BorrowingId)
+	if err != nil {
+		return genapi.ListBorrowingImages500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	var response genapi.ListBorrowingImages200JSONResponse
+	for _, img := range images {
+		response = append(response, s.buildBorrowingImageResponse(ctx, img))
+	}
+	return response, nil
 }
 
 func (s Server) DeleteBorrowingImage(ctx context.Context, request genapi.DeleteBorrowingImageRequestObject) (genapi.DeleteBorrowingImageResponseObject, error) {
-	return genapi.DeleteBorrowingImage500JSONResponse(InternalError("not implemented").Create()), nil
+	user, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return genapi.DeleteBorrowingImage401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+
+	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err != nil {
+		return genapi.DeleteBorrowingImage500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return genapi.DeleteBorrowingImage403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+
+	img, err := s.db.Queries().GetBorrowingImageByID(ctx, request.ImageId)
+	if err != nil {
+		return genapi.DeleteBorrowingImage404JSONResponse(NotFound("Image").Create()), nil
+	}
+
+	_ = s.s3Service.DeleteObject(ctx, img.S3Key)
+
+	if err := s.db.Queries().DeleteBorrowingImage(ctx, img.ID); err != nil {
+		return genapi.DeleteBorrowingImage500JSONResponse(InternalError("Failed to delete image record").Create()), nil
+	}
+
+	return genapi.DeleteBorrowingImage204Response{}, nil
 }
