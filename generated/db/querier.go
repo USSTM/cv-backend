@@ -81,6 +81,7 @@ type Querier interface {
 	GetBookingByID(ctx context.Context, id uuid.UUID) (GetBookingByIDRow, error)
 	GetBookingByIDForUpdate(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBorrowedItemHistoryByUserIdParams) ([]Borrowing, error)
+	GetBorrowingByID(ctx context.Context, id uuid.UUID) (Borrowing, error)
 	GetBorrowingImageByID(ctx context.Context, id uuid.UUID) (BorrowingImage, error)
 	GetCartByUser(ctx context.Context, arg GetCartByUserParams) ([]GetCartByUserRow, error)
 	GetCartItemCount(ctx context.Context, arg GetCartItemCountParams) (GetCartItemCountRow, error)

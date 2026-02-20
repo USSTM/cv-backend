@@ -49,7 +49,7 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 	)
 	require.NoError(t, err, "Failed to start LocalStack container")
 
-	endpoint, err := container.PortEndpoint(ctx, "4566/tcp", "")
+	endpoint, err := container.PortEndpoint(ctx, "4566/tcp", "http")
 	require.NoError(t, err, "Failed to get LocalStack endpoint")
 
 	credentialsProvider := aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
@@ -82,6 +82,11 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		SES:       sesClient,
 		S3:        s3Client,
 	}
+
+	// Ensure the test bucket exists (idempotent — ignore "already exists" errors).
+	_, _ = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+	})
 
 	return ls
 }
