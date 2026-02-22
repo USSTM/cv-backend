@@ -47,4 +47,5 @@ type S3Service interface {
 	PutObject(ctx context.Context, key string, body io.Reader, contentType string) error
 	GetObject(ctx context.Context, key string) (io.ReadCloser, error)
 	GeneratePresignedURL(ctx context.Context, method string, key string, duration time.Duration) (string, error)
+	DeleteObject(ctx context.Context, key string) error
 }

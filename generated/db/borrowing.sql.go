@@ -409,6 +409,34 @@ func (q *Queries) GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBor
 	return items, nil
 }
 
+const getBorrowingByID = `-- name: GetBorrowingByID :one
+SELECT id, user_id, group_id, item_id, quantity,
+    borrowed_at, due_date, returned_at,
+    before_condition, before_condition_url,
+    after_condition, after_condition_url
+FROM borrowings WHERE id = $1
+`
+
+func (q *Queries) GetBorrowingByID(ctx context.Context, id uuid.UUID) (Borrowing, error) {
+	row := q.db.QueryRow(ctx, getBorrowingByID, id)
+	var i Borrowing
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GroupID,
+		&i.ItemID,
+		&i.Quantity,
+		&i.BorrowedAt,
+		&i.DueDate,
+		&i.ReturnedAt,
+		&i.BeforeCondition,
+		&i.BeforeConditionUrl,
+		&i.AfterCondition,
+		&i.AfterConditionUrl,
+	)
+	return i, err
+}
+
 const getReturnedItemsByUserId = `-- name: GetReturnedItemsByUserId :many
 SELECT id, user_id, group_id, item_id, quantity,
        borrowed_at, due_date, returned_at,

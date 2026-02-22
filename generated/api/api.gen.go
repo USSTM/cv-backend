@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
@@ -26,6 +27,12 @@ import (
 const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 	OAuth2Scopes     = "OAuth2.Scopes"
+)
+
+// Defines values for BorrowingImageImageType.
+const (
+	BorrowingImageImageTypeAfter  BorrowingImageImageType = "after"
+	BorrowingImageImageTypeBefore BorrowingImageImageType = "before"
 )
 
 // Defines values for CartItemResponseItemType.
@@ -102,6 +109,12 @@ const (
 	Member     UserRole = "member"
 )
 
+// Defines values for UploadBorrowingImageMultipartBodyImageType.
+const (
+	UploadBorrowingImageMultipartBodyImageTypeAfter  UploadBorrowingImageMultipartBodyImageType = "after"
+	UploadBorrowingImageMultipartBodyImageTypeBefore UploadBorrowingImageMultipartBodyImageType = "before"
+)
+
 // AddToCartRequest defines model for AddToCartRequest.
 type AddToCartRequest struct {
 	GroupId  UUID `json:"groupId"`
@@ -165,6 +178,20 @@ type BookingResponse struct {
 	// Status Status of a request or booking
 	Status RequestStatus `json:"status"`
 }
+
+// BorrowingImage defines model for BorrowingImage.
+type BorrowingImage struct {
+	BorrowingId UUID                    `json:"borrowing_id"`
+	CreatedAt   time.Time               `json:"created_at"`
+	Id          UUID                    `json:"id"`
+	ImageType   BorrowingImageImageType `json:"image_type"`
+
+	// Url Presigned URL to the image (1-hour expiry)
+	Url string `json:"url"`
+}
+
+// BorrowingImageImageType defines model for BorrowingImage.ImageType.
+type BorrowingImageImageType string
 
 // BorrowingRequest defines model for BorrowingRequest.
 type BorrowingRequest struct {
@@ -312,7 +339,13 @@ type ErrorErrorCode string
 type Group struct {
 	Description *string `json:"description,omitempty"`
 	Id          UUID    `json:"id"`
-	Name        string  `json:"name"`
+
+	// LogoThumbnailUrl Presigned URL to the 300x300 logo thumbnail
+	LogoThumbnailUrl *string `json:"logo_thumbnail_url,omitempty"`
+
+	// LogoUrl Presigned URL to the group logo (1-hour expiry)
+	LogoUrl *string `json:"logo_url,omitempty"`
+	Name    string  `json:"name"`
 }
 
 // GroupCreateRequest defines model for GroupCreateRequest.
@@ -356,6 +389,21 @@ type InviteUserRequestScope string
 // InviteUserResponse defines model for InviteUserResponse.
 type InviteUserResponse struct {
 	Code *string `json:"code,omitempty"`
+}
+
+// ItemImage defines model for ItemImage.
+type ItemImage struct {
+	CreatedAt    time.Time `json:"created_at"`
+	DisplayOrder int       `json:"display_order"`
+	Id           UUID      `json:"id"`
+	IsPrimary    bool      `json:"is_primary"`
+	ItemId       UUID      `json:"item_id"`
+
+	// ThumbnailUrl Presigned URL to the 300x300 thumbnail (1-hour expiry)
+	ThumbnailUrl string `json:"thumbnail_url"`
+
+	// Url Presigned URL to the full-size image (1-hour expiry)
+	Url string `json:"url"`
 }
 
 // ItemPostRequest defines model for ItemPostRequest.
@@ -686,9 +734,23 @@ type GetBorrowedItemHistoryByUserIdParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// UploadBorrowingImageMultipartBody defines parameters for UploadBorrowingImage.
+type UploadBorrowingImageMultipartBody struct {
+	Image     openapi_types.File                         `json:"image"`
+	ImageType UploadBorrowingImageMultipartBodyImageType `json:"image_type"`
+}
+
+// UploadBorrowingImageMultipartBodyImageType defines parameters for UploadBorrowingImage.
+type UploadBorrowingImageMultipartBodyImageType string
+
 // UpdateCartItemQuantityJSONBody defines parameters for UpdateCartItemQuantity.
 type UpdateCartItemQuantityJSONBody struct {
 	Quantity int `json:"quantity"`
+}
+
+// UploadGroupLogoMultipartBody defines parameters for UploadGroupLogo.
+type UploadGroupLogoMultipartBody struct {
+	Image openapi_types.File `json:"image"`
 }
 
 // GetItemsParams defines parameters for GetItems.
@@ -710,6 +772,13 @@ type GetItemsParams struct {
 type GetItemsByTypeParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// UploadItemImageMultipartBody defines parameters for UploadItemImage.
+type UploadItemImageMultipartBody struct {
+	DisplayOrder *int               `json:"display_order,omitempty"`
+	Image        openapi_types.File `json:"image"`
+	IsPrimary    *bool              `json:"is_primary,omitempty"`
 }
 
 // GetAllRequestsParams defines parameters for GetAllRequests.
@@ -763,6 +832,9 @@ type BorrowItemJSONRequestBody = BorrowingRequest
 // ReturnItemJSONRequestBody defines body for ReturnItem for application/json ContentType.
 type ReturnItemJSONRequestBody = ReturnBorrowingRequest
 
+// UploadBorrowingImageMultipartRequestBody defines body for UploadBorrowingImage for multipart/form-data ContentType.
+type UploadBorrowingImageMultipartRequestBody UploadBorrowingImageMultipartBody
+
 // AddToCartJSONRequestBody defines body for AddToCart for application/json ContentType.
 type AddToCartJSONRequestBody = AddToCartRequest
 
@@ -775,6 +847,9 @@ type CheckoutCartJSONRequestBody = CheckoutCartRequest
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreateRequest
 
+// UploadGroupLogoMultipartRequestBody defines body for UploadGroupLogo for multipart/form-data ContentType.
+type UploadGroupLogoMultipartRequestBody UploadGroupLogoMultipartBody
+
 // UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
 type UpdateGroupJSONRequestBody = GroupUpdateRequest
 
@@ -786,6 +861,9 @@ type PatchItemJSONRequestBody = ItemResponse
 
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemPostRequest
+
+// UploadItemImageMultipartRequestBody defines body for UploadItemImage for multipart/form-data ContentType.
+type UploadItemImageMultipartRequestBody UploadItemImageMultipartBody
 
 // RequestItemJSONRequestBody defines body for RequestItem for application/json ContentType.
 type RequestItemJSONRequestBody = RequestItemRequest
@@ -885,6 +963,15 @@ type ServerInterface interface {
 	// Get borrowings for a user
 	// (GET /borrowings/user/{userId})
 	GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *http.Request, userId UUID, params GetBorrowedItemHistoryByUserIdParams)
+	// List condition photos for a borrowing
+	// (GET /borrowings/{borrowingId}/images)
+	ListBorrowingImages(w http.ResponseWriter, r *http.Request, borrowingId UUID)
+	// Upload a before/after condition photo for a borrowing
+	// (POST /borrowings/{borrowingId}/images)
+	UploadBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID)
+	// Delete a borrowing condition photo
+	// (DELETE /borrowings/{borrowingId}/images/{imageId})
+	DeleteBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID, imageId UUID)
 	// Clear cart
 	// (DELETE /cart/{groupId})
 	ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID)
@@ -909,6 +996,9 @@ type ServerInterface interface {
 	// Create a new group
 	// (POST /groups)
 	CreateGroup(w http.ResponseWriter, r *http.Request)
+	// Upload or replace the logo for a group (must be square)
+	// (PUT /groups/{groupId}/logo)
+	UploadGroupLogo(w http.ResponseWriter, r *http.Request, groupId UUID)
 	// Delete group
 	// (DELETE /groups/{id})
 	DeleteGroup(w http.ResponseWriter, r *http.Request, id UUID)
@@ -942,6 +1032,18 @@ type ServerInterface interface {
 	// Update item
 	// (PUT /items/{id})
 	UpdateItem(w http.ResponseWriter, r *http.Request, id UUID)
+	// List all images for an item
+	// (GET /items/{itemId}/images)
+	ListItemImages(w http.ResponseWriter, r *http.Request, itemId UUID)
+	// Upload an image for an item
+	// (POST /items/{itemId}/images)
+	UploadItemImage(w http.ResponseWriter, r *http.Request, itemId UUID)
+	// Delete an item image
+	// (DELETE /items/{itemId}/images/{imageId})
+	DeleteItemImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID)
+	// Set an image as the primary image for an item
+	// (PUT /items/{itemId}/images/{imageId}/primary)
+	SetItemPrimaryImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(w http.ResponseWriter, r *http.Request)
@@ -1164,6 +1266,24 @@ func (_ Unimplemented) GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r *
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// List condition photos for a borrowing
+// (GET /borrowings/{borrowingId}/images)
+func (_ Unimplemented) ListBorrowingImages(w http.ResponseWriter, r *http.Request, borrowingId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload a before/after condition photo for a borrowing
+// (POST /borrowings/{borrowingId}/images)
+func (_ Unimplemented) UploadBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete a borrowing condition photo
+// (DELETE /borrowings/{borrowingId}/images/{imageId})
+func (_ Unimplemented) DeleteBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID, imageId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Clear cart
 // (DELETE /cart/{groupId})
 func (_ Unimplemented) ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
@@ -1209,6 +1329,12 @@ func (_ Unimplemented) GetAllGroups(w http.ResponseWriter, r *http.Request) {
 // Create a new group
 // (POST /groups)
 func (_ Unimplemented) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload or replace the logo for a group (must be square)
+// (PUT /groups/{groupId}/logo)
+func (_ Unimplemented) UploadGroupLogo(w http.ResponseWriter, r *http.Request, groupId UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1275,6 +1401,30 @@ func (_ Unimplemented) PatchItem(w http.ResponseWriter, r *http.Request, id UUID
 // Update item
 // (PUT /items/{id})
 func (_ Unimplemented) UpdateItem(w http.ResponseWriter, r *http.Request, id UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List all images for an item
+// (GET /items/{itemId}/images)
+func (_ Unimplemented) ListItemImages(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Upload an image for an item
+// (POST /items/{itemId}/images)
+func (_ Unimplemented) UploadItemImage(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete an item image
+// (DELETE /items/{itemId}/images/{imageId})
+func (_ Unimplemented) DeleteItemImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set an image as the primary image for an item
+// (PUT /items/{itemId}/images/{imageId}/primary)
+func (_ Unimplemented) SetItemPrimaryImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2439,6 +2589,108 @@ func (siw *ServerInterfaceWrapper) GetBorrowedItemHistoryByUserId(w http.Respons
 	handler.ServeHTTP(w, r)
 }
 
+// ListBorrowingImages operation middleware
+func (siw *ServerInterfaceWrapper) ListBorrowingImages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "borrowingId" -------------
+	var borrowingId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "borrowingId", chi.URLParam(r, "borrowingId"), &borrowingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "borrowingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBorrowingImages(w, r, borrowingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadBorrowingImage operation middleware
+func (siw *ServerInterfaceWrapper) UploadBorrowingImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "borrowingId" -------------
+	var borrowingId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "borrowingId", chi.URLParam(r, "borrowingId"), &borrowingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "borrowingId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadBorrowingImage(w, r, borrowingId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBorrowingImage operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBorrowingImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "borrowingId" -------------
+	var borrowingId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "borrowingId", chi.URLParam(r, "borrowingId"), &borrowingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "borrowingId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "imageId" -------------
+	var imageId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "imageId", chi.URLParam(r, "imageId"), &imageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "imageId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBorrowingImage(w, r, borrowingId, imageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ClearCart operation middleware
 func (siw *ServerInterfaceWrapper) ClearCart(w http.ResponseWriter, r *http.Request) {
 
@@ -2675,6 +2927,37 @@ func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateGroup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadGroupLogo operation middleware
+func (siw *ServerInterfaceWrapper) UploadGroupLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", chi.URLParam(r, "groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadGroupLogo(w, r, groupId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3055,6 +3338,148 @@ func (siw *ServerInterfaceWrapper) UpdateItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateItem(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListItemImages operation middleware
+func (siw *ServerInterfaceWrapper) ListItemImages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListItemImages(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadItemImage operation middleware
+func (siw *ServerInterfaceWrapper) UploadItemImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadItemImage(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteItemImage operation middleware
+func (siw *ServerInterfaceWrapper) DeleteItemImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "imageId" -------------
+	var imageId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "imageId", chi.URLParam(r, "imageId"), &imageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "imageId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteItemImage(w, r, itemId, imageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetItemPrimaryImage operation middleware
+func (siw *ServerInterfaceWrapper) SetItemPrimaryImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", chi.URLParam(r, "itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "imageId" -------------
+	var imageId UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "imageId", chi.URLParam(r, "imageId"), &imageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "imageId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetItemPrimaryImage(w, r, itemId, imageId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3647,6 +4072,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/borrowings/user/{userId}", wrapper.GetBorrowedItemHistoryByUserId)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/borrowings/{borrowingId}/images", wrapper.ListBorrowingImages)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/borrowings/{borrowingId}/images", wrapper.UploadBorrowingImage)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/borrowings/{borrowingId}/images/{imageId}", wrapper.DeleteBorrowingImage)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/cart/{groupId}", wrapper.ClearCart)
 	})
 	r.Group(func(r chi.Router) {
@@ -3669,6 +4103,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/groups", wrapper.CreateGroup)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/groups/{groupId}/logo", wrapper.UploadGroupLogo)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/groups/{id}", wrapper.DeleteGroup)
@@ -3702,6 +4139,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/items/{id}", wrapper.UpdateItem)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/items/{itemId}/images", wrapper.ListItemImages)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/items/{itemId}/images", wrapper.UploadItemImage)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/items/{itemId}/images/{imageId}", wrapper.DeleteItemImage)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/items/{itemId}/images/{imageId}/primary", wrapper.SetItemPrimaryImage)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ping", wrapper.PingProtected)
@@ -5243,6 +5692,175 @@ func (response GetBorrowedItemHistoryByUserId500JSONResponse) VisitGetBorrowedIt
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListBorrowingImagesRequestObject struct {
+	BorrowingId UUID `json:"borrowingId"`
+}
+
+type ListBorrowingImagesResponseObject interface {
+	VisitListBorrowingImagesResponse(w http.ResponseWriter) error
+}
+
+type ListBorrowingImages200JSONResponse []BorrowingImage
+
+func (response ListBorrowingImages200JSONResponse) VisitListBorrowingImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBorrowingImages401JSONResponse Error
+
+func (response ListBorrowingImages401JSONResponse) VisitListBorrowingImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBorrowingImages403JSONResponse Error
+
+func (response ListBorrowingImages403JSONResponse) VisitListBorrowingImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBorrowingImages404JSONResponse Error
+
+func (response ListBorrowingImages404JSONResponse) VisitListBorrowingImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBorrowingImages500JSONResponse Error
+
+func (response ListBorrowingImages500JSONResponse) VisitListBorrowingImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImageRequestObject struct {
+	BorrowingId UUID `json:"borrowingId"`
+	Body        *multipart.Reader
+}
+
+type UploadBorrowingImageResponseObject interface {
+	VisitUploadBorrowingImageResponse(w http.ResponseWriter) error
+}
+
+type UploadBorrowingImage201JSONResponse BorrowingImage
+
+func (response UploadBorrowingImage201JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImage400JSONResponse Error
+
+func (response UploadBorrowingImage400JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImage401JSONResponse Error
+
+func (response UploadBorrowingImage401JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImage403JSONResponse Error
+
+func (response UploadBorrowingImage403JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImage404JSONResponse Error
+
+func (response UploadBorrowingImage404JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadBorrowingImage500JSONResponse Error
+
+func (response UploadBorrowingImage500JSONResponse) VisitUploadBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteBorrowingImageRequestObject struct {
+	BorrowingId UUID `json:"borrowingId"`
+	ImageId     UUID `json:"imageId"`
+}
+
+type DeleteBorrowingImageResponseObject interface {
+	VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error
+}
+
+type DeleteBorrowingImage204Response struct {
+}
+
+func (response DeleteBorrowingImage204Response) VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteBorrowingImage401JSONResponse Error
+
+func (response DeleteBorrowingImage401JSONResponse) VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteBorrowingImage403JSONResponse Error
+
+func (response DeleteBorrowingImage403JSONResponse) VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteBorrowingImage404JSONResponse Error
+
+func (response DeleteBorrowingImage404JSONResponse) VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteBorrowingImage500JSONResponse Error
+
+func (response DeleteBorrowingImage500JSONResponse) VisitDeleteBorrowingImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ClearCartRequestObject struct {
 	GroupId UUID `json:"groupId"`
 }
@@ -5653,6 +6271,69 @@ func (response CreateGroup403JSONResponse) VisitCreateGroupResponse(w http.Respo
 type CreateGroup500JSONResponse Error
 
 func (response CreateGroup500JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogoRequestObject struct {
+	GroupId UUID `json:"groupId"`
+	Body    *multipart.Reader
+}
+
+type UploadGroupLogoResponseObject interface {
+	VisitUploadGroupLogoResponse(w http.ResponseWriter) error
+}
+
+type UploadGroupLogo200JSONResponse Group
+
+func (response UploadGroupLogo200JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogo400JSONResponse Error
+
+func (response UploadGroupLogo400JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogo401JSONResponse Error
+
+func (response UploadGroupLogo401JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogo403JSONResponse Error
+
+func (response UploadGroupLogo403JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogo404JSONResponse Error
+
+func (response UploadGroupLogo404JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadGroupLogo500JSONResponse Error
+
+func (response UploadGroupLogo500JSONResponse) VisitUploadGroupLogoResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -6219,6 +6900,238 @@ func (response UpdateItem404JSONResponse) VisitUpdateItemResponse(w http.Respons
 type UpdateItem500JSONResponse Error
 
 func (response UpdateItem500JSONResponse) VisitUpdateItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListItemImagesRequestObject struct {
+	ItemId UUID `json:"itemId"`
+}
+
+type ListItemImagesResponseObject interface {
+	VisitListItemImagesResponse(w http.ResponseWriter) error
+}
+
+type ListItemImages200JSONResponse []ItemImage
+
+func (response ListItemImages200JSONResponse) VisitListItemImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListItemImages401JSONResponse Error
+
+func (response ListItemImages401JSONResponse) VisitListItemImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListItemImages403JSONResponse Error
+
+func (response ListItemImages403JSONResponse) VisitListItemImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListItemImages404JSONResponse Error
+
+func (response ListItemImages404JSONResponse) VisitListItemImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListItemImages500JSONResponse Error
+
+func (response ListItemImages500JSONResponse) VisitListItemImagesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImageRequestObject struct {
+	ItemId UUID `json:"itemId"`
+	Body   *multipart.Reader
+}
+
+type UploadItemImageResponseObject interface {
+	VisitUploadItemImageResponse(w http.ResponseWriter) error
+}
+
+type UploadItemImage201JSONResponse ItemImage
+
+func (response UploadItemImage201JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImage400JSONResponse Error
+
+func (response UploadItemImage400JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImage401JSONResponse Error
+
+func (response UploadItemImage401JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImage403JSONResponse Error
+
+func (response UploadItemImage403JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImage404JSONResponse Error
+
+func (response UploadItemImage404JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UploadItemImage500JSONResponse Error
+
+func (response UploadItemImage500JSONResponse) VisitUploadItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItemImageRequestObject struct {
+	ItemId  UUID `json:"itemId"`
+	ImageId UUID `json:"imageId"`
+}
+
+type DeleteItemImageResponseObject interface {
+	VisitDeleteItemImageResponse(w http.ResponseWriter) error
+}
+
+type DeleteItemImage204Response struct {
+}
+
+func (response DeleteItemImage204Response) VisitDeleteItemImageResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteItemImage401JSONResponse Error
+
+func (response DeleteItemImage401JSONResponse) VisitDeleteItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItemImage403JSONResponse Error
+
+func (response DeleteItemImage403JSONResponse) VisitDeleteItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItemImage404JSONResponse Error
+
+func (response DeleteItemImage404JSONResponse) VisitDeleteItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteItemImage500JSONResponse Error
+
+func (response DeleteItemImage500JSONResponse) VisitDeleteItemImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImageRequestObject struct {
+	ItemId  UUID `json:"itemId"`
+	ImageId UUID `json:"imageId"`
+}
+
+type SetItemPrimaryImageResponseObject interface {
+	VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error
+}
+
+type SetItemPrimaryImage200JSONResponse ItemImage
+
+func (response SetItemPrimaryImage200JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImage400JSONResponse Error
+
+func (response SetItemPrimaryImage400JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImage401JSONResponse Error
+
+func (response SetItemPrimaryImage401JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImage403JSONResponse Error
+
+func (response SetItemPrimaryImage403JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImage404JSONResponse Error
+
+func (response SetItemPrimaryImage404JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetItemPrimaryImage500JSONResponse Error
+
+func (response SetItemPrimaryImage500JSONResponse) VisitSetItemPrimaryImageResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -6871,6 +7784,15 @@ type StrictServerInterface interface {
 	// Get borrowings for a user
 	// (GET /borrowings/user/{userId})
 	GetBorrowedItemHistoryByUserId(ctx context.Context, request GetBorrowedItemHistoryByUserIdRequestObject) (GetBorrowedItemHistoryByUserIdResponseObject, error)
+	// List condition photos for a borrowing
+	// (GET /borrowings/{borrowingId}/images)
+	ListBorrowingImages(ctx context.Context, request ListBorrowingImagesRequestObject) (ListBorrowingImagesResponseObject, error)
+	// Upload a before/after condition photo for a borrowing
+	// (POST /borrowings/{borrowingId}/images)
+	UploadBorrowingImage(ctx context.Context, request UploadBorrowingImageRequestObject) (UploadBorrowingImageResponseObject, error)
+	// Delete a borrowing condition photo
+	// (DELETE /borrowings/{borrowingId}/images/{imageId})
+	DeleteBorrowingImage(ctx context.Context, request DeleteBorrowingImageRequestObject) (DeleteBorrowingImageResponseObject, error)
 	// Clear cart
 	// (DELETE /cart/{groupId})
 	ClearCart(ctx context.Context, request ClearCartRequestObject) (ClearCartResponseObject, error)
@@ -6895,6 +7817,9 @@ type StrictServerInterface interface {
 	// Create a new group
 	// (POST /groups)
 	CreateGroup(ctx context.Context, request CreateGroupRequestObject) (CreateGroupResponseObject, error)
+	// Upload or replace the logo for a group (must be square)
+	// (PUT /groups/{groupId}/logo)
+	UploadGroupLogo(ctx context.Context, request UploadGroupLogoRequestObject) (UploadGroupLogoResponseObject, error)
 	// Delete group
 	// (DELETE /groups/{id})
 	DeleteGroup(ctx context.Context, request DeleteGroupRequestObject) (DeleteGroupResponseObject, error)
@@ -6928,6 +7853,18 @@ type StrictServerInterface interface {
 	// Update item
 	// (PUT /items/{id})
 	UpdateItem(ctx context.Context, request UpdateItemRequestObject) (UpdateItemResponseObject, error)
+	// List all images for an item
+	// (GET /items/{itemId}/images)
+	ListItemImages(ctx context.Context, request ListItemImagesRequestObject) (ListItemImagesResponseObject, error)
+	// Upload an image for an item
+	// (POST /items/{itemId}/images)
+	UploadItemImage(ctx context.Context, request UploadItemImageRequestObject) (UploadItemImageResponseObject, error)
+	// Delete an item image
+	// (DELETE /items/{itemId}/images/{imageId})
+	DeleteItemImage(ctx context.Context, request DeleteItemImageRequestObject) (DeleteItemImageResponseObject, error)
+	// Set an image as the primary image for an item
+	// (PUT /items/{itemId}/images/{imageId}/primary)
+	SetItemPrimaryImage(ctx context.Context, request SetItemPrimaryImageRequestObject) (SetItemPrimaryImageResponseObject, error)
 	// Protected ping endpoint
 	// (GET /ping)
 	PingProtected(ctx context.Context, request PingProtectedRequestObject) (PingProtectedResponseObject, error)
@@ -7835,6 +8772,92 @@ func (sh *strictHandler) GetBorrowedItemHistoryByUserId(w http.ResponseWriter, r
 	}
 }
 
+// ListBorrowingImages operation middleware
+func (sh *strictHandler) ListBorrowingImages(w http.ResponseWriter, r *http.Request, borrowingId UUID) {
+	var request ListBorrowingImagesRequestObject
+
+	request.BorrowingId = borrowingId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBorrowingImages(ctx, request.(ListBorrowingImagesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBorrowingImages")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBorrowingImagesResponseObject); ok {
+		if err := validResponse.VisitListBorrowingImagesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadBorrowingImage operation middleware
+func (sh *strictHandler) UploadBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID) {
+	var request UploadBorrowingImageRequestObject
+
+	request.BorrowingId = borrowingId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadBorrowingImage(ctx, request.(UploadBorrowingImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadBorrowingImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadBorrowingImageResponseObject); ok {
+		if err := validResponse.VisitUploadBorrowingImageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteBorrowingImage operation middleware
+func (sh *strictHandler) DeleteBorrowingImage(w http.ResponseWriter, r *http.Request, borrowingId UUID, imageId UUID) {
+	var request DeleteBorrowingImageRequestObject
+
+	request.BorrowingId = borrowingId
+	request.ImageId = imageId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteBorrowingImage(ctx, request.(DeleteBorrowingImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteBorrowingImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteBorrowingImageResponseObject); ok {
+		if err := validResponse.VisitDeleteBorrowingImageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ClearCart operation middleware
 func (sh *strictHandler) ClearCart(w http.ResponseWriter, r *http.Request, groupId UUID) {
 	var request ClearCartRequestObject
@@ -8060,6 +9083,39 @@ func (sh *strictHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateGroupResponseObject); ok {
 		if err := validResponse.VisitCreateGroupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadGroupLogo operation middleware
+func (sh *strictHandler) UploadGroupLogo(w http.ResponseWriter, r *http.Request, groupId UUID) {
+	var request UploadGroupLogoRequestObject
+
+	request.GroupId = groupId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadGroupLogo(ctx, request.(UploadGroupLogoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadGroupLogo")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadGroupLogoResponseObject); ok {
+		if err := validResponse.VisitUploadGroupLogoResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8371,6 +9427,119 @@ func (sh *strictHandler) UpdateItem(w http.ResponseWriter, r *http.Request, id U
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateItemResponseObject); ok {
 		if err := validResponse.VisitUpdateItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListItemImages operation middleware
+func (sh *strictHandler) ListItemImages(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	var request ListItemImagesRequestObject
+
+	request.ItemId = itemId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListItemImages(ctx, request.(ListItemImagesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListItemImages")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListItemImagesResponseObject); ok {
+		if err := validResponse.VisitListItemImagesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadItemImage operation middleware
+func (sh *strictHandler) UploadItemImage(w http.ResponseWriter, r *http.Request, itemId UUID) {
+	var request UploadItemImageRequestObject
+
+	request.ItemId = itemId
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadItemImage(ctx, request.(UploadItemImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadItemImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadItemImageResponseObject); ok {
+		if err := validResponse.VisitUploadItemImageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteItemImage operation middleware
+func (sh *strictHandler) DeleteItemImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID) {
+	var request DeleteItemImageRequestObject
+
+	request.ItemId = itemId
+	request.ImageId = imageId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteItemImage(ctx, request.(DeleteItemImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteItemImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteItemImageResponseObject); ok {
+		if err := validResponse.VisitDeleteItemImageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetItemPrimaryImage operation middleware
+func (sh *strictHandler) SetItemPrimaryImage(w http.ResponseWriter, r *http.Request, itemId UUID, imageId UUID) {
+	var request SetItemPrimaryImageRequestObject
+
+	request.ItemId = itemId
+	request.ImageId = imageId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetItemPrimaryImage(ctx, request.(SetItemPrimaryImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetItemPrimaryImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetItemPrimaryImageResponseObject); ok {
+		if err := validResponse.VisitSetItemPrimaryImageResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8700,158 +9869,169 @@ func (sh *strictHandler) GetUserAvailability(w http.ResponseWriter, r *http.Requ
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"kKblbVwBAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

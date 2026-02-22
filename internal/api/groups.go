@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
@@ -181,6 +182,24 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 	}
 
 	return response, nil
+}
+
+func (s Server) resolveGroupLogoURLs(ctx context.Context, g db.Group) (logoURL, thumbnailURL *string) {
+	if !g.LogoS3Key.Valid {
+		return nil, nil
+	}
+	url, err := s.s3Service.GeneratePresignedURL(ctx, "GET", g.LogoS3Key.String, time.Hour)
+	if err != nil {
+		return nil, nil
+	}
+	var thumbURL *string
+	if g.LogoThumbnailS3Key.Valid {
+		t, err := s.s3Service.GeneratePresignedURL(ctx, "GET", g.LogoThumbnailS3Key.String, time.Hour)
+		if err == nil {
+			thumbURL = &t
+		}
+	}
+	return &url, thumbURL
 }
 
 func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {

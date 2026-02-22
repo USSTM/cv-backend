@@ -14,7 +14,7 @@ import (
 
 const createGroup = `-- name: CreateGroup :one
 INSERT INTO groups (name, description) VALUES ($1, $2)
-RETURNING id, name, description
+RETURNING id, name, description, logo_s3_key, logo_thumbnail_s3_key
 `
 
 type CreateGroupParams struct {
@@ -25,7 +25,13 @@ type CreateGroupParams struct {
 func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error) {
 	row := q.db.QueryRow(ctx, createGroup, arg.Name, arg.Description)
 	var i Group
-	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.LogoS3Key,
+		&i.LogoThumbnailS3Key,
+	)
 	return i, err
 }
 
@@ -39,7 +45,7 @@ func (q *Queries) DeleteGroup(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAllGroups = `-- name: GetAllGroups :many
-SELECT id, name, description FROM groups ORDER BY name
+SELECT id, name, description, logo_s3_key, logo_thumbnail_s3_key FROM groups ORDER BY name
 `
 
 func (q *Queries) GetAllGroups(ctx context.Context) ([]Group, error) {
@@ -51,7 +57,13 @@ func (q *Queries) GetAllGroups(ctx context.Context) ([]Group, error) {
 	items := []Group{}
 	for rows.Next() {
 		var i Group
-		if err := rows.Scan(&i.ID, &i.Name, &i.Description); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.LogoS3Key,
+			&i.LogoThumbnailS3Key,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -63,31 +75,43 @@ func (q *Queries) GetAllGroups(ctx context.Context) ([]Group, error) {
 }
 
 const getGroupByID = `-- name: GetGroupByID :one
-SELECT id, name, description FROM groups WHERE id = $1
+SELECT id, name, description, logo_s3_key, logo_thumbnail_s3_key FROM groups WHERE id = $1
 `
 
 func (q *Queries) GetGroupByID(ctx context.Context, id uuid.UUID) (Group, error) {
 	row := q.db.QueryRow(ctx, getGroupByID, id)
 	var i Group
-	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.LogoS3Key,
+		&i.LogoThumbnailS3Key,
+	)
 	return i, err
 }
 
 const getGroupByName = `-- name: GetGroupByName :one
-SELECT id, name, description
+SELECT id, name, description, logo_s3_key, logo_thumbnail_s3_key
 FROM groups WHERE name = $1
 `
 
 func (q *Queries) GetGroupByName(ctx context.Context, name string) (Group, error) {
 	row := q.db.QueryRow(ctx, getGroupByName, name)
 	var i Group
-	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.LogoS3Key,
+		&i.LogoThumbnailS3Key,
+	)
 	return i, err
 }
 
 const updateGroup = `-- name: UpdateGroup :one
 UPDATE groups SET name = $2, description = $3 WHERE id = $1
-RETURNING id, name, description
+RETURNING id, name, description, logo_s3_key, logo_thumbnail_s3_key
 `
 
 type UpdateGroupParams struct {
@@ -99,6 +123,36 @@ type UpdateGroupParams struct {
 func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error) {
 	row := q.db.QueryRow(ctx, updateGroup, arg.ID, arg.Name, arg.Description)
 	var i Group
-	err := row.Scan(&i.ID, &i.Name, &i.Description)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.LogoS3Key,
+		&i.LogoThumbnailS3Key,
+	)
+	return i, err
+}
+
+const updateGroupLogo = `-- name: UpdateGroupLogo :one
+UPDATE groups SET logo_s3_key = $2, logo_thumbnail_s3_key = $3 WHERE id = $1
+RETURNING id, name, description, logo_s3_key, logo_thumbnail_s3_key
+`
+
+type UpdateGroupLogoParams struct {
+	ID                 uuid.UUID   `json:"id"`
+	LogoS3Key          pgtype.Text `json:"logo_s3_key"`
+	LogoThumbnailS3Key pgtype.Text `json:"logo_thumbnail_s3_key"`
+}
+
+func (q *Queries) UpdateGroupLogo(ctx context.Context, arg UpdateGroupLogoParams) (Group, error) {
+	row := q.db.QueryRow(ctx, updateGroupLogo, arg.ID, arg.LogoS3Key, arg.LogoThumbnailS3Key)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.LogoS3Key,
+		&i.LogoThumbnailS3Key,
+	)
 	return i, err
 }
