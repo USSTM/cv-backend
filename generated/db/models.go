@@ -279,6 +279,34 @@ type ItemTaking struct {
 	TakenAt  pgtype.Timestamp `json:"taken_at"`
 }
 
+type Notification struct {
+	ID                   uuid.UUID        `json:"id"`
+	NotificationObjectID uuid.UUID        `json:"notification_object_id"`
+	NotifierID           uuid.UUID        `json:"notifier_id"`
+	IsRead               bool             `json:"is_read"`
+	CreatedAt            pgtype.Timestamp `json:"created_at"`
+}
+
+type NotificationChange struct {
+	ID                   uuid.UUID        `json:"id"`
+	NotificationObjectID uuid.UUID        `json:"notification_object_id"`
+	ActorID              uuid.UUID        `json:"actor_id"`
+	CreatedAt            pgtype.Timestamp `json:"created_at"`
+}
+
+type NotificationEntityType struct {
+	ID          int32       `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+type NotificationObject struct {
+	ID           uuid.UUID        `json:"id"`
+	EntityTypeID int32            `json:"entity_type_id"`
+	EntityID     uuid.UUID        `json:"entity_id"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+}
+
 type Permission struct {
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`

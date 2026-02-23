@@ -49,3 +49,13 @@ type S3Service interface {
 	GeneratePresignedURL(ctx context.Context, method string, key string, duration time.Duration) (string, error)
 	DeleteObject(ctx context.Context, key string) error
 }
+
+// NotificationService defines the interface for notifications operations
+type NotificationService interface {
+	Publish(ctx context.Context, actorID uuid.UUID, entityTypeName string, entityID uuid.UUID, notifierIDs []uuid.UUID) error
+	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int64) ([]db.GetUserNotificationsRow, error)
+	MarkAsRead(ctx context.Context, userID, notificationID uuid.UUID) (db.Notification, error)
+	MarkAllAsRead(ctx context.Context, userID uuid.UUID) error
+	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error)
+	GetTotalCount(ctx context.Context, userID uuid.UUID) (int64, error)
+}

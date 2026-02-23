@@ -31,6 +31,7 @@ type Querier interface {
 	CountAllItems(ctx context.Context) (int64, error)
 	CountAllRequests(ctx context.Context) (int64, error)
 	CountAllReturnedItems(ctx context.Context) (int64, error)
+	CountAllUserNotifications(ctx context.Context, notifierID uuid.UUID) (int64, error)
 	CountBookings(ctx context.Context, arg CountBookingsParams) (int64, error)
 	CountBookingsByUser(ctx context.Context, arg CountBookingsByUserParams) (int64, error)
 	CountBorrowedItemHistoryByUserId(ctx context.Context, userID *uuid.UUID) (int64, error)
@@ -41,12 +42,16 @@ type Querier interface {
 	CountTakingHistoryByItemId(ctx context.Context, itemID uuid.UUID) (int64, error)
 	CountTakingHistoryByUserId(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountTakingHistoryByUserIdWithGroupFilter(ctx context.Context, arg CountTakingHistoryByUserIdWithGroupFilterParams) (int64, error)
+	CountUserNotifications(ctx context.Context, notifierID uuid.UUID) (int64, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (UserAvailability, error)
 	CreateBooking(ctx context.Context, arg CreateBookingParams) (Booking, error)
 	CreateBorrowingImage(ctx context.Context, arg CreateBorrowingImageParams) (BorrowingImage, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreateItemImage(ctx context.Context, arg CreateItemImageParams) (ItemImage, error)
+	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
+	CreateNotificationChange(ctx context.Context, arg CreateNotificationChangeParams) (NotificationChange, error)
+	CreateNotificationObject(ctx context.Context, arg CreateNotificationObjectParams) (NotificationObject, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) error
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
@@ -94,6 +99,7 @@ type Querier interface {
 	GetItemByName(ctx context.Context, name string) (Item, error)
 	GetItemImageByID(ctx context.Context, id uuid.UUID) (ItemImage, error)
 	GetItemsByType(ctx context.Context, arg GetItemsByTypeParams) ([]Item, error)
+	GetNotificationEntityTypeByName(ctx context.Context, name string) (NotificationEntityType, error)
 	GetPendingRequests(ctx context.Context, arg GetPendingRequestsParams) ([]Request, error)
 	GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUID) (Request, error)
 	GetRequestById(ctx context.Context, id uuid.UUID) (Request, error)
@@ -111,6 +117,7 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
+	GetUserNotifications(ctx context.Context, arg GetUserNotificationsParams) ([]GetUserNotificationsRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
@@ -123,6 +130,8 @@ type Querier interface {
 	ListItemImagesByItem(ctx context.Context, itemID uuid.UUID) ([]ItemImage, error)
 	ListPendingConfirmation(ctx context.Context, groupID *uuid.UUID) ([]ListPendingConfirmationRow, error)
 	ListTimeSlots(ctx context.Context) ([]TimeSlot, error)
+	MarkAllNotificationsAsRead(ctx context.Context, notifierID uuid.UUID) error
+	MarkNotificationAsRead(ctx context.Context, arg MarkNotificationAsReadParams) (Notification, error)
 	MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) error
 	PatchItem(ctx context.Context, arg PatchItemParams) (Item, error)
 	RecordItemTaking(ctx context.Context, arg RecordItemTakingParams) (ItemTaking, error)

@@ -1037,6 +1037,56 @@ components:
         - timestamp
         - checks
 
+    NotificationResponse:
+      type: object
+      properties:
+        notification_id:
+          $ref: "#/components/schemas/UUID"
+        is_read:
+          type: boolean
+        notification_created_at:
+          type: string
+          format: date-time
+        notification_object_id:
+          $ref: "#/components/schemas/UUID"
+        entity_id:
+          $ref: "#/components/schemas/UUID"
+        entity_type_name:
+          type: string
+        actor_id:
+          $ref: "#/components/schemas/UUID"
+        actor_email:
+          type: string
+          format: email
+      required:
+        - notification_id
+        - is_read
+        - notification_created_at
+        - notification_object_id
+        - entity_id
+        - entity_type_name
+        - actor_id
+        - actor_email
+
+    PaginatedNotificationResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationResponse"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    UnreadNotificationCountResponse:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+      required:
+        - unread_count
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -4877,6 +4927,144 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get user notifications
+      operationId: GetNotifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: A paginated list of notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedNotificationResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /notifications/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Get user unread notification count
+      operationId: GetUnreadNotificationCount
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: The unread notification count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadNotificationCountResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /notifications/{id}/read:
+    put:
+      tags:
+        - Notifications
+      summary: Mark a specific notification as read
+      operationId: MarkNotificationAsRead
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: The marked notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /notifications/read-all:
+    put:
+      tags:
+        - Notifications
+      summary: Mark all user notifications as read
+      operationId: MarkAllNotificationsAsRead
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:

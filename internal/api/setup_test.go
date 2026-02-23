@@ -10,6 +10,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/config"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -78,7 +79,10 @@ func newAuthTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil
 	})
 
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack)
+
+	notiService := notifications.NewNotificationService(testDB.Pool(), testDB.Queries())
+
+	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack, notiService)
 	return server, testDB, mockAuth, authSvc
 }
 
