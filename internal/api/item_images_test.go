@@ -204,6 +204,18 @@ func TestListItemImages(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, genapi.ListItemImages403JSONResponse{}, resp)
 	})
+
+	t.Run("item not found returns 404", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		adminUser := testDB.NewUser(t).WithEmail("list-notfound@item.ca").AsGlobalAdmin().Create()
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
+
+		resp, err := server.ListItemImages(ctx, genapi.ListItemImagesRequestObject{ItemId: uuid.New()})
+		require.NoError(t, err)
+		require.IsType(t, genapi.ListItemImages404JSONResponse{}, resp)
+	})
 }
 
 func TestDeleteItemImage(t *testing.T) {

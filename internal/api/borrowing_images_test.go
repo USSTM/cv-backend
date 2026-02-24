@@ -141,6 +141,49 @@ func TestUploadBorrowingImage(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, genapi.UploadBorrowingImage400JSONResponse{}, resp)
 	})
+
+	t.Run("non-existent borrowing returns 404", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		member := testDB.NewUser(t).WithEmail("noborrowing@borrowimg.ca").AsMember().Create()
+
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageAllBookings, nil, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.RequestItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), member, testDB.Queries())
+
+		reader := createJPEGMultipartReader(t, 200, 150, map[string]string{"image_type": "before"})
+		resp, err := server.UploadBorrowingImage(ctx, genapi.UploadBorrowingImageRequestObject{
+			BorrowingId: uuid.New(),
+			Body:        reader,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.UploadBorrowingImage404JSONResponse{}, resp)
+	})
+
+	t.Run("before-image on returned borrowing returns 400", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		member := testDB.NewUser(t).WithEmail("returned@borrowimg.ca").AsMember().Create()
+		borrowing := createBorrowing(t, testDB, member.ID)
+
+		_, err := testDB.Queries().ReturnItem(context.Background(), db.ReturnItemParams{
+			ItemID:         borrowing.ItemID,
+			AfterCondition: db.NullCondition{Condition: db.ConditionGood, Valid: true},
+		})
+		require.NoError(t, err)
+
+		mockAuth.ExpectCheckPermission(member.ID, rbac.ManageAllBookings, nil, false, nil)
+		mockAuth.ExpectCheckPermission(member.ID, rbac.RequestItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), member, testDB.Queries())
+
+		reader := createJPEGMultipartReader(t, 200, 150, map[string]string{"image_type": "before"})
+		resp, err := server.UploadBorrowingImage(ctx, genapi.UploadBorrowingImageRequestObject{
+			BorrowingId: borrowing.ID,
+			Body:        reader,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.UploadBorrowingImage400JSONResponse{}, resp)
+	})
 }
 
 func TestListBorrowingImages(t *testing.T) {
