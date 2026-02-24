@@ -69,6 +69,11 @@ func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadB
 		return genapi.UploadBorrowingImage403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
+	borrowing, err := s.db.Queries().GetBorrowingByID(ctx, request.BorrowingId)
+	if err != nil {
+		return genapi.UploadBorrowingImage404JSONResponse(NotFound("Borrowing").Create()), nil
+	}
+
 	form, err := request.Body.ReadForm(32 << 20)
 	if err != nil {
 		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Failed to parse multipart form", nil).Create()), nil
@@ -81,6 +86,9 @@ func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadB
 	imageType := imageTypeVals[0]
 	if imageType != "before" && imageType != "after" {
 		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("image_type must be 'before' or 'after'", nil).Create()), nil
+	}
+	if imageType == "before" && borrowing.ReturnedAt.Valid {
+		return genapi.UploadBorrowingImage400JSONResponse(ValidationErr("Cannot upload before-image for a returned borrowing", nil).Create()), nil
 	}
 
 	files, ok := form.File["image"]

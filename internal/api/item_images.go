@@ -159,6 +159,11 @@ func (s Server) ListItemImages(ctx context.Context, request genapi.ListItemImage
 		return genapi.ListItemImages403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
+	_, err = s.db.Queries().GetItemByID(ctx, request.ItemId)
+	if err != nil {
+		return genapi.ListItemImages404JSONResponse(NotFound("Item").Create()), nil
+	}
+
 	images, err := s.db.Queries().ListItemImagesByItem(ctx, request.ItemId)
 	if err != nil {
 		return genapi.ListItemImages500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
