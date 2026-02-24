@@ -189,6 +189,9 @@ func (s Server) DeleteItemImage(ctx context.Context, request genapi.DeleteItemIm
 	if err != nil {
 		return genapi.DeleteItemImage404JSONResponse(NotFound("Image").Create()), nil
 	}
+	if img.ItemID != request.ItemId {
+		return genapi.DeleteItemImage404JSONResponse(NotFound("Image").Create()), nil
+	}
 
 	_ = s.s3Service.DeleteObject(ctx, img.OriginalS3Key)
 	_ = s.s3Service.DeleteObject(ctx, img.ThumbnailS3Key)
@@ -216,6 +219,9 @@ func (s Server) SetItemPrimaryImage(ctx context.Context, request genapi.SetItemP
 
 	img, err := s.db.Queries().GetItemImageByID(ctx, request.ImageId)
 	if err != nil {
+		return genapi.SetItemPrimaryImage404JSONResponse(NotFound("Image").Create()), nil
+	}
+	if img.ItemID != request.ItemId {
 		return genapi.SetItemPrimaryImage404JSONResponse(NotFound("Image").Create()), nil
 	}
 

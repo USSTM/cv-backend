@@ -12,6 +12,7 @@ import (
 	cvimage "github.com/USSTM/cv-backend/internal/image"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (s Server) buildBorrowingImageResponse(ctx context.Context, img db.BorrowingImage) genapi.BorrowingImage {
@@ -46,7 +47,7 @@ func (s Server) checkBorrowingAccess(ctx context.Context, userID, borrowingID uu
 
 	borrowing, err := s.db.Queries().GetBorrowingByID(ctx, borrowingID)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 	return borrowing.UserID != nil && *borrowing.UserID == userID, nil
 }
@@ -58,6 +59,9 @@ func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadB
 	}
 
 	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err == pgx.ErrNoRows {
+		return genapi.UploadBorrowingImage404JSONResponse(NotFound("Borrowing").Create()), nil
+	}
 	if err != nil {
 		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -128,6 +132,9 @@ func (s Server) ListBorrowingImages(ctx context.Context, request genapi.ListBorr
 	}
 
 	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err == pgx.ErrNoRows {
+		return genapi.ListBorrowingImages404JSONResponse(NotFound("Borrowing").Create()), nil
+	}
 	if err != nil {
 		return genapi.ListBorrowingImages500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -154,6 +161,9 @@ func (s Server) DeleteBorrowingImage(ctx context.Context, request genapi.DeleteB
 	}
 
 	allowed, err := s.checkBorrowingAccess(ctx, user.ID, request.BorrowingId)
+	if err == pgx.ErrNoRows {
+		return genapi.DeleteBorrowingImage404JSONResponse(NotFound("Borrowing").Create()), nil
+	}
 	if err != nil {
 		return genapi.DeleteBorrowingImage500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
