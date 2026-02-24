@@ -102,11 +102,24 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to upload thumbnail").Create()), nil
 	}
 
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		_ = s.s3Service.DeleteObject(ctx, originalKey)
+		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to start transaction").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.db.Queries().WithTx(tx)
+
 	if isPrimary {
-		_ = s.db.Queries().UnsetPrimaryItemImages(ctx, request.ItemId)
+		if err := qtx.UnsetPrimaryItemImages(ctx, request.ItemId); err != nil {
+			_ = s.s3Service.DeleteObject(ctx, originalKey)
+			_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+			return genapi.UploadItemImage500JSONResponse(InternalError("Failed to update primary image").Create()), nil
+		}
 	}
 
-	img, err := s.db.Queries().CreateItemImage(ctx, db.CreateItemImageParams{
+	img, err := qtx.CreateItemImage(ctx, db.CreateItemImageParams{
 		ID:             id,
 		ItemID:         request.ItemId,
 		OriginalS3Key:  originalKey,
@@ -121,6 +134,12 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 		_ = s.s3Service.DeleteObject(ctx, originalKey)
 		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to save image record").Create()), nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		_ = s.s3Service.DeleteObject(ctx, originalKey)
+		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to commit transaction").Create()), nil
 	}
 
 	return genapi.UploadItemImage201JSONResponse(s.buildItemImageResponse(ctx, img)), nil
@@ -204,12 +223,23 @@ func (s Server) SetItemPrimaryImage(ctx context.Context, request genapi.SetItemP
 		return genapi.SetItemPrimaryImage400JSONResponse(ValidationErr("Primary image must be square", nil).Create()), nil
 	}
 
-	if err := s.db.Queries().UnsetPrimaryItemImages(ctx, img.ItemID); err != nil {
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		return genapi.SetItemPrimaryImage500JSONResponse(InternalError("Failed to start transaction").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.db.Queries().WithTx(tx)
+
+	if err := qtx.UnsetPrimaryItemImages(ctx, img.ItemID); err != nil {
 		return genapi.SetItemPrimaryImage500JSONResponse(InternalError("Failed to update primary image").Create()), nil
 	}
 
-	if err := s.db.Queries().SetItemImageAsPrimary(ctx, img.ID); err != nil {
+	if err := qtx.SetItemImageAsPrimary(ctx, img.ID); err != nil {
 		return genapi.SetItemPrimaryImage500JSONResponse(InternalError("Failed to set primary image").Create()), nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return genapi.SetItemPrimaryImage500JSONResponse(InternalError("Failed to commit transaction").Create()), nil
 	}
 
 	img.IsPrimary = true

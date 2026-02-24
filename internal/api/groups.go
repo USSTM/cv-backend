@@ -43,10 +43,13 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 		if group.Description.Valid {
 			description = &group.Description.String
 		}
+		logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 		response = append(response, api.Group{
-			Id:          group.ID,
-			Name:        group.Name,
-			Description: description,
+			Id:               group.ID,
+			Name:             group.Name,
+			Description:      description,
+			LogoUrl:          logoURL,
+			LogoThumbnailUrl: thumbURL,
 		})
 	}
 
@@ -82,10 +85,13 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.GetGroupByID200JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
@@ -220,6 +226,18 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 	}
 	if !hasPermission {
 		return api.DeleteGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+
+	group, err := s.db.Queries().GetGroupByID(ctx, request.Id)
+	if err != nil {
+		return api.DeleteGroup404JSONResponse(NotFound("Group").Create()), nil
+	}
+
+	if group.LogoS3Key.Valid {
+		_ = s.s3Service.DeleteObject(ctx, group.LogoS3Key.String)
+	}
+	if group.LogoThumbnailS3Key.Valid {
+		_ = s.s3Service.DeleteObject(ctx, group.LogoThumbnailS3Key.String)
 	}
 
 	err = s.db.Queries().DeleteGroup(ctx, request.Id)
