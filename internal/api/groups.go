@@ -134,10 +134,13 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.CreateGroup201JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
@@ -181,10 +184,13 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.UpdateGroup200JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
@@ -233,12 +239,8 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 		return api.DeleteGroup404JSONResponse(NotFound("Group").Create()), nil
 	}
 
-	if group.LogoS3Key.Valid {
-		_ = s.s3Service.DeleteObject(ctx, group.LogoS3Key.String)
-	}
-	if group.LogoThumbnailS3Key.Valid {
-		_ = s.s3Service.DeleteObject(ctx, group.LogoThumbnailS3Key.String)
-	}
+	oldLogoKey := group.LogoS3Key
+	oldThumbKey := group.LogoThumbnailS3Key
 
 	err = s.db.Queries().DeleteGroup(ctx, request.Id)
 	if err != nil {
@@ -246,6 +248,13 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 			"group_id", request.Id,
 			"error", err)
 		return api.DeleteGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	if oldLogoKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldLogoKey.String)
+	}
+	if oldThumbKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldThumbKey.String)
 	}
 
 	return api.DeleteGroup204Response{}, nil

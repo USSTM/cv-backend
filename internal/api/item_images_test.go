@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"image"
-	imgdraw "image/draw"
 	"image/color"
+	imgdraw "image/draw"
 	"image/jpeg"
 	"mime/multipart"
 	"testing"
@@ -134,6 +134,46 @@ func TestUploadItemImage(t *testing.T) {
 
 		imgResp := resp.(genapi.UploadItemImage201JSONResponse)
 		assert.True(t, imgResp.IsPrimary)
+	})
+
+	t.Run("fails (400) with negative display_order", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		adminUser := testDB.NewUser(t).WithEmail("negorder@item.ca").AsGlobalAdmin().Create()
+		item := testDB.NewItem(t).WithName("Camera5").WithType("medium").WithStock(5).Create()
+
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
+
+		reader := createJPEGMultipartReader(t, 200, 150, map[string]string{
+			"display_order": "-1",
+		})
+		resp, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
+			ItemId: item.ID,
+			Body:   reader,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.UploadItemImage400JSONResponse{}, resp)
+	})
+
+	t.Run("fails (400) with display_order exceeding int32 max", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		adminUser := testDB.NewUser(t).WithEmail("maxorder@item.ca").AsGlobalAdmin().Create()
+		item := testDB.NewItem(t).WithName("Camera6").WithType("medium").WithStock(5).Create()
+
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
+
+		reader := createJPEGMultipartReader(t, 200, 150, map[string]string{
+			"display_order": "2147483648", // math.MaxInt32 + 1
+		})
+		resp, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
+			ItemId: item.ID,
+			Body:   reader,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.UploadItemImage400JSONResponse{}, resp)
 	})
 
 	t.Run("fails (400) with is_primary=true and non-square image", func(t *testing.T) {
@@ -268,6 +308,34 @@ func TestDeleteItemImage(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.IsType(t, genapi.DeleteItemImage403JSONResponse{}, resp)
+	})
+
+	t.Run("cannot delete image belonging to a different item", func(t *testing.T) {
+		server, testDB, mockAuth := newTestServer(t)
+
+		adminUser := testDB.NewUser(t).WithEmail("crossitem@itemimg.ca").AsGlobalAdmin().Create()
+		itemA := testDB.NewItem(t).WithName("CrossItemA").WithType("medium").WithStock(5).Create()
+		itemB := testDB.NewItem(t).WithName("CrossItemB").WithType("medium").WithStock(5).Create()
+
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
+		reader := createJPEGMultipartReader(t, 200, 150, nil)
+		uploadResp, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
+			ItemId: itemA.ID,
+			Body:   reader,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.UploadItemImage201JSONResponse{}, uploadResp)
+		imageID := uploadResp.(genapi.UploadItemImage201JSONResponse).Id
+
+		// Attempt to delete item A image via item B endpoint
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		deleteResp, err := server.DeleteItemImage(ctx, genapi.DeleteItemImageRequestObject{
+			ItemId:  itemB.ID,
+			ImageId: imageID,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.DeleteItemImage404JSONResponse{}, deleteResp)
 	})
 }
 

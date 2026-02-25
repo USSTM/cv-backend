@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -11,13 +12,21 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	cvimage "github.com/USSTM/cv-backend/internal/image"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 )
 
 func (s Server) buildItemImageResponse(ctx context.Context, img db.ItemImage) genapi.ItemImage {
-	url, _ := s.s3Service.GeneratePresignedURL(ctx, "GET", img.OriginalS3Key, time.Hour)
-	thumbURL, _ := s.s3Service.GeneratePresignedURL(ctx, "GET", img.ThumbnailS3Key, time.Hour)
+	logger := middleware.GetLoggerFromContext(ctx)
+	url, err := s.s3Service.GeneratePresignedURL(ctx, "GET", img.OriginalS3Key, time.Hour)
+	if err != nil {
+		logger.Warn("failed to generate presigned URL", "key", img.OriginalS3Key, "error", err)
+	}
+	thumbURL, err := s.s3Service.GeneratePresignedURL(ctx, "GET", img.ThumbnailS3Key, time.Hour)
+	if err != nil {
+		logger.Warn("failed to generate presigned URL", "key", img.ThumbnailS3Key, "error", err)
+	}
 	return genapi.ItemImage{
 		Id:           img.ID,
 		ItemId:       img.ItemID,
@@ -81,6 +90,9 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 	displayOrder := int32(0)
 	if vals := form.Value["display_order"]; len(vals) > 0 {
 		if n, e := strconv.Atoi(vals[0]); e == nil {
+			if n < 0 || n > math.MaxInt32 {
+				return genapi.UploadItemImage400JSONResponse(ValidationErr("display_order must be between 0 and 2147483647", nil).Create()), nil
+			}
 			displayOrder = int32(n)
 		}
 	}
@@ -198,12 +210,11 @@ func (s Server) DeleteItemImage(ctx context.Context, request genapi.DeleteItemIm
 		return genapi.DeleteItemImage404JSONResponse(NotFound("Image").Create()), nil
 	}
 
-	_ = s.s3Service.DeleteObject(ctx, img.OriginalS3Key)
-	_ = s.s3Service.DeleteObject(ctx, img.ThumbnailS3Key)
-
 	if err := s.db.Queries().DeleteItemImage(ctx, img.ID); err != nil {
 		return genapi.DeleteItemImage500JSONResponse(InternalError("Failed to delete image record").Create()), nil
 	}
+	_ = s.s3Service.DeleteObject(ctx, img.OriginalS3Key)
+	_ = s.s3Service.DeleteObject(ctx, img.ThumbnailS3Key)
 
 	return genapi.DeleteItemImage204Response{}, nil
 }

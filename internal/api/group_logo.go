@@ -59,13 +59,8 @@ func (s Server) UploadGroupLogo(ctx context.Context, request genapi.UploadGroupL
 		return genapi.UploadGroupLogo400JSONResponse(ValidationErr("Group logo must be square", nil).Create()), nil
 	}
 
-	// Delete old logo from S3 if it exists
-	if group.LogoS3Key.Valid {
-		_ = s.s3Service.DeleteObject(ctx, group.LogoS3Key.String)
-	}
-	if group.LogoThumbnailS3Key.Valid {
-		_ = s.s3Service.DeleteObject(ctx, group.LogoThumbnailS3Key.String)
-	}
+	oldLogoKey := group.LogoS3Key
+	oldThumbKey := group.LogoThumbnailS3Key
 
 	ext := "jpg"
 	if processed.ContentType == "image/png" {
@@ -92,6 +87,13 @@ func (s Server) UploadGroupLogo(ctx context.Context, request genapi.UploadGroupL
 		_ = s.s3Service.DeleteObject(ctx, originalKey)
 		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
 		return genapi.UploadGroupLogo500JSONResponse(InternalError("Failed to save logo record").Create()), nil
+	}
+
+	if oldLogoKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldLogoKey.String)
+	}
+	if oldThumbKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldThumbKey.String)
 	}
 
 	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, updated)
