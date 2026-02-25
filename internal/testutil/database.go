@@ -114,17 +114,20 @@ func (tdb *TestDatabase) CleanupDatabase(t *testing.T) {
 	// Seed data tables (roles, permissions, role_permissions, time_slots) are preserved
 	// Order matters: truncate child tables before parent tables to avoid FK violations
 	tables := []string{
-		"item_takings",      // references users, items
-		"cart_items",        // references users, items, groups
-		"booking",           // references users, items, user_availability
-		"borrowings",        // references users, items, requests
-		"requests",          // references users, items
-		"user_availability", // references users, time_slots
-		"user_roles",        // references users, roles, groups
-		"signup_codes",      // references groups
-		"items",             // no FK dependencies
-		"users",             // no FK dependencies
-		"groups",            // no FK dependencies
+		"notifications",          // references users, notification_objects
+		"notification_changes",   // references users, notification_objects
+		"notification_objects",   // references notification_entity_types
+		"item_takings",           // references users, items
+		"cart_items",             // references users, items, groups
+		"booking",                // references users, items, user_availability
+		"borrowings",             // references users, items, requests
+		"requests",               // references users, items
+		"user_availability",      // references users, time_slots
+		"user_roles",             // references users, roles, groups
+		"signup_codes",           // references groups
+		"items",                  // no FK dependencies
+		"users",                  // no FK dependencies
+		"groups",                 // no FK dependencies
 	}
 
 	for _, table := range tables {
