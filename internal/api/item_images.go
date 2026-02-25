@@ -102,22 +102,29 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 		ext = "png"
 	}
 	id := uuid.New()
-	shortID := id.String()[:8]
-	originalKey := fmt.Sprintf("items/%s/%s-original.%s", request.ItemId, shortID, ext)
-	thumbnailKey := fmt.Sprintf("items/%s/%s-thumb.%s", request.ItemId, shortID, ext)
+	originalKey := fmt.Sprintf("items/%s/%s-original.%s", request.ItemId, id.String(), ext)
+	thumbnailKey := fmt.Sprintf("items/%s/%s-thumb.%s", request.ItemId, id.String(), ext)
+
+	logger := middleware.GetLoggerFromContext(ctx)
 
 	if err := s.s3Service.PutObject(ctx, originalKey, bytes.NewReader(processed.Original), processed.ContentType); err != nil {
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to upload image").Create()), nil
 	}
 	if err := s.s3Service.PutObject(ctx, thumbnailKey, bytes.NewReader(processed.Thumbnail), processed.ContentType); err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to upload thumbnail").Create()), nil
 	}
 
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
-		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
+		if err := s.s3Service.DeleteObject(ctx, thumbnailKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", thumbnailKey, "error", err)
+		}
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to start transaction").Create()), nil
 	}
 	defer tx.Rollback(ctx)
@@ -125,8 +132,12 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 
 	if isPrimary {
 		if err := qtx.UnsetPrimaryItemImages(ctx, request.ItemId); err != nil {
-			_ = s.s3Service.DeleteObject(ctx, originalKey)
-			_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+			if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+				logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+			}
+			if err := s.s3Service.DeleteObject(ctx, thumbnailKey); err != nil {
+				logger.Warn("failed to delete S3 object", "key", thumbnailKey, "error", err)
+			}
 			return genapi.UploadItemImage500JSONResponse(InternalError("Failed to update primary image").Create()), nil
 		}
 	}
@@ -143,14 +154,22 @@ func (s Server) UploadItemImage(ctx context.Context, request genapi.UploadItemIm
 		UploadedBy:     &user.ID,
 	})
 	if err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
-		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
+		if err := s.s3Service.DeleteObject(ctx, thumbnailKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", thumbnailKey, "error", err)
+		}
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to save image record").Create()), nil
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
-		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
+		if err := s.s3Service.DeleteObject(ctx, thumbnailKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", thumbnailKey, "error", err)
+		}
 		return genapi.UploadItemImage500JSONResponse(InternalError("Failed to commit transaction").Create()), nil
 	}
 
@@ -213,8 +232,13 @@ func (s Server) DeleteItemImage(ctx context.Context, request genapi.DeleteItemIm
 	if err := s.db.Queries().DeleteItemImage(ctx, img.ID); err != nil {
 		return genapi.DeleteItemImage500JSONResponse(InternalError("Failed to delete image record").Create()), nil
 	}
-	_ = s.s3Service.DeleteObject(ctx, img.OriginalS3Key)
-	_ = s.s3Service.DeleteObject(ctx, img.ThumbnailS3Key)
+	logger := middleware.GetLoggerFromContext(ctx)
+	if err := s.s3Service.DeleteObject(ctx, img.OriginalS3Key); err != nil {
+		logger.Warn("failed to delete S3 object", "key", img.OriginalS3Key, "error", err)
+	}
+	if err := s.s3Service.DeleteObject(ctx, img.ThumbnailS3Key); err != nil {
+		logger.Warn("failed to delete S3 object", "key", img.ThumbnailS3Key, "error", err)
+	}
 
 	return genapi.DeleteItemImage204Response{}, nil
 }

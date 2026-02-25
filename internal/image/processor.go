@@ -63,8 +63,6 @@ func ValidateAndProcess(file io.Reader, header *multipart.FileHeader) (*Processe
 		err = imaging.Encode(&thumbBuf, thumb, imaging.JPEG, imaging.JPEGQuality(85))
 	case "png":
 		err = imaging.Encode(&thumbBuf, thumb, imaging.PNG)
-	default:
-		err = imaging.Encode(&thumbBuf, thumb, imaging.JPEG, imaging.JPEGQuality(85))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode thumbnail: %w", err)

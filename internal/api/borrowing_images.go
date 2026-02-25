@@ -117,13 +117,25 @@ func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadB
 		ext = "png"
 	}
 	id := uuid.New()
-	s3Key := fmt.Sprintf("borrowings/%s/%s-%s.%s", request.BorrowingId, id.String()[:8], imageType, ext)
+	s3Key := fmt.Sprintf("borrowings/%s/%s-%s.%s", request.BorrowingId, id.String(), imageType, ext)
+
+	logger := middleware.GetLoggerFromContext(ctx)
 
 	if err := s.s3Service.PutObject(ctx, s3Key, bytes.NewReader(processed.Original), processed.ContentType); err != nil {
 		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to upload image").Create()), nil
 	}
 
-	img, err := s.db.Queries().CreateBorrowingImage(ctx, db.CreateBorrowingImageParams{
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		if err := s.s3Service.DeleteObject(ctx, s3Key); err != nil {
+			logger.Warn("failed to delete S3 object", "key", s3Key, "error", err)
+		}
+		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to start transaction").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.db.Queries().WithTx(tx)
+
+	img, err := qtx.CreateBorrowingImage(ctx, db.CreateBorrowingImageParams{
 		ID:          id,
 		BorrowingID: request.BorrowingId,
 		S3Key:       s3Key,
@@ -131,8 +143,17 @@ func (s Server) UploadBorrowingImage(ctx context.Context, request genapi.UploadB
 		UploadedBy:  &user.ID,
 	})
 	if err != nil {
-		_ = s.s3Service.DeleteObject(ctx, s3Key)
+		if err := s.s3Service.DeleteObject(ctx, s3Key); err != nil {
+			logger.Warn("failed to delete S3 object", "key", s3Key, "error", err)
+		}
 		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to save image record").Create()), nil
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		if err := s.s3Service.DeleteObject(ctx, s3Key); err != nil {
+			logger.Warn("failed to delete S3 object", "key", s3Key, "error", err)
+		}
+		return genapi.UploadBorrowingImage500JSONResponse(InternalError("Failed to commit transaction").Create()), nil
 	}
 
 	return genapi.UploadBorrowingImage201JSONResponse(s.buildBorrowingImageResponse(ctx, img)), nil
@@ -195,7 +216,9 @@ func (s Server) DeleteBorrowingImage(ctx context.Context, request genapi.DeleteB
 	if err := s.db.Queries().DeleteBorrowingImage(ctx, img.ID); err != nil {
 		return genapi.DeleteBorrowingImage500JSONResponse(InternalError("Failed to delete image record").Create()), nil
 	}
-	_ = s.s3Service.DeleteObject(ctx, img.S3Key)
+	if err := s.s3Service.DeleteObject(ctx, img.S3Key); err != nil {
+		middleware.GetLoggerFromContext(ctx).Warn("failed to delete S3 object", "key", img.S3Key, "error", err)
+	}
 
 	return genapi.DeleteBorrowingImage204Response{}, nil
 }

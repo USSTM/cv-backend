@@ -69,16 +69,19 @@ func (s *S3Service) GeneratePresignedURL(ctx context.Context, method string, key
 	var req *v4.PresignedHTTPRequest
 	var err error
 
-	if method == http.MethodPut {
+	switch method {
+	case http.MethodPut:
 		req, err = presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
 			Bucket: aws.String(s.bucket),
 			Key:    aws.String(key),
 		}, s3.WithPresignExpires(duration))
-	} else {
+	case http.MethodGet:
 		req, err = presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(s.bucket),
 			Key:    aws.String(key),
 		}, s3.WithPresignExpires(duration))
+	default:
+		return "", fmt.Errorf("unsupported method: %s", method)
 	}
 
 	if err != nil {

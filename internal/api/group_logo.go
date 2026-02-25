@@ -9,6 +9,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	cvimage "github.com/USSTM/cv-backend/internal/image"
+	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -66,15 +67,19 @@ func (s Server) UploadGroupLogo(ctx context.Context, request genapi.UploadGroupL
 	if processed.ContentType == "image/png" {
 		ext = "png"
 	}
-	shortID := uuid.New().String()[:8]
-	originalKey := fmt.Sprintf("groups/%s/%s-logo-original.%s", groupID, shortID, ext)
-	thumbnailKey := fmt.Sprintf("groups/%s/%s-logo-thumb.%s", groupID, shortID, ext)
+	logoID := uuid.New().String()
+	originalKey := fmt.Sprintf("groups/%s/%s-logo-original.%s", groupID, logoID, ext)
+	thumbnailKey := fmt.Sprintf("groups/%s/%s-logo-thumb.%s", groupID, logoID, ext)
+
+	logger := middleware.GetLoggerFromContext(ctx)
 
 	if err := s.s3Service.PutObject(ctx, originalKey, bytes.NewReader(processed.Original), processed.ContentType); err != nil {
 		return genapi.UploadGroupLogo500JSONResponse(InternalError("Failed to upload logo").Create()), nil
 	}
 	if err := s.s3Service.PutObject(ctx, thumbnailKey, bytes.NewReader(processed.Thumbnail), processed.ContentType); err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
 		return genapi.UploadGroupLogo500JSONResponse(InternalError("Failed to upload logo thumbnail").Create()), nil
 	}
 
@@ -84,16 +89,24 @@ func (s Server) UploadGroupLogo(ctx context.Context, request genapi.UploadGroupL
 		LogoThumbnailS3Key: pgtype.Text{String: thumbnailKey, Valid: true},
 	})
 	if err != nil {
-		_ = s.s3Service.DeleteObject(ctx, originalKey)
-		_ = s.s3Service.DeleteObject(ctx, thumbnailKey)
+		if err := s.s3Service.DeleteObject(ctx, originalKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", originalKey, "error", err)
+		}
+		if err := s.s3Service.DeleteObject(ctx, thumbnailKey); err != nil {
+			logger.Warn("failed to delete S3 object", "key", thumbnailKey, "error", err)
+		}
 		return genapi.UploadGroupLogo500JSONResponse(InternalError("Failed to save logo record").Create()), nil
 	}
 
 	if oldLogoKey.Valid {
-		_ = s.s3Service.DeleteObject(ctx, oldLogoKey.String)
+		if err := s.s3Service.DeleteObject(ctx, oldLogoKey.String); err != nil {
+			logger.Warn("failed to delete S3 object", "key", oldLogoKey.String, "error", err)
+		}
 	}
 	if oldThumbKey.Valid {
-		_ = s.s3Service.DeleteObject(ctx, oldThumbKey.String)
+		if err := s.s3Service.DeleteObject(ctx, oldThumbKey.String); err != nil {
+			logger.Warn("failed to delete S3 object", "key", oldThumbKey.String, "error", err)
+		}
 	}
 
 	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, updated)

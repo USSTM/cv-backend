@@ -351,25 +351,50 @@ func TestSetItemPrimaryImage(t *testing.T) {
 		item := testDB.NewItem(t).WithName("PrimCam").WithType("medium").WithStock(5).Create()
 		ctx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
 
-		// square image
+		// upload first square image
 		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
-		reader := createJPEGMultipartReader(t, 300, 300, nil)
-		uploadResp, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
+		reader1 := createJPEGMultipartReader(t, 300, 300, nil)
+		uploadResp1, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
 			ItemId: item.ID,
-			Body:   reader,
+			Body:   reader1,
 		})
 		require.NoError(t, err)
-		imageID := uploadResp.(genapi.UploadItemImage201JSONResponse).Id
+		imageID1 := uploadResp1.(genapi.UploadItemImage201JSONResponse).Id
 
-		// primary
+		// upload second square image
 		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
-		resp, err := server.SetItemPrimaryImage(ctx, genapi.SetItemPrimaryImageRequestObject{
-			ItemId:  item.ID,
-			ImageId: imageID,
+		reader2 := createJPEGMultipartReader(t, 300, 300, nil)
+		uploadResp2, err := server.UploadItemImage(ctx, genapi.UploadItemImageRequestObject{
+			ItemId: item.ID,
+			Body:   reader2,
 		})
 		require.NoError(t, err)
-		require.IsType(t, genapi.SetItemPrimaryImage200JSONResponse{}, resp)
-		assert.True(t, resp.(genapi.SetItemPrimaryImage200JSONResponse).IsPrimary)
+		imageID2 := uploadResp2.(genapi.UploadItemImage201JSONResponse).Id
+
+		// set first image as primary
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		resp1, err := server.SetItemPrimaryImage(ctx, genapi.SetItemPrimaryImageRequestObject{
+			ItemId:  item.ID,
+			ImageId: imageID1,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.SetItemPrimaryImage200JSONResponse{}, resp1)
+		assert.True(t, resp1.(genapi.SetItemPrimaryImage200JSONResponse).IsPrimary)
+
+		// set second image as primary
+		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ManageItems, nil, true, nil)
+		resp2, err := server.SetItemPrimaryImage(ctx, genapi.SetItemPrimaryImageRequestObject{
+			ItemId:  item.ID,
+			ImageId: imageID2,
+		})
+		require.NoError(t, err)
+		require.IsType(t, genapi.SetItemPrimaryImage200JSONResponse{}, resp2)
+		assert.True(t, resp2.(genapi.SetItemPrimaryImage200JSONResponse).IsPrimary)
+
+		// verify first image is no longer primary
+		img1, err := testDB.Queries().GetItemImageByID(ctx, imageID1)
+		require.NoError(t, err)
+		assert.False(t, img1.IsPrimary, "first image should no longer be primary")
 	})
 
 	t.Run("rejects non-square image", func(t *testing.T) {
