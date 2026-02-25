@@ -1,3 +1,10 @@
+-- name: GetBorrowingByID :one
+SELECT id, user_id, group_id, item_id, quantity,
+    borrowed_at, due_date, returned_at,
+    before_condition, before_condition_url,
+    after_condition, after_condition_url
+FROM borrowings WHERE id = $1;
+
 -- this function creates a new borrowing record for a user borrowing an item
 -- name: BorrowItem :one
 INSERT INTO borrowings (

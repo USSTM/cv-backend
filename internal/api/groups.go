@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
@@ -42,10 +43,13 @@ func (s Server) GetAllGroups(ctx context.Context, request api.GetAllGroupsReques
 		if group.Description.Valid {
 			description = &group.Description.String
 		}
+		logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 		response = append(response, api.Group{
-			Id:          group.ID,
-			Name:        group.Name,
-			Description: description,
+			Id:               group.ID,
+			Name:             group.Name,
+			Description:      description,
+			LogoUrl:          logoURL,
+			LogoThumbnailUrl: thumbURL,
 		})
 	}
 
@@ -81,10 +85,13 @@ func (s Server) GetGroupByID(ctx context.Context, request api.GetGroupByIDReques
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.GetGroupByID200JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
@@ -127,10 +134,13 @@ func (s Server) CreateGroup(ctx context.Context, request api.CreateGroupRequestO
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.CreateGroup201JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
@@ -174,13 +184,34 @@ func (s Server) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestO
 	if group.Description.Valid {
 		description = &group.Description.String
 	}
+	logoURL, thumbURL := s.resolveGroupLogoURLs(ctx, group)
 	response := api.UpdateGroup200JSONResponse{
-		Id:          group.ID,
-		Name:        group.Name,
-		Description: description,
+		Id:               group.ID,
+		Name:             group.Name,
+		Description:      description,
+		LogoUrl:          logoURL,
+		LogoThumbnailUrl: thumbURL,
 	}
 
 	return response, nil
+}
+
+func (s Server) resolveGroupLogoURLs(ctx context.Context, g db.Group) (logoURL, thumbnailURL *string) {
+	if !g.LogoS3Key.Valid {
+		return nil, nil
+	}
+	url, err := s.s3Service.GeneratePresignedURL(ctx, "GET", g.LogoS3Key.String, time.Hour)
+	if err != nil {
+		return nil, nil
+	}
+	var thumbURL *string
+	if g.LogoThumbnailS3Key.Valid {
+		t, err := s.s3Service.GeneratePresignedURL(ctx, "GET", g.LogoThumbnailS3Key.String, time.Hour)
+		if err == nil {
+			thumbURL = &t
+		}
+	}
+	return &url, thumbURL
 }
 
 func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {
@@ -203,12 +234,27 @@ func (s Server) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestO
 		return api.DeleteGroup403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
 
+	group, err := s.db.Queries().GetGroupByID(ctx, request.Id)
+	if err != nil {
+		return api.DeleteGroup404JSONResponse(NotFound("Group").Create()), nil
+	}
+
+	oldLogoKey := group.LogoS3Key
+	oldThumbKey := group.LogoThumbnailS3Key
+
 	err = s.db.Queries().DeleteGroup(ctx, request.Id)
 	if err != nil {
 		logger.Error("Failed to delete group",
 			"group_id", request.Id,
 			"error", err)
 		return api.DeleteGroup500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+
+	if oldLogoKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldLogoKey.String)
+	}
+	if oldThumbKey.Valid {
+		_ = s.s3Service.DeleteObject(ctx, oldThumbKey.String)
 	}
 
 	return api.DeleteGroup204Response{}, nil

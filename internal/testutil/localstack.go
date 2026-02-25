@@ -49,7 +49,7 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 	)
 	require.NoError(t, err, "Failed to start LocalStack container")
 
-	endpoint, err := container.PortEndpoint(ctx, "4566/tcp", "")
+	endpoint, err := container.PortEndpoint(ctx, "4566/tcp", "http")
 	require.NoError(t, err, "Failed to get LocalStack endpoint")
 
 	credentialsProvider := aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
@@ -82,6 +82,11 @@ func NewTestLocalStack(t *testing.T) *TestLocalStack {
 		SES:       sesClient,
 		S3:        s3Client,
 	}
+
+	// ensure bucket exists before tests run (since have manual cleanup func)
+	_, _ = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+	})
 
 	return ls
 }
@@ -172,4 +177,12 @@ func (ls *TestLocalStack) GeneratePresignedURL(ctx context.Context, method strin
 		return "", err
 	}
 	return req.URL, nil
+}
+
+func (ls *TestLocalStack) DeleteObject(ctx context.Context, key string) error {
+	_, err := ls.S3.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String("cv-backend-test-bucket"),
+		Key:    aws.String(key),
+	})
+	return err
 }
