@@ -395,6 +395,11 @@ func TestSetItemPrimaryImage(t *testing.T) {
 		img1, err := testDB.Queries().GetItemImageByID(ctx, imageID1)
 		require.NoError(t, err)
 		assert.False(t, img1.IsPrimary, "first image should no longer be primary")
+
+		// verify second image is primary in DB
+		img2, err := testDB.Queries().GetItemImageByID(ctx, imageID2)
+		require.NoError(t, err)
+		assert.True(t, img2.IsPrimary, "second image should be primary in DB")
 	})
 
 	t.Run("rejects non-square image", func(t *testing.T) {
