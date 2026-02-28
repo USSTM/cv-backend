@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	sharedDB *testutil.TestDatabase
+	sharedDB    *testutil.TestDatabase
+	sharedQueue *testutil.TestQueue
 )
 
 func TestMain(m *testing.M) {
@@ -26,12 +27,14 @@ func TestMain(m *testing.M) {
 	t := &testing.T{}
 	sharedDB = testutil.NewTestDatabase(t)
 	sharedDB.RunMigrations(t)
+	sharedQueue = testutil.NewTestQueue(t)
 
 	code := m.Run()
 
 	if sharedDB.Pool() != nil {
 		sharedDB.Pool().Close()
 	}
+	sharedQueue.Close()
 
 	os.Exit(code)
 }

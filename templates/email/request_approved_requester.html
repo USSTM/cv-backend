@@ -1,0 +1,6 @@
+{{define "request_approved_requester:subject"}}Your request for {{.ItemName}} has been approved{{end}}
+
+{{define "request_approved_requester:body"}}
+<p>Hi {{.UserName}},</p>
+<p>Your request for <strong>{{.ItemName}}</strong> (ref: <code>{{.RequestID}}</code>) has been approved. A booking has been created — check your bookings for pickup details.</p>
+{{end}}

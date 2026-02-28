@@ -82,7 +82,12 @@ func newAuthTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil
 
 	notiService := notifications.NewNotificationService(testDB.Pool(), testDB.Queries())
 
-	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack, notiService)
+	emailTemplates, err := notifications.LoadTemplates("../../templates/email")
+	require.NoError(t, err)
+
+	dispatcher := notifications.NewNotificationDispatcher(notiService, sharedQueue, emailTemplates, notifications.NewEmailLookupFunc(testDB.Queries()))
+
+	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack, dispatcher)
 	return server, testDB, mockAuth, authSvc
 }
 

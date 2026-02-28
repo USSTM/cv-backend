@@ -19,7 +19,7 @@ func (s Server) GetNotifications(ctx context.Context, request api.GetNotificatio
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
-	notifs, err := s.notificationService.GetUserNotifications(ctx, user.ID, limit, offset)
+	notifs, err := s.dispatcher.GetUserNotifications(ctx, user.ID, limit, offset)
 	if err != nil {
 		logger.Error("Failed to get notifications", "error", err, "user_id", user.ID)
 		return api.GetNotifications500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
@@ -43,7 +43,7 @@ func (s Server) GetNotifications(ctx context.Context, request api.GetNotificatio
 		response = []api.NotificationResponse{}
 	}
 
-	total, err := s.notificationService.GetTotalCount(ctx, user.ID)
+	total, err := s.dispatcher.GetTotalCount(ctx, user.ID)
 	if err != nil {
 		logger.Error("Failed to get total notification count", "error", err, "user_id", user.ID)
 		return api.GetNotifications500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
@@ -63,7 +63,7 @@ func (s Server) GetUnreadNotificationCount(ctx context.Context, request api.GetU
 		return api.GetUnreadNotificationCount401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
-	count, err := s.notificationService.GetUnreadCount(ctx, user.ID)
+	count, err := s.dispatcher.GetUnreadCount(ctx, user.ID)
 	if err != nil {
 		logger.Error("Failed to get unread notification count", "error", err, "user_id", user.ID)
 		return api.GetUnreadNotificationCount500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
@@ -82,7 +82,7 @@ func (s Server) MarkNotificationAsRead(ctx context.Context, request api.MarkNoti
 		return api.MarkNotificationAsRead401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
-	marked, err := s.notificationService.MarkAsRead(ctx, user.ID, request.Id)
+	marked, err := s.dispatcher.MarkAsRead(ctx, user.ID, request.Id)
 	if err != nil {
 		logger.Error("Failed to mark notification as read", "error", err, "user_id", user.ID, "notif_id", request.Id)
 		return api.MarkNotificationAsRead404JSONResponse(NotFound("Notification").Create()), nil
@@ -108,7 +108,7 @@ func (s Server) MarkAllNotificationsAsRead(ctx context.Context, request api.Mark
 		return api.MarkAllNotificationsAsRead401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
 
-	err := s.notificationService.MarkAllAsRead(ctx, user.ID)
+	err := s.dispatcher.MarkAllAsRead(ctx, user.ID)
 	if err != nil {
 		logger.Error("Failed to mark all notifications as read", "error", err, "user_id", user.ID)
 		return api.MarkAllNotificationsAsRead500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil

@@ -121,6 +121,7 @@ type Querier interface {
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
+	GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
 	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
 	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
 	ListAvailability(ctx context.Context, arg ListAvailabilityParams) ([]ListAvailabilityRow, error)

@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
@@ -23,7 +24,7 @@ type Container struct {
 	EmailService  *aws.EmailService
 	S3Service     *aws.S3Service
 	Authenticator *auth.Authenticator
-	NotiService   *notifications.NotificationService
+	Dispatcher    *notifications.NotificationDispatcher
 	Server        *api.Server
 	Worker        *queue.Worker
 }
@@ -85,7 +86,14 @@ func New(cfg config.Config) (*Container, error) {
 
 	notiService := notifications.NewNotificationService(db.Pool(), db.Queries())
 
-	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service, notiService)
+	emailTemplates, err := notifications.LoadTemplates("templates/email")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load email templates: %w", err)
+	}
+
+	dispatcher := notifications.NewNotificationDispatcher(notiService, taskQueue, emailTemplates, notifications.NewEmailLookupFunc(db.Queries()))
+
+	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service, dispatcher)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
@@ -100,7 +108,7 @@ func New(cfg config.Config) (*Container, error) {
 		EmailService:  sesService,
 		S3Service:     s3Service,
 		Authenticator: authenticator,
-		NotiService:   notiService,
+		Dispatcher:    dispatcher,
 		Server:        server,
 		Worker:        worker,
 	}, nil

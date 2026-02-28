@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,4 +59,10 @@ type NotificationService interface {
 	MarkAllAsRead(ctx context.Context, userID uuid.UUID) error
 	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error)
 	GetTotalCount(ctx context.Context, userID uuid.UUID) (int64, error)
+}
+
+// NotificationDispatcherService wraps NotificationService and adds multi-group email dispatch.
+type NotificationDispatcherService interface {
+	NotificationService
+	Notify(ctx context.Context, actorID uuid.UUID, entityType string, entityID uuid.UUID, groups []notifications.NotifierGroup) error
 }
