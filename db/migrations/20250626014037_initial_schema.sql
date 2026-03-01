@@ -193,7 +193,48 @@ CREATE INDEX idx_availability_slot ON user_availability(time_slot_id, date);
 -- Request booking reference index
 CREATE INDEX idx_requests_booking ON requests(booking_id);
 
+-- Notification entity types table (What kind of entity caused the notification)
+CREATE TABLE notification_entity_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT
+);
+
+-- Notification objects table (The event that happened)
+CREATE TABLE notification_objects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type_id INT NOT NULL REFERENCES notification_entity_types(id) ON DELETE CASCADE,
+    entity_id UUID NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Notification changes table (Who triggered it)
+CREATE TABLE notification_changes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    notification_object_id UUID NOT NULL REFERENCES notification_objects(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Notifications table (Who receives it)
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    notification_object_id UUID NOT NULL REFERENCES notification_objects(id) ON DELETE CASCADE,
+    notifier_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Notifications indexes
+CREATE INDEX idx_notifications_notifier ON notifications(notifier_id, created_at DESC);
+CREATE INDEX idx_notifications_is_read ON notifications(notifier_id, is_read);
+CREATE INDEX idx_notification_objects_entity ON notification_objects(entity_type_id, entity_id);
+
 -- +goose Down
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS notification_changes CASCADE;
+DROP TABLE IF EXISTS notification_objects CASCADE;
+DROP TABLE IF EXISTS notification_entity_types CASCADE;
 DROP TABLE IF EXISTS booking CASCADE;
 DROP TABLE IF EXISTS user_availability CASCADE;
 DROP TABLE IF EXISTS time_slots CASCADE;

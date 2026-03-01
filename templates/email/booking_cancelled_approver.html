@@ -1,0 +1,6 @@
+{{define "booking_cancelled_approver:subject"}}Booking cancelled: {{.ItemName}}{{end}}
+
+{{define "booking_cancelled_approver:body"}}
+<p>Hi,</p>
+<p><strong>{{.RequesterEmail}}</strong> has cancelled their booking for <strong>{{.ItemName}}</strong> (pickup: <strong>{{.PickupDate}}</strong>).</p>
+{{end}}

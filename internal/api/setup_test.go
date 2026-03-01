@@ -10,6 +10,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/config"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -32,10 +33,10 @@ func TestMain(m *testing.M) {
 
 	t := &testing.T{}
 
-	sharedTestDB = testutil.NewTestDatabase(t)
+	sharedTestDB = testutil.NewTestDatabase(t, "cv-backend-test-db-api")
 	sharedTestDB.RunMigrations(t)
-	sharedQueue = testutil.NewTestQueue(t)
-	sharedLocalStack = testutil.NewTestLocalStack(t)
+	sharedQueue = testutil.NewTestQueue(t, "cv-backend-test-redis-api")
+	sharedLocalStack = testutil.NewTestLocalStack(t, "cv-backend-test-localstack-api")
 
 	code := m.Run()
 
@@ -78,7 +79,15 @@ func newAuthTestServer(t *testing.T) (*Server, *testutil.TestDatabase, *testutil
 	})
 
 	mockAuth := testutil.NewMockAuthenticator(t)
-	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack)
+
+	notiService := notifications.NewNotificationService(testDB.Pool(), testDB.Queries())
+
+	emailTemplates, err := notifications.LoadTemplates("../../templates/email")
+	require.NoError(t, err)
+
+	dispatcher := notifications.NewNotificationDispatcher(notiService, sharedQueue, emailTemplates, notifications.NewEmailLookupFunc(testDB.Queries()))
+
+	server := NewServer(testDB, sharedQueue, authSvc, mockAuth, sharedLocalStack, sharedLocalStack, dispatcher)
 	return server, testDB, mockAuth, authSvc
 }
 

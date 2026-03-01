@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,4 +49,20 @@ type S3Service interface {
 	GetObject(ctx context.Context, key string) (io.ReadCloser, error)
 	GeneratePresignedURL(ctx context.Context, method string, key string, duration time.Duration) (string, error)
 	DeleteObject(ctx context.Context, key string) error
+}
+
+// NotificationService defines the interface for notifications operations
+type NotificationService interface {
+	Publish(ctx context.Context, actorID uuid.UUID, entityTypeName string, entityID uuid.UUID, notifierIDs []uuid.UUID) error
+	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int64) ([]db.GetUserNotificationsRow, error)
+	MarkAsRead(ctx context.Context, userID, notificationID uuid.UUID) (db.Notification, error)
+	MarkAllAsRead(ctx context.Context, userID uuid.UUID) error
+	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error)
+	GetTotalCount(ctx context.Context, userID uuid.UUID) (int64, error)
+}
+
+// NotificationDispatcherService wraps NotificationService and adds multi-group email dispatch.
+type NotificationDispatcherService interface {
+	NotificationService
+	Notify(ctx context.Context, actorID uuid.UUID, entityType string, entityID uuid.UUID, groups []notifications.NotifierGroup) error
 }

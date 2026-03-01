@@ -22,13 +22,13 @@ type TestQueue struct {
 	Inspector *asynq.Inspector // (this is for inspecting the queue in tests)
 }
 
-func NewTestQueue(t *testing.T) *TestQueue {
+func NewTestQueue(t *testing.T, name string) *TestQueue {
 	ctx := context.Background()
 
 	// Create Redis container with reuse enabled
 	redisContainer, err := redis.Run(ctx,
 		"redis:7-alpine",
-		testcontainers.WithReuseByName("cv-backend-test-redis"),
+		testcontainers.WithReuseByName(name),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
 				wait.ForLog("Ready to accept connections").
@@ -90,6 +90,11 @@ func (tQ *TestQueue) Cleanup(t *testing.T) {
 
 	if err := tQ.Redis.FlushDB(ctx).Err(); err != nil {
 		t.Logf("WARNING: failed to flush Redis between tests: %v", err)
+	}
+
+	// re-register queues after flush. to fix asynq crashing tests
+	if err := tQ.Redis.SAdd(ctx, "asynq:queues", "default", "critical", "low").Err(); err != nil {
+		t.Logf("WARNING: failed to re-register asynq queues: %v", err)
 	}
 }
 

@@ -1,0 +1,6 @@
+{{define "booking_cancelled_requester:subject"}}Your booking for {{.ItemName}} has been cancelled{{end}}
+
+{{define "booking_cancelled_requester:body"}}
+<p>Hi,</p>
+<p>Your booking for <strong>{{.ItemName}}</strong> scheduled for pickup on <strong>{{.PickupDate}}</strong> has been cancelled by an administrator.</p>
+{{end}}

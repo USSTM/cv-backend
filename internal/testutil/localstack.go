@@ -24,12 +24,12 @@ type TestLocalStack struct {
 	S3        *s3.Client
 }
 
-func NewTestLocalStack(t *testing.T) *TestLocalStack {
+func NewTestLocalStack(t *testing.T, name string) *TestLocalStack {
 	ctx := context.Background()
 
 	container, err := localstack.Run(ctx,
 		"localstack/localstack:3.0",
-		testcontainers.WithReuseByName("cv-backend-test-localstack"),
+		testcontainers.WithReuseByName(name),
 		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Env: map[string]string{

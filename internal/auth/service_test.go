@@ -26,8 +26,8 @@ func TestMain(m *testing.M) {
 	}
 
 	t := &testing.T{}
-	sharedQueue = testutil.NewTestQueue(t)
-	sharedDB = testutil.NewTestDatabase(t)
+	sharedQueue = testutil.NewTestQueue(t, "cv-backend-test-redis-auth")
+	sharedDB = testutil.NewTestDatabase(t, "cv-backend-test-db-auth")
 	sharedDB.RunMigrations(t)
 
 	code := m.Run()

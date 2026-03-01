@@ -1,0 +1,6 @@
+{{define "request_approved_approver:subject"}}You approved a request for {{.ItemName}}{{end}}
+
+{{define "request_approved_approver:body"}}
+<p>Hi {{.UserName}},</p>
+<p>You approved <strong>{{.RequesterName}}</strong>'s request for <strong>{{.ItemName}}</strong>. A booking has been created.</p>
+{{end}}

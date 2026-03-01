@@ -1364,9 +1364,24 @@ func TestServer_ReviewRequest(t *testing.T) {
 		assert.Equal(t, api.Approved, reviewResp.Status)
 		assert.Equal(t, approverUser.ID, *reviewResp.ReviewedBy)
 		assert.NotNil(t, reviewResp.ReviewedAt)
+
+		// requester notified
+		requesterNotifs, err := testDB.Queries().GetUserNotifications(approverCtx, db.GetUserNotificationsParams{NotifierID: requestUser.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, requesterNotifs, 1, "requester should receive approval in-app notification")
+
+		approverNotifs, err := testDB.Queries().GetUserNotifications(approverCtx, db.GetUserNotificationsParams{NotifierID: approverUser.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Empty(t, approverNotifs, "approver (actor) should not receive their own in-app notification")
+
+		// two email enqueued (both requester and approver get email)
+		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+		require.NoError(t, err)
+		assert.Len(t, tasks, 2, "one email per recipient should be enqueued")
 	})
 
 	t.Run("approver denies request", func(t *testing.T) {
+		sharedQueue.Cleanup(t) // flush queue from previous subtest
 		requestUser := testDB.NewUser(t).
 			WithEmail("requester@deny.ca").
 			AsMember().
@@ -1422,6 +1437,20 @@ func TestServer_ReviewRequest(t *testing.T) {
 		reviewResp := response.(api.ReviewRequest200JSONResponse)
 		assert.Equal(t, api.Denied, reviewResp.Status)
 		assert.Equal(t, approverUser.ID, *reviewResp.ReviewedBy)
+
+		// only requester notified
+		requesterNotifs, err := testDB.Queries().GetUserNotifications(approverCtx, db.GetUserNotificationsParams{NotifierID: requestUser.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, requesterNotifs, 1, "requester should receive denial in-app notification")
+
+		approverNotifs, err := testDB.Queries().GetUserNotifications(approverCtx, db.GetUserNotificationsParams{NotifierID: approverUser.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Empty(t, approverNotifs, "approver should not receive in-app notification on denial")
+
+		// one email enqueued
+		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+		require.NoError(t, err)
+		assert.Len(t, tasks, 1, "one email should be enqueued for requester")
 	})
 
 	t.Run("cannot approve request with insufficient stock", func(t *testing.T) {
