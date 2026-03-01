@@ -25,9 +25,9 @@ func TestMain(m *testing.M) {
 	}
 
 	t := &testing.T{}
-	sharedDB = testutil.NewTestDatabase(t)
+	sharedDB = testutil.NewTestDatabase(t, "cv-backend-test-db-noti")
 	sharedDB.RunMigrations(t)
-	sharedQueue = testutil.NewTestQueue(t)
+	sharedQueue = testutil.NewTestQueue(t, "cv-backend-test-redis-noti")
 
 	code := m.Run()
 

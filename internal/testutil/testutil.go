@@ -26,8 +26,8 @@ type TestServer struct {
 
 // NewTestServer creates a test server with real database and service mocks
 func NewTestServer(t *testing.T, handler http.Handler) *TestServer {
-	testDB := NewTestDatabase(t)
-	queue := NewTestQueue(t)
+	testDB := NewTestDatabase(t, "cv-backend-test-db-testserver")
+	queue := NewTestQueue(t, "cv-backend-test-redis-testserver")
 	mockJWT := NewMockJWTService(t)
 	mockAuth := NewMockAuthenticator(t)
 

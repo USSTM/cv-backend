@@ -33,10 +33,10 @@ func TestMain(m *testing.M) {
 
 	t := &testing.T{}
 
-	sharedTestDB = testutil.NewTestDatabase(t)
+	sharedTestDB = testutil.NewTestDatabase(t, "cv-backend-test-db-api")
 	sharedTestDB.RunMigrations(t)
-	sharedQueue = testutil.NewTestQueue(t)
-	sharedLocalStack = testutil.NewTestLocalStack(t)
+	sharedQueue = testutil.NewTestQueue(t, "cv-backend-test-redis-api")
+	sharedLocalStack = testutil.NewTestLocalStack(t, "cv-backend-test-localstack-api")
 
 	code := m.Run()
 

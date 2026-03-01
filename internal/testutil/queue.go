@@ -22,13 +22,13 @@ type TestQueue struct {
 	Inspector *asynq.Inspector // (this is for inspecting the queue in tests)
 }
 
-func NewTestQueue(t *testing.T) *TestQueue {
+func NewTestQueue(t *testing.T, name string) *TestQueue {
 	ctx := context.Background()
 
 	// Create Redis container with reuse enabled
 	redisContainer, err := redis.Run(ctx,
 		"redis:7-alpine",
-		testcontainers.WithReuseByName("cv-backend-test-redis"),
+		testcontainers.WithReuseByName(name),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
 				wait.ForLog("Ready to accept connections").
