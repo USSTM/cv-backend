@@ -759,6 +759,7 @@ func TestServer_CancelBooking(t *testing.T) {
 
 	t.Run("success - requester cancels before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
+		sharedQueue.Cleanup(t)
 
 		// Create test data
 		user := testDB.NewUser(t).WithEmail("user@cancel.test").AsMember().Create()
@@ -792,10 +793,21 @@ func TestServer_CancelBooking(t *testing.T) {
 		updatedBooking, err := testDB.Queries().GetBookingByID(ctx, booking.ID)
 		require.NoError(t, err)
 		assert.Equal(t, db.RequestStatusCancelled, updatedBooking.Status)
+
+		// approver receives in-app notification
+		approverNotifs, err := testDB.Queries().GetUserNotifications(ctx, db.GetUserNotificationsParams{NotifierID: approver.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, approverNotifs, 1, "manager should receive in-app notification when requester cancels")
+
+		// email enqueued for approver
+		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+		require.NoError(t, err)
+		assert.Len(t, tasks, 1, "one email should be enqueued for manager")
 	})
 
 	t.Run("success - manager cancels before pickup", func(t *testing.T) {
 		testDB.CleanupDatabase(t)
+		sharedQueue.Cleanup(t)
 
 		// Create test data
 		user := testDB.NewUser(t).WithEmail("user@cancel.test").AsMember().Create()
@@ -825,6 +837,16 @@ func TestServer_CancelBooking(t *testing.T) {
 		resp := response.(api.CancelBooking200JSONResponse)
 		assert.Equal(t, booking.ID, resp.Id)
 		assert.Equal(t, api.RequestStatus("cancelled"), resp.Status)
+
+		// requester receives in-app notification
+		userNotifs, err := testDB.Queries().GetUserNotifications(ctx, db.GetUserNotificationsParams{NotifierID: user.ID, Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, userNotifs, 1, "requester should receive in-app notification when manager cancels")
+
+		// one email enqueued for requester
+		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+		require.NoError(t, err)
+		assert.Len(t, tasks, 1, "one email should be enqueued for requester")
 	})
 
 	t.Run("success - manager cancels after pickup (admin override)", func(t *testing.T) {
