@@ -91,6 +91,11 @@ func (tQ *TestQueue) Cleanup(t *testing.T) {
 	if err := tQ.Redis.FlushDB(ctx).Err(); err != nil {
 		t.Logf("WARNING: failed to flush Redis between tests: %v", err)
 	}
+
+	// re-register queues after flush. to fix asynq crashing tests
+	if err := tQ.Redis.SAdd(ctx, "asynq:queues", "default", "critical", "low").Err(); err != nil {
+		t.Logf("WARNING: failed to re-register asynq queues: %v", err)
+	}
 }
 
 func (tq *TestQueue) Close() {

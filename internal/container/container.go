@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/USSTM/cv-backend/internal/api"
 	"github.com/USSTM/cv-backend/internal/auth"
@@ -9,6 +10,7 @@ import (
 	"github.com/USSTM/cv-backend/internal/config"
 	"github.com/USSTM/cv-backend/internal/database"
 	"github.com/USSTM/cv-backend/internal/logging"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/redis/go-redis/v9"
 )
@@ -22,6 +24,7 @@ type Container struct {
 	EmailService  *aws.EmailService
 	S3Service     *aws.S3Service
 	Authenticator *auth.Authenticator
+	Dispatcher    *notifications.NotificationDispatcher
 	Server        *api.Server
 	Worker        *queue.Worker
 }
@@ -81,7 +84,16 @@ func New(cfg config.Config) (*Container, error) {
 
 	worker := queue.NewWorker(&cfg.Redis, sesService)
 
-	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service)
+	notiService := notifications.NewNotificationService(db.Pool(), db.Queries())
+
+	emailTemplates, err := notifications.LoadTemplates("templates/email")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load email templates: %w", err)
+	}
+
+	dispatcher := notifications.NewNotificationDispatcher(notiService, taskQueue, emailTemplates, notifications.NewEmailLookupFunc(db.Queries()))
+
+	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service, dispatcher)
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
@@ -96,6 +108,7 @@ func New(cfg config.Config) (*Container, error) {
 		EmailService:  sesService,
 		S3Service:     s3Service,
 		Authenticator: authenticator,
+		Dispatcher:    dispatcher,
 		Server:        server,
 		Worker:        worker,
 	}, nil

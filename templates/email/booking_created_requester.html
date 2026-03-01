@@ -1,0 +1,6 @@
+{{define "booking_created_requester:subject"}}Booking created for {{.ItemName}}{{end}}
+
+{{define "booking_created_requester:body"}}
+<p>Hi {{.UserName}},</p>
+<p>Your booking for <strong>{{.ItemName}}</strong> is confirmed. Please pick it up on <strong>{{.PickupDate}}</strong> at <strong>{{.PickupLocation}}</strong>.</p>
+{{end}}

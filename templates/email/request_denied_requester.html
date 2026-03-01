@@ -1,0 +1,7 @@
+{{define "request_denied_requester:subject"}}Your request for {{.ItemName}} was not approved{{end}}
+
+{{define "request_denied_requester:body"}}
+<p>Hi {{.UserName}},</p>
+<p>Unfortunately, your request for <strong>{{.ItemName}}</strong> (ref: <code>{{.RequestID}}</code>) was not approved at this time.</p>
+{{if .Reason}}<p>Reason: {{.Reason}}</p>{{end}}
+{{end}}

@@ -143,6 +143,30 @@ func (q *Queries) GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]Ge
 	return items, nil
 }
 
+const getUsersByIDs = `-- name: GetUsersByIDs :many
+SELECT id, email FROM users WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error) {
+	rows, err := q.db.Query(ctx, getUsersByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const isUserMemberOfGroup = `-- name: IsUserMemberOfGroup :one
 SELECT EXISTS(
   SELECT 1 FROM user_roles
