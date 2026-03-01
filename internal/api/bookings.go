@@ -8,6 +8,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -590,6 +591,42 @@ func (s Server) CancelBooking(ctx context.Context, request api.CancelBookingRequ
 			"booking_id", request.BookingId,
 			"error", err)
 		return api.CancelBooking500JSONResponse(InternalError("An unexpected error occurred").Create()), nil
+	}
+
+	pickupDate := booking.PickUpDate.Time.Format("2006-01-02")
+	if hasManageAll && !isRequester {
+		// approver cancelled: notify requester
+		if booking.RequesterID != nil {
+			if notifyErr := s.dispatcher.Notify(ctx, user.ID, "booking", request.BookingId, []notifications.NotifierGroup{
+				{
+					IDs:      []uuid.UUID{*booking.RequesterID},
+					Template: "booking_cancelled_requester",
+					TemplateData: map[string]interface{}{
+						"ItemName":   booking.ItemName,
+						"PickupDate": pickupDate,
+					},
+				},
+			}); notifyErr != nil {
+				logger.Error("failed to notify requester of booking cancellation", "booking_id", request.BookingId, "error", notifyErr)
+			}
+		}
+	} else if isRequester {
+		// requester cancelled: notify approver if exists
+		if booking.ManagerID != nil {
+			if notifyErr := s.dispatcher.Notify(ctx, user.ID, "booking", request.BookingId, []notifications.NotifierGroup{
+				{
+					IDs:      []uuid.UUID{*booking.ManagerID},
+					Template: "booking_cancelled_approver",
+					TemplateData: map[string]interface{}{
+						"RequesterEmail": user.Email,
+						"ItemName":       booking.ItemName,
+						"PickupDate":     pickupDate,
+					},
+				},
+			}); notifyErr != nil {
+				logger.Error("failed to notify manager of booking cancellation", "booking_id", request.BookingId, "error", notifyErr)
+			}
+		}
 	}
 
 	response := convertToBookingResponse(updatedBooking)

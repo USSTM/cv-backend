@@ -7,6 +7,8 @@ import (
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/logging"
+	"github.com/USSTM/cv-backend/internal/notifications"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -723,6 +725,51 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 	// end transaction
 	if err := tx.Commit(ctx); err != nil {
 		return api.ReviewRequest500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	if req.UserID != nil {
+		var requesterEmail string
+		if users, err := s.db.Queries().GetUsersByIDs(ctx, []uuid.UUID{*req.UserID}); err == nil && len(users) > 0 {
+			requesterEmail = users[0].Email
+		}
+		if request.Body.Status == api.Approved {
+			if notifyErr := s.dispatcher.Notify(ctx, user.ID, "request", request.RequestId, []notifications.NotifierGroup{
+				{
+					IDs:      []uuid.UUID{*req.UserID},
+					Template: "request_approved_requester",
+					TemplateData: map[string]interface{}{
+						"UserName":  requesterEmail,
+						"ItemName":  item.Name,
+						"RequestID": request.RequestId,
+					},
+				},
+				{
+					IDs:      []uuid.UUID{user.ID},
+					Template: "request_approved_approver",
+					TemplateData: map[string]interface{}{
+						"UserName":      user.Email,
+						"RequesterName": requesterEmail,
+						"ItemName":      item.Name,
+					},
+				},
+			}); notifyErr != nil {
+				logging.Error("failed to send approval notifications", "request_id", request.RequestId, "error", notifyErr)
+			}
+		} else {
+			if notifyErr := s.dispatcher.Notify(ctx, user.ID, "request", request.RequestId, []notifications.NotifierGroup{
+				{
+					IDs:      []uuid.UUID{*req.UserID},
+					Template: "request_denied_requester",
+					TemplateData: map[string]interface{}{
+						"UserName":  requesterEmail,
+						"ItemName":  item.Name,
+						"RequestID": request.RequestId,
+					},
+				},
+			}); notifyErr != nil {
+				logging.Error("failed to send denial notifications", "request_id", request.RequestId, "error", notifyErr)
+			}
+		}
 	}
 
 	reviewedAt := resp.ReviewedAt.Time
