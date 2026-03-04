@@ -82,9 +82,14 @@ VALUES ($1)
 RETURNING id, email
 `
 
-func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
+type CreateUserRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, email string) (CreateUserRow, error) {
 	row := q.db.QueryRow(ctx, createUser, email)
-	var i User
+	var i CreateUserRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
@@ -114,9 +119,14 @@ const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email FROM users WHERE email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }
@@ -125,9 +135,14 @@ const getUserByID = `-- name: GetUserByID :one
 SELECT id, email FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+type GetUserByIDRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
 }

@@ -215,16 +215,21 @@ type GetAvailableApproversForSlotParams struct {
 	TimeSlotID *uuid.UUID  `json:"time_slot_id"`
 }
 
+type GetAvailableApproversForSlotRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
 // Find all approvers available for a specific date/time slot
-func (q *Queries) GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]User, error) {
+func (q *Queries) GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]GetAvailableApproversForSlotRow, error) {
 	rows, err := q.db.Query(ctx, getAvailableApproversForSlot, arg.Date, arg.TimeSlotID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []GetAvailableApproversForSlotRow{}
 	for rows.Next() {
-		var i User
+		var i GetAvailableApproversForSlotRow
 		if err := rows.Scan(&i.ID, &i.Email); err != nil {
 			return nil, err
 		}

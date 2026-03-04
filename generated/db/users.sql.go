@@ -56,15 +56,20 @@ const getAllUsers = `-- name: GetAllUsers :many
 SELECT id, email from users
 `
 
-func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
+type GetAllUsersRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	rows, err := q.db.Query(ctx, getAllUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []GetAllUsersRow{}
 	for rows.Next() {
-		var i User
+		var i GetAllUsersRow
 		if err := rows.Scan(&i.ID, &i.Email); err != nil {
 			return nil, err
 		}
@@ -100,6 +105,17 @@ func (q *Queries) GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserPreferences = `-- name: GetUserPreferences :one
+SELECT preferences FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserPreferences(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getUserPreferences, id)
+	var preferences []byte
+	err := row.Scan(&preferences)
+	return preferences, err
 }
 
 const getUsersByGroup = `-- name: GetUsersByGroup :many
@@ -147,15 +163,51 @@ const getUsersByIDs = `-- name: GetUsersByIDs :many
 SELECT id, email FROM users WHERE id = ANY($1::uuid[])
 `
 
-func (q *Queries) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error) {
+type GetUsersByIDsRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]GetUsersByIDsRow, error) {
 	rows, err := q.db.Query(ctx, getUsersByIDs, ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []GetUsersByIDsRow{}
 	for rows.Next() {
-		var i User
+		var i GetUsersByIDsRow
+		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUsersByIDsEmailOptIn = `-- name: GetUsersByIDsEmailOptIn :many
+SELECT id, email FROM users
+WHERE id = ANY($1::uuid[])
+AND (preferences->>'email_notifications') IS DISTINCT FROM 'false'
+`
+
+type GetUsersByIDsEmailOptInRow struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) GetUsersByIDsEmailOptIn(ctx context.Context, ids []uuid.UUID) ([]GetUsersByIDsEmailOptInRow, error) {
+	rows, err := q.db.Query(ctx, getUsersByIDsEmailOptIn, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUsersByIDsEmailOptInRow{}
+	for rows.Next() {
+		var i GetUsersByIDsEmailOptInRow
 		if err := rows.Scan(&i.ID, &i.Email); err != nil {
 			return nil, err
 		}
@@ -186,4 +238,20 @@ func (q *Queries) IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGro
 	var is_member bool
 	err := row.Scan(&is_member)
 	return is_member, err
+}
+
+const updateUserPreferences = `-- name: UpdateUserPreferences :one
+UPDATE users SET preferences = $1 WHERE id = $2 RETURNING preferences
+`
+
+type UpdateUserPreferencesParams struct {
+	Preferences []byte    `json:"preferences"`
+	ID          uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, updateUserPreferences, arg.Preferences, arg.ID)
+	var preferences []byte
+	err := row.Scan(&preferences)
+	return preferences, err
 }

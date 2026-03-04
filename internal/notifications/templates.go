@@ -12,7 +12,7 @@ import (
 
 func NewEmailLookupFunc(queries *db.Queries) EmailLookupFunc {
 	return func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
-		rows, err := queries.GetUsersByIDs(ctx, ids)
+		rows, err := queries.GetUsersByIDsEmailOptIn(ctx, ids)
 		if err != nil {
 			return nil, err
 		}

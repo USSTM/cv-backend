@@ -48,6 +48,25 @@ components:
         - role_name
         - scope
 
+    UserPreferences:
+      type: object
+      description: User preference settings. All fields are always returned with their current or default value.
+      properties:
+        email_notifications:
+          type: boolean
+          description: Whether the user receives email notifications
+          example: true
+      required:
+        - email_notifications
+
+    UserPreferencesUpdate:
+      type: object
+      description: Partial update for user preferences. Only provided fields are updated.
+      properties:
+        email_notifications:
+          type: boolean
+          description: Whether the user receives email notifications
+
     PaginationMeta:
       type: object
       required: [total, limit, offset, has_more]
@@ -2932,6 +2951,72 @@ paths:
               example:
                 code: 500
                 message: "An unexpected error occurred."
+
+  /users/me/preferences:
+    get:
+      tags:
+        - Users
+      summary: Get current user preferences
+      operationId: GetMyPreferences
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - Users
+      summary: Update current user preferences
+      operationId: UpdateMyPreferences
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferencesUpdate"
+      responses:
+        "200":
+          description: Updated user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /users/{userId}:
     get:

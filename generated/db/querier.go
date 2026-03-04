@@ -56,7 +56,7 @@ type Querier interface {
 	CreateRole(ctx context.Context, arg CreateRoleParams) error
 	CreateRolePermission(ctx context.Context, arg CreateRolePermissionParams) error
 	CreateSignUpCode(ctx context.Context, arg CreateSignUpCodeParams) (SignupCode, error)
-	CreateUser(ctx context.Context, email string) (User, error)
+	CreateUser(ctx context.Context, email string) (CreateUserRow, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	DecrementItemStock(ctx context.Context, arg DecrementItemStockParams) error
 	DecrementStockForLowItem(ctx context.Context, arg DecrementStockForLowItemParams) error
@@ -74,7 +74,7 @@ type Querier interface {
 	GetAllItems(ctx context.Context, arg GetAllItemsParams) ([]Item, error)
 	GetAllRequests(ctx context.Context, arg GetAllRequestsParams) ([]Request, error)
 	GetAllReturnedItems(ctx context.Context, arg GetAllReturnedItemsParams) ([]Borrowing, error)
-	GetAllUsers(ctx context.Context) ([]User, error)
+	GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error)
 	GetApprovedRequestForUserAndItem(ctx context.Context, arg GetApprovedRequestForUserAndItemParams) (Request, error)
 	// Get all approvers available on a specific date
 	GetAvailabilityByDate(ctx context.Context, date pgtype.Date) ([]GetAvailabilityByDateRow, error)
@@ -82,7 +82,7 @@ type Querier interface {
 	// Get count of availability entries for a user in a date range
 	GetAvailabilityCountByUser(ctx context.Context, arg GetAvailabilityCountByUserParams) (int64, error)
 	// Find all approvers available for a specific date/time slot
-	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]User, error)
+	GetAvailableApproversForSlot(ctx context.Context, arg GetAvailableApproversForSlotParams) ([]GetAvailableApproversForSlotRow, error)
 	GetBookingByID(ctx context.Context, id uuid.UUID) (GetBookingByIDRow, error)
 	GetBookingByIDForUpdate(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBorrowedItemHistoryByUserId(ctx context.Context, arg GetBorrowedItemHistoryByUserIdParams) ([]Borrowing, error)
@@ -114,14 +114,16 @@ type Querier interface {
 	GetTimeSlotByStartTime(ctx context.Context, startTime pgtype.Time) (TimeSlot, error)
 	// Get a specific user's availability schedule
 	GetUserAvailability(ctx context.Context, arg GetUserAvailabilityParams) ([]GetUserAvailabilityRow, error)
-	GetUserByEmail(ctx context.Context, email string) (User, error)
-	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserGroupsByUserId(ctx context.Context, userID *uuid.UUID) ([]*uuid.UUID, error)
 	GetUserNotifications(ctx context.Context, arg GetUserNotificationsParams) ([]GetUserNotificationsRow, error)
 	GetUserPermissions(ctx context.Context, userID *uuid.UUID) ([]GetUserPermissionsRow, error)
+	GetUserPreferences(ctx context.Context, id uuid.UUID) ([]byte, error)
 	GetUserRoles(ctx context.Context, userID *uuid.UUID) ([]GetUserRolesRow, error)
 	GetUsersByGroup(ctx context.Context, scopeID *uuid.UUID) ([]GetUsersByGroupRow, error)
-	GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
+	GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]GetUsersByIDsRow, error)
+	GetUsersByIDsEmailOptIn(ctx context.Context, ids []uuid.UUID) ([]GetUsersByIDsEmailOptInRow, error)
 	IncrementItemStock(ctx context.Context, arg IncrementItemStockParams) error
 	IsUserMemberOfGroup(ctx context.Context, arg IsUserMemberOfGroupParams) (bool, error)
 	ListAvailability(ctx context.Context, arg ListAvailabilityParams) ([]ListAvailabilityRow, error)
@@ -154,6 +156,7 @@ type Querier interface {
 	UpdateGroupLogo(ctx context.Context, arg UpdateGroupLogoParams) (Group, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateRequestWithBooking(ctx context.Context, arg UpdateRequestWithBookingParams) (Request, error)
+	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) ([]byte, error)
 }
 
 var _ Querier = (*Queries)(nil)
