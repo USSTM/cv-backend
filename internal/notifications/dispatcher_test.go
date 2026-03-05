@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/USSTM/cv-backend/internal/notifications"
+	"github.com/USSTM/cv-backend/internal/preferences"
 	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -175,4 +176,58 @@ func TestNotificationDispatcher_Notify_ActorSkippedInApp(t *testing.T) {
 	notifs, err := d.GetUserNotifications(ctx, actor.ID, 10, 0)
 	require.NoError(t, err)
 	assert.Empty(t, notifs, "actor should not receive their own in-app notification")
+}
+
+func TestNotificationDispatcher_Notify_EmailOptOut(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration tests in short mode")
+	}
+
+	sharedDB.CleanupDatabase(t)
+	sharedQueue.Cleanup(t)
+
+	ctx := context.Background()
+	actor := sharedDB.NewUser(t).WithEmail("actor5@example.com").Create()
+
+	// opted-in user should receive email
+	optedIn := sharedDB.NewUser(t).WithEmail("optedin@example.com").Create()
+
+	// opted-out user should NOT receive email
+	optedOut := sharedDB.NewUser(t).
+		WithEmail("optedout@example.com").
+		WithPreferences(preferences.UserPreferences{EmailNotifications: false}).
+		Create()
+
+	d := newTestDispatcher(t)
+	entityID := uuid.New()
+
+	err := d.Notify(ctx, actor.ID, "general", entityID, []notifications.NotifierGroup{
+		{
+			IDs:      []uuid.UUID{optedIn.ID, optedOut.ID},
+			Template: "request_approved_requester",
+			TemplateData: map[string]interface{}{
+				"UserName":  "Test",
+				"ItemName":  "Laptop",
+				"RequestID": entityID.String(),
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// all users get in-app notifications
+	inAppOptedIn, err := d.GetUserNotifications(ctx, optedIn.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, inAppOptedIn, 1)
+
+	inAppOptedOut, err := d.GetUserNotifications(ctx, optedOut.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, inAppOptedOut, 1)
+
+	tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+	require.NoError(t, err)
+	require.Len(t, tasks, 1) // only 1 email queued
+
+	var payload queue.EmailDeliveryPayload
+	require.NoError(t, json.Unmarshal(tasks[0].Payload, &payload))
+	assert.Equal(t, "optedin@example.com", payload.To)
 }

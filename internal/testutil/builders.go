@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
+	"github.com/USSTM/cv-backend/internal/preferences"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -110,6 +112,7 @@ func (gb *GroupBuilder) Create() *TestGroup {
 type UserBuilder struct {
 	email  string
 	roles  []UserRole
+	prefs  *preferences.UserPreferences
 	testDB *TestDatabase
 	t      *testing.T
 }
@@ -180,6 +183,13 @@ func (ub *UserBuilder) AsGlobalAdmin() *UserBuilder {
 	return ub
 }
 
+// WithPreferences sets the initial preferences JSONB for the user.
+// Call before Create(). Requires preferences to be marshallable.
+func (ub *UserBuilder) WithPreferences(prefs preferences.UserPreferences) *UserBuilder {
+	ub.prefs = &prefs
+	return ub
+}
+
 // WithCustomRole adds a custom role with specified scope
 func (ub *UserBuilder) WithCustomRole(roleName, scope string, groupID *uuid.UUID) *UserBuilder {
 	ub.roles = append(ub.roles, UserRole{
@@ -207,6 +217,16 @@ func (ub *UserBuilder) Create() *TestUser {
 			ScopeID:  role.GroupID,
 		})
 		require.NoError(ub.t, err, "Failed to assign role %s to user", role.RoleName)
+	}
+
+	if ub.prefs != nil {
+		raw, err := json.Marshal(ub.prefs)
+		require.NoError(ub.t, err)
+		_, err = ub.testDB.Queries().UpdateUserPreferences(ctx, db.UpdateUserPreferencesParams{
+			Preferences: raw,
+			ID:          dbUser.ID,
+		})
+		require.NoError(ub.t, err, "Failed to set user preferences")
 	}
 
 	return &TestUser{
