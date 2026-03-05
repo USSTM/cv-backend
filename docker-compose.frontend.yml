@@ -1,0 +1,124 @@
+services:
+    db:
+        image: postgres:16-alpine
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: devpassword
+            POSTGRES_USER: postgres
+            POSTGRES_DB: campus_vault
+        volumes:
+            - frontend-pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        image: redis:7-alpine
+        restart: always
+        volumes:
+            - frontend-redisdata:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    localstack:
+        image: localstack/localstack:3.0
+        environment:
+            - SERVICES=ses,s3
+            - DEBUG=0
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+    localstack-init:
+        image: amazon/aws-cli
+        depends_on:
+            localstack:
+                condition: service_healthy
+        environment:
+            - AWS_ACCESS_KEY_ID=test
+            - AWS_SECRET_ACCESS_KEY=test
+            - AWS_DEFAULT_REGION=us-east-1
+        entrypoint: >
+            /bin/sh -c "
+              aws --endpoint-url=http://localstack:4566 s3 mb s3://cv-backend-bucket --region us-east-1 || true &&
+              aws --endpoint-url=http://localstack:4566 ses verify-email-identity --email-address noreply@campusvault.dev || true &&
+              echo 'LocalStack init complete'
+            "
+        restart: "no"
+
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - "8080:8080"
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            localstack:
+                condition: service_healthy
+            localstack-init:
+                condition: service_completed_successfully
+        environment:
+            # Database
+            POSTGRES_HOST: db
+            POSTGRES_PORT: 5432
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: devpassword
+            POSTGRES_DB: campus_vault
+            POSTGRES_SSL_MODE: disable
+            # Goose
+            GOOSE_DRIVER: postgres
+            GOOSE_DBSTRING: postgres://postgres:devpassword@db:5432/campus_vault?sslmode=disable
+            # Server
+            SERVER_PORT: 8080
+            # JWT
+            JWT_SIGNING_KEY: dev-signing-key-change-in-production
+            JWT_ISSUER: campus-vault
+            JWT_EXPIRY: 24h
+            # Logging
+            LOG_LEVEL: info
+            LOG_FORMAT: json
+            LOG_FILENAME: /app/logs/app.log
+            LOG_MAX_SIZE: 100
+            LOG_MAX_BACKUPS: 3
+            LOG_MAX_AGE: 28
+            LOG_COMPRESS: "false"
+            # CORS
+            CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+            # AWS / LocalStack
+            AWS_REGION: us-east-1
+            AWS_ACCESS_KEY_ID: test
+            AWS_SECRET_ACCESS_KEY: test
+            AWS_ENDPOINT_URL: http://localstack:4566
+            AWS_EMAIL_SENDER: noreply@campusvault.dev
+            AWS_BUCKET: cv-backend-bucket
+            # Redis
+            REDIS_ADDR: redis:6379
+            REDIS_PASSWORD: ""
+            REDIS_DB: 0
+            # OTP / Auth
+            OTP_EXPIRY: 5m
+            OTP_COOLDOWN: 60s
+            OTP_MAX_ATTEMPTS: 3
+            REFRESH_TOKEN_EXPIRY: 168h
+            # Set to "true" to auto-seed the database with sample data on startup
+            SEED_ON_START: "true"
+        volumes:
+            - ./logs:/app/logs
+        restart: on-failure
+
+volumes:
+    frontend-pgdata:
+    frontend-redisdata:
