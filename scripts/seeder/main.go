@@ -158,6 +158,7 @@ func seedCommand(args []string) error {
 	file := fs.String("file", "", "YAML file to seed from")
 	dir := fs.String("dir", "", "Directory of YAML files to seed from")
 	dryRun := fs.Bool("dry-run", false, "Validate files without making seedDB changes")
+	skipIfSeeded := fs.Bool("skip-if-seeded", false, "Skip seeding if the database already contains data")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
@@ -184,6 +185,17 @@ func seedCommand(args []string) error {
 		return fmt.Errorf("seedDB connection failed: %w", err)
 	}
 	defer seedDB.Close()
+
+	if *skipIfSeeded {
+		users, err := seedDB.Queries().GetAllUsers(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to check seed state: %w", err)
+		}
+		if len(users) > 0 {
+			fmt.Println("database already seeded, skipping")
+			return nil
+		}
+	}
 
 	fmt.Printf("seeding seedDB from %d file(s)\n", len(files))
 	return applySeedData(context.Background(), seedDB.Queries(), seedData)
@@ -682,9 +694,10 @@ func printUsage() {
 	fmt.Println("  help        Show this help message")
 	fmt.Println()
 	fmt.Println("SEED FLAGS:")
-	fmt.Println("  --file      Path to a single YAML file")
-	fmt.Println("  --dir       Path to directory containing YAML files")
-	fmt.Println("  --dry-run   Validate files without making database changes")
+	fmt.Println("  --file             Path to a single YAML file")
+	fmt.Println("  --dir              Path to directory containing YAML files")
+	fmt.Println("  --dry-run          Validate files without making database changes")
+	fmt.Println("  --skip-if-seeded   Skip if the database already contains users")
 	fmt.Println()
 	fmt.Println("NUKE FLAGS:")
 	fmt.Println("  --force     Skip confirmation prompt")

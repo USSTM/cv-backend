@@ -11,7 +11,12 @@ echo "Running database migrations..."
 
 if [ "${SEED_ON_START}" = "true" ]; then
   echo "Seeding database..."
-  /app/bin/seeder seed --file /app/config/dev-seed.yaml
+  if [ -n "${SEED_DIR}" ]; then
+    /app/bin/seeder seed --dir "${SEED_DIR}" --skip-if-seeded
+  else
+    SEED_FILE="${SEED_FILE:-/app/config/dev-seed.yaml}"
+    /app/bin/seeder seed --file "${SEED_FILE}" --skip-if-seeded
+  fi
 fi
 
 echo "Starting server..."

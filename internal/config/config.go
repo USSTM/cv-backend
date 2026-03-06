@@ -20,12 +20,13 @@ type Config struct {
 }
 
 type AWSConfig struct {
-	Region          string
-	AccessKeyID     string
-	SecretAccessKey string
-	EndpointURL     string
-	Sender          string
-	Bucket          string
+	Region            string
+	AccessKeyID       string
+	SecretAccessKey   string
+	EndpointURL       string
+	PublicEndpointURL string
+	Sender            string
+	Bucket            string
 }
 
 type DatabaseConfig struct {
@@ -129,12 +130,13 @@ func Load() *Config {
 			MaxAge:           300,
 		},
 		AWS: AWSConfig{
-			Region:          getEnv("AWS_REGION", "us-east-1"),
-			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
-			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
-			EndpointURL:     getEnv("AWS_ENDPOINT_URL", ""),
-			Sender:          getEnv("AWS_EMAIL_SENDER", "test@example.com"),
-			Bucket:          getEnv("AWS_BUCKET", "cv-backend-test-bucket"),
+			Region:            getEnv("AWS_REGION", "us-east-1"),
+			AccessKeyID:       getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey:   getEnv("AWS_SECRET_ACCESS_KEY", ""),
+			EndpointURL:       getEnv("AWS_ENDPOINT_URL", ""),
+			PublicEndpointURL: getEnv("AWS_PUBLIC_ENDPOINT_URL", ""),
+			Sender:            getEnv("AWS_EMAIL_SENDER", "test@example.com"),
+			Bucket:            getEnv("AWS_BUCKET", "cv-backend-test-bucket"),
 		},
 	}
 }

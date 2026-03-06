@@ -4627,6 +4627,9 @@ paths:
                   type: integer
                 is_primary:
                   type: boolean
+            encoding:
+              image:
+                contentType: image/jpeg, image/png
       responses:
         "201":
           description: Image uploaded
@@ -4835,6 +4838,9 @@ paths:
                 image_type:
                   type: string
                   enum: [before, after]
+            encoding:
+              image:
+                contentType: image/jpeg, image/png
       responses:
         "201":
           description: Image uploaded
@@ -4985,6 +4991,9 @@ paths:
                 image:
                   type: string
                   format: binary
+            encoding:
+              image:
+                contentType: image/jpeg, image/png
       responses:
         "200":
           description: Logo updated

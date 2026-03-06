@@ -1,3 +1,5 @@
+name: cv-frontend
+
 services:
     db:
         image: postgres:16-alpine
@@ -27,6 +29,8 @@ services:
 
     localstack:
         image: localstack/localstack:3.0
+        ports:
+            - "4566:4566"
         environment:
             - SERVICES=ses,s3
             - DEBUG=0
@@ -102,6 +106,7 @@ services:
             AWS_ACCESS_KEY_ID: test
             AWS_SECRET_ACCESS_KEY: test
             AWS_ENDPOINT_URL: http://localstack:4566
+            AWS_PUBLIC_ENDPOINT_URL: http://localhost:4566
             AWS_EMAIL_SENDER: noreply@campusvault.dev
             AWS_BUCKET: cv-backend-bucket
             # Redis
