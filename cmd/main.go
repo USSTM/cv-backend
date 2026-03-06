@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -39,6 +40,10 @@ func main() {
 	}
 	defer c.Cleanup()
 
+	// hack to accept image/jpeg and image/png multipart without rejecting them.
+	openapi3filter.RegisterBodyDecoder("image/jpeg", openapi3filter.FileBodyDecoder)
+	openapi3filter.RegisterBodyDecoder("image/png", openapi3filter.FileBodyDecoder)
+
 	r := chi.NewMux()
 
 	// Get the embedded OpenAPI spec
@@ -62,6 +67,20 @@ func main() {
 			httpSwagger.URL("/swagger.json"),
 		))
 	})
+
+	// dev-only for localstack
+	if cfg.AWS.EndpointURL != "" {
+		r.Get("/dev/emails", func(w http.ResponseWriter, r *http.Request) {
+			resp, err := http.Get(cfg.AWS.EndpointURL + "/_aws/ses")
+			if err != nil {
+				http.Error(w, "failed to fetch emails from LocalStack", http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
+			w.Header().Set("Content-Type", "application/json")
+			io.Copy(w, resp.Body)
+		})
+	}
 
 	// authentication middleware and API
 	r.Group(func(r chi.Router) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/USSTM/cv-backend/internal/config"
@@ -15,8 +16,9 @@ import (
 )
 
 type S3Service struct {
-	client *s3.Client
-	bucket string
+	client            *s3.Client
+	bucket            string
+	publicEndpointURL string
 }
 
 func NewS3Service(cfg config.AWSConfig) (*S3Service, error) {
@@ -33,8 +35,9 @@ func NewS3Service(cfg config.AWSConfig) (*S3Service, error) {
 	})
 
 	return &S3Service{
-		client: client,
-		bucket: cfg.Bucket,
+		client:            client,
+		bucket:            cfg.Bucket,
+		publicEndpointURL: cfg.PublicEndpointURL,
 	}, nil
 }
 
@@ -88,7 +91,30 @@ func (s *S3Service) GeneratePresignedURL(ctx context.Context, method string, key
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	return req.URL, nil
+	presignedURL := req.URL
+	if s.publicEndpointURL != "" {
+		presignedURL, err = rewriteHost(presignedURL, s.publicEndpointURL)
+		if err != nil {
+			return "", fmt.Errorf("failed to rewrite presigned URL host: %w", err)
+		}
+	}
+
+	return presignedURL, nil
+}
+
+// in dev: rewrites "localstack" in urls to "localhost" so that you can access URL outside of docker network (which user by default is not in)
+func rewriteHost(presignedURL, publicBase string) (string, error) {
+	parsed, err := url.Parse(presignedURL)
+	if err != nil {
+		return "", err
+	}
+	pub, err := url.Parse(publicBase)
+	if err != nil {
+		return "", err
+	}
+	parsed.Scheme = pub.Scheme
+	parsed.Host = pub.Host
+	return parsed.String(), nil
 }
 
 func (s *S3Service) CreateBucket(ctx context.Context) error {
