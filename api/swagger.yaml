@@ -421,8 +421,7 @@ components:
           description: Item condition for MEDIUM items (ignored for LOW/HIGH)
         beforeConditionUrl:
           type: string
-          format: uri
-          description: Photo URL for MEDIUM items (ignored for LOW/HIGH)
+          description: Photo URL or storage key for MEDIUM items (ignored for LOW/HIGH). Use the beforeConditionUrl returned by UploadPreCheckoutConditionImage.
       required:
         - groupId
         - dueDate
@@ -816,6 +815,20 @@ components:
         created_at:
           type: string
           format: date-time
+
+    PreCheckoutConditionImage:
+      type: object
+      required: [itemId, beforeConditionUrl, previewUrl]
+      properties:
+        itemId:
+          $ref: "#/components/schemas/UUID"
+        beforeConditionUrl:
+          type: string
+          description: Storage key to pass as beforeConditionUrl when checking out.
+        previewUrl:
+          type: string
+          format: uri
+          description: Temporary presigned URL for previewing the uploaded photo.
 
     GroupCreateRequest:
       type: object
@@ -4801,6 +4814,67 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /borrowings/pre-checkout-condition-image:
+    post:
+      operationId: UploadPreCheckoutConditionImage
+      summary: Upload a pre-checkout condition photo
+      description: Uploads a condition photo for an item before checkout. The returned beforeConditionUrl can be supplied to CheckoutCart.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image, item_id]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                item_id:
+                  $ref: "#/components/schemas/UUID"
+            encoding:
+              image:
+                contentType: image/jpeg, image/png
+      responses:
+        "201":
+          description: Condition photo uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreCheckoutConditionImage"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found
           content:
             application/json:
               schema:
