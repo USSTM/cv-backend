@@ -59,6 +59,7 @@ type AuthConfig struct {
 	OTPCooldown    time.Duration
 	OTPMaxAttempts int
 	RefreshExpiry  time.Duration
+	CookieSecure   bool
 }
 
 type LoggingConfig struct {
@@ -108,6 +109,9 @@ func Load() *Config {
 			OTPCooldown:    getEnvDuration("OTP_COOLDOWN", 60*time.Second),
 			OTPMaxAttempts: getEnvAs("OTP_MAX_ATTEMPTS", 3, strconv.Atoi),
 			RefreshExpiry:  getEnvDuration("REFRESH_TOKEN_EXPIRY", 168*time.Hour),
+			// Keep this enabled outside local HTTP development. Browsers reject
+			// Secure cookies over plain HTTP.
+			CookieSecure: getEnvAs("AUTH_COOKIE_SECURE", getEnvAs("COOKIE_SECURE", true, strconv.ParseBool), strconv.ParseBool),
 		},
 		Logging: LoggingConfig{
 			Level:      getEnv("LOG_LEVEL", "info"),

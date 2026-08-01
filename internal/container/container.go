@@ -93,7 +93,11 @@ func New(cfg config.Config) (*Container, error) {
 
 	dispatcher := notifications.NewNotificationDispatcher(notiService, taskQueue, emailTemplates, notifications.NewEmailLookupFunc(db.Queries()))
 
-	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service, dispatcher)
+	server := api.NewServer(db, taskQueue, authService, authenticator, sesService, s3Service, dispatcher, api.CookieConfig{
+		AccessExpiry:  cfg.JWT.Expiry,
+		RefreshExpiry: cfg.Auth.RefreshExpiry,
+		Secure:        cfg.Auth.CookieSecure,
+	})
 
 	logging.Info("Connected to database",
 		"host", cfg.Database.Host,
