@@ -84,6 +84,7 @@ func main() {
 
 	// authentication middleware and API
 	r.Group(func(r chi.Router) {
+		r.Use(appmiddleware.AuthCookieContext)
 		r.Use(middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
 			Options: openapi3filter.Options{
 				AuthenticationFunc: c.Authenticator.Authenticate,
