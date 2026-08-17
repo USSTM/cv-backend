@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -88,10 +90,12 @@ func TestServer_VerifyOTP(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, api.VerifyOTP200JSONResponse{}, response)
-		resp := response.(api.VerifyOTP200JSONResponse)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NotEmpty(t, resp.RefreshToken)
+		require.IsType(t, verifyOTPCookieResponse{}, response)
+		resp := response.(verifyOTPCookieResponse).VerifyOTP200JSONResponse
+		assert.Equal(t, "Authenticated successfully.", resp.Message)
+		recorder := httptest.NewRecorder()
+		require.NoError(t, response.(verifyOTPCookieResponse).VisitVerifyOTPResponse(recorder))
+		assertAuthCookies(t, recorder)
 	})
 
 	t.Run("invalid code", func(t *testing.T) {
@@ -132,10 +136,12 @@ func TestServer_RefreshToken(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, api.RefreshToken200JSONResponse{}, response)
-		resp := response.(api.RefreshToken200JSONResponse)
-		assert.NotEmpty(t, resp.AccessToken)
-		assert.NotEqual(t, refreshToken, resp.RefreshToken)
+		require.IsType(t, refreshTokenCookieResponse{}, response)
+		resp := response.(refreshTokenCookieResponse).RefreshToken200JSONResponse
+		assert.Equal(t, "Session refreshed successfully.", resp.Message)
+		recorder := httptest.NewRecorder()
+		require.NoError(t, response.(refreshTokenCookieResponse).VisitRefreshTokenResponse(recorder))
+		assertAuthCookies(t, recorder)
 	})
 
 	t.Run("invalid token", func(t *testing.T) {
@@ -169,7 +175,15 @@ func TestServer_Logout(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, api.Logout200JSONResponse{}, response)
+		require.IsType(t, logoutCookieResponse{}, response)
+		recorder := httptest.NewRecorder()
+		require.NoError(t, response.(logoutCookieResponse).VisitLogoutResponse(recorder))
+		cookies := recorder.Result().Cookies()
+		require.Len(t, cookies, 2)
+		for _, cookie := range cookies {
+			assert.True(t, cookie.HttpOnly)
+			assert.Less(t, cookie.MaxAge, 0)
+		}
 	})
 
 	t.Run("nil body", func(t *testing.T) {
@@ -179,6 +193,20 @@ func TestServer_Logout(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, api.Logout400JSONResponse{}, response)
 	})
+}
+
+func assertAuthCookies(t *testing.T, recorder *httptest.ResponseRecorder) {
+	t.Helper()
+	cookies := recorder.Result().Cookies()
+	require.Len(t, cookies, 2)
+	assert.Equal(t, "access_token", cookies[0].Name)
+	assert.Equal(t, "refresh_token", cookies[1].Name)
+	for _, cookie := range cookies {
+		assert.NotEmpty(t, cookie.Value)
+		assert.True(t, cookie.HttpOnly)
+		assert.Equal(t, "/", cookie.Path)
+		assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
+	}
 }
 
 func TestServer_PingProtected(t *testing.T) {

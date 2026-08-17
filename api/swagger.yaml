@@ -28,6 +28,53 @@ components:
         - email
         - role
 
+    MemberRole:
+      type: object
+      required: [name, scope]
+      properties:
+        name:
+          type: string
+          example: member
+        scope:
+          type: string
+          enum: [global, group]
+        groupId:
+          $ref: "#/components/schemas/UUID"
+
+    MemberGroup:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          example: [member, group_admin]
+
+    CurrentMember:
+      type: object
+      required: [id, email, roles, groups]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          description: All role assignments, including their scopes.
+          items:
+            $ref: "#/components/schemas/MemberRole"
+        groups:
+          type: array
+          description: Group memberships for choosing an active group.
+          items:
+            $ref: "#/components/schemas/MemberGroup"
+
     GroupUser:
       type: object
       properties:
@@ -321,6 +368,14 @@ components:
       required:
         - access_token
         - refresh_token
+
+    SessionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
 
     RefreshRequest:
       type: object
@@ -1232,7 +1287,7 @@ paths:
         - Authentication
       security: []
       summary: Verify OTP
-      description: Verifies the OTP and returns access and refresh tokens
+      description: Verifies the OTP and establishes an HTTP-only cookie session. Access and refresh tokens are not returned in the JSON response.
       operationId: verifyOTP
       requestBody:
         required: true
@@ -1242,11 +1297,11 @@ paths:
               $ref: "#/components/schemas/VerifyOTPRequest"
       responses:
         "200":
-          description: OTP verified, tokens returned
+          description: OTP verified and access_token/refresh_token cookies set
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenResponse"
+                $ref: "#/components/schemas/SessionResponse"
         "400":
           description: Invalid or expired OTP
           content:
@@ -1266,21 +1321,21 @@ paths:
         - Authentication
       security: []
       summary: Refresh Tokens
-      description: Exchanges a valid refresh token for a new access/refresh token pair
+      description: Renews the HTTP-only cookie session. The refresh token may be supplied by the refresh_token cookie; tokens are never returned in the JSON response.
       operationId: refreshToken
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/RefreshRequest"
       responses:
         "200":
-          description: New token pair
+          description: Session renewed and cookies rotated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenResponse"
+                $ref: "#/components/schemas/SessionResponse"
         "400":
           description: Bad Request
           content:
@@ -1306,10 +1361,10 @@ paths:
         - Authentication
       security: []
       summary: Logout
-      description: Revokes the refresh token
+      description: Revokes the refresh token and clears HTTP-only session cookies. The refresh token may be supplied by the refresh_token cookie.
       operationId: logout
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -1599,6 +1654,35 @@ paths:
                 $ref: "#/components/schemas/Error"
         "409":
           description: Conflict (availability is referenced by active bookings)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /members/me:
+    get:
+      tags:
+        - Members
+      summary: Get current member
+      description: Returns the authenticated member identity, all role assignments, and group memberships for active-group selection.
+      operationId: getCurrentMember
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentMember"
+        "401":
+          description: Unauthorized
           content:
             application/json:
               schema:

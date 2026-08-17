@@ -115,8 +115,7 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 	logger.Info("User authenticated via OTP", "email", email)
 	return verifyOTPCookieResponse{
 		VerifyOTP200JSONResponse: api.VerifyOTP200JSONResponse{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+			Message: "Authenticated successfully.",
 		},
 		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
@@ -141,8 +140,7 @@ func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenReques
 
 	return refreshTokenCookieResponse{
 		RefreshToken200JSONResponse: api.RefreshToken200JSONResponse{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+			Message: "Session refreshed successfully.",
 		},
 		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
