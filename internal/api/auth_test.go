@@ -98,7 +98,7 @@ func TestServer_VerifyOTP(t *testing.T) {
 		assert.Equal(t, "Authenticated successfully.", resp.Message)
 		recorder := httptest.NewRecorder()
 		require.NoError(t, response.(verifyOTPCookieResponse).VisitVerifyOTPResponse(recorder))
-		assertAuthCookies(t, recorder)
+		assertSessionCookies(t, recorder.Result().Cookies())
 	})
 
 	t.Run("invalid code", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestServer_RefreshToken(t *testing.T) {
 		assert.Equal(t, "Session refreshed successfully.", resp.Message)
 		recorder := httptest.NewRecorder()
 		require.NoError(t, response.(refreshTokenCookieResponse).VisitRefreshTokenResponse(recorder))
-		assertAuthCookies(t, recorder)
+		assertSessionCookies(t, recorder.Result().Cookies())
 	})
 
 	t.Run("invalid token", func(t *testing.T) {
