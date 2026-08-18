@@ -87,6 +87,7 @@ services:
             GOOSE_DBSTRING: postgres://postgres:devpassword@db:5432/campus_vault?sslmode=disable
             # Server
             SERVER_PORT: 8080
+          
             # JWT
             JWT_SIGNING_KEY: dev-signing-key-change-in-production
             JWT_ISSUER: campus-vault

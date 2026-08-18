@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/USSTM/cv-backend/generated/db"
@@ -41,17 +42,10 @@ func (a *Authenticator) Authenticate(ctx context.Context, input *openapi3filter.
 		return fmt.Errorf("authentication service missing")
 	}
 
-	authHeader := input.RequestValidationInput.Request.Header.Get("Authorization")
-	if authHeader == "" {
-		return fmt.Errorf("authorization header missing")
+	token, err := accessToken(input.RequestValidationInput.Request)
+	if err != nil {
+		return err
 	}
-
-	const bearerPrefix = "Bearer "
-	if !strings.HasPrefix(authHeader, bearerPrefix) {
-		return fmt.Errorf("invalid authorization header format")
-	}
-
-	token := strings.TrimPrefix(authHeader, bearerPrefix)
 	claims, err := a.jwtService.ValidateToken(ctx, token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %w", err)
@@ -87,6 +81,25 @@ func (a *Authenticator) Authenticate(ctx context.Context, input *openapi3filter.
 	)
 
 	return nil
+}
+
+const accessTokenCookieName = "access_token"
+
+func accessToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		const bearerPrefix = "Bearer "
+		if !strings.HasPrefix(authHeader, bearerPrefix) {
+			return "", fmt.Errorf("invalid authorization header format")
+		}
+		return strings.TrimPrefix(authHeader, bearerPrefix), nil
+	}
+
+	cookie, err := r.Cookie(accessTokenCookieName)
+	if err != nil || cookie.Value == "" {
+		return "", fmt.Errorf("authentication token missing")
+	}
+	return cookie.Value, nil
 }
 
 func (a *Authenticator) CheckPermission(ctx context.Context, userID uuid.UUID, permission string, scopeID *uuid.UUID) (bool, error) {
