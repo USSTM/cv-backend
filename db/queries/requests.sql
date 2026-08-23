@@ -49,6 +49,25 @@ ORDER BY requested_at ASC LIMIT $1 OFFSET $2;
 SELECT * FROM requests
 ORDER BY requested_at DESC LIMIT $1 OFFSET $2;
 
+-- name: GetPendingRequestsForApproval :many
+SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       i.name AS item_name, requester.email AS requester_email, g.name AS group_name
+FROM requests r
+JOIN items i ON r.item_id = i.id
+JOIN users requester ON r.user_id = requester.id
+JOIN groups g ON r.group_id = g.id
+WHERE r.status = 'pending'
+ORDER BY r.requested_at ASC LIMIT $1 OFFSET $2;
+
+-- name: GetAllRequestsForApproval :many
+SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       i.name AS item_name, requester.email AS requester_email, g.name AS group_name
+FROM requests r
+JOIN items i ON r.item_id = i.id
+JOIN users requester ON r.user_id = requester.id
+JOIN groups g ON r.group_id = g.id
+ORDER BY r.requested_at DESC LIMIT $1 OFFSET $2;
+
 -- name: GetRequestsByUserId :many
 SELECT * FROM requests
 WHERE user_id = $1

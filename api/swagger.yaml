@@ -784,6 +784,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        item_name:
+          type: string
+          description: Item name, included in approval request lists
+        requester_email:
+          type: string
+          format: email
+          description: Requester email, included in approval request lists
+        group_name:
+          type: string
+          description: Group name, included in approval request lists
       required:
         - id
         - user_id

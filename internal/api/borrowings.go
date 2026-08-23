@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const preCheckoutConditionImagePrefix = "pre-checkout-condition-images/"
@@ -820,7 +821,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
-	requests, err := s.db.Queries().GetAllRequests(ctx, db.GetAllRequestsParams{Limit: limit, Offset: offset})
+	requests, err := s.db.Queries().GetAllRequestsForApproval(ctx, db.GetAllRequestsForApprovalParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -830,7 +831,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	response := createRequestItemResponse(requests)
+	response := createApprovalRequestItemResponse(requests)
 	return api.GetAllRequests200JSONResponse{
 		Data: response,
 		Meta: buildPaginationMeta(total, limit, offset),
@@ -853,7 +854,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
-	requests, err := s.db.Queries().GetPendingRequests(ctx, db.GetPendingRequestsParams{Limit: limit, Offset: offset})
+	requests, err := s.db.Queries().GetPendingRequestsForApproval(ctx, db.GetPendingRequestsForApprovalParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -863,7 +864,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	response := createRequestItemResponse(requests)
+	response := createPendingApprovalRequestItemResponse(requests)
 	return api.GetPendingRequests200JSONResponse{
 		Data: response,
 		Meta: buildPaginationMeta(total, limit, offset),
@@ -944,6 +945,36 @@ func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRe
 		ReviewedBy: req.ReviewedBy,
 		ReviewedAt: reviewedAt,
 	}, nil
+}
+
+// createApprovalRequestItemResponse adds the display context resolved by the
+// authorized list query. It deliberately does not call user or group APIs.
+func createApprovalRequestItemResponse(requests []db.GetAllRequestsForApprovalRow) []api.RequestItemResponse {
+	response := make([]api.RequestItemResponse, 0, len(requests))
+	for _, req := range requests {
+		var reviewedAt *time.Time
+		if req.ReviewedAt.Valid {
+			reviewedAt = &req.ReviewedAt.Time
+		}
+		itemName := req.ItemName
+		requesterEmail := openapi_types.Email(req.RequesterEmail)
+		groupName := req.GroupName
+		response = append(response, api.RequestItemResponse{
+			Id: req.ID, UserId: *req.UserID, GroupId: *req.GroupID, ItemId: *req.ItemID,
+			Quantity: int(req.Quantity), Status: api.RequestStatus(req.Status.RequestStatus),
+			ReviewedBy: req.ReviewedBy, ReviewedAt: reviewedAt,
+			ItemName: &itemName, RequesterEmail: &requesterEmail, GroupName: &groupName,
+		})
+	}
+	return response
+}
+
+func createPendingApprovalRequestItemResponse(requests []db.GetPendingRequestsForApprovalRow) []api.RequestItemResponse {
+	allRequests := make([]db.GetAllRequestsForApprovalRow, len(requests))
+	for i, request := range requests {
+		allRequests[i] = db.GetAllRequestsForApprovalRow(request)
+	}
+	return createApprovalRequestItemResponse(allRequests)
 }
 
 // Helper to convert db.Request to API response
