@@ -358,6 +358,17 @@ components:
         - email
         - code
 
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 32
+          maxLength: 32
+          description: The one-time invitation code supplied in the invitation link.
+      required:
+        - code
+
     TokenResponse:
       type: object
       properties:
@@ -1314,6 +1325,40 @@ paths:
                 $ref: "#/components/schemas/SessionResponse"
         "400":
           description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/invitations/accept:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Accept an invitation
+      description: Consumes a valid invitation code, creates the invited user if needed, and assigns the invited role. Sign in with email OTP afterwards.
+      operationId: acceptInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invitation code is invalid, expired, or already used
           content:
             application/json:
               schema:
