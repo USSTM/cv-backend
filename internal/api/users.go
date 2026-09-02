@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/USSTM/cv-backend/internal/rbac"
 	"context"
 	"crypto/rand"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime/types"
 )
@@ -200,6 +200,40 @@ func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroup
 	return response, nil
 }
 
+func (s Server) GetUserRoleAssignments(ctx context.Context, request api.GetUserRoleAssignmentsRequestObject) (api.GetUserRoleAssignmentsResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+	actor, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return api.GetUserRoleAssignments401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+	allowed, err := s.authenticator.CheckPermission(ctx, actor.ID, rbac.ManageUsers, nil)
+	if err != nil {
+		logger.Error("Failed to authorize role assignment lookup", "actor_id", actor.ID, "error", err)
+		return api.GetUserRoleAssignments500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return api.GetUserRoleAssignments403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	if _, err = s.db.Queries().GetUserByID(ctx, request.UserId); err != nil {
+		return api.GetUserRoleAssignments404JSONResponse(NotFound("User").Create()), nil
+	}
+
+	roles, err := s.db.Queries().GetUserRoles(ctx, &request.UserId)
+	if err != nil {
+		logger.Error("Failed to load member role assignments", "user_id", request.UserId, "error", err)
+		return api.GetUserRoleAssignments500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	response := make(api.GetUserRoleAssignments200JSONResponse, 0, len(roles))
+	for _, role := range roles {
+		response = append(response, api.UserRoleAssignment{
+			RoleName: role.RoleName.String,
+			Scope:    string(role.Scope),
+			ScopeId:  role.ScopeID,
+		})
+	}
+	return response, nil
+}
+
 func (s Server) GetUserById(ctx context.Context, request api.GetUserByIdRequestObject) (api.GetUserByIdResponseObject, error) {
 	logger := middleware.GetLoggerFromContext(ctx)
 
@@ -277,6 +311,151 @@ func (s Server) GetUserByEmail(ctx context.Context, request api.GetUserByEmailRe
 	}
 
 	return api.GetUserByEmail200JSONResponse(userResponse), nil
+}
+
+func (s Server) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+	actor, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return api.UpdateUser401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+	if request.Body == nil {
+		return api.UpdateUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+
+	allowed, err := s.authenticator.CheckPermission(ctx, actor.ID, rbac.ManageUsers, nil)
+	if err != nil {
+		logger.Error("Failed to authorize member update", "actor_id", actor.ID, "member_id", request.UserId, "error", err)
+		return api.UpdateUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return api.UpdateUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	member, err := s.db.Queries().GetUserByID(ctx, request.UserId)
+	if err != nil {
+		return api.UpdateUser404JSONResponse(NotFound("User").Create()), nil
+	}
+
+	for _, assignment := range request.Body.Roles {
+		if !isAssignableRole(assignment.RoleName) || (assignment.Scope != "global" && assignment.Scope != "group") {
+			return api.UpdateUser400JSONResponse(ValidationErr("Each role must have a valid role_name and scope", nil).Create()), nil
+		}
+		if assignment.Scope == "global" && assignment.ScopeId != nil {
+			return api.UpdateUser400JSONResponse(ValidationErr("Global roles must not have a scope_id", nil).Create()), nil
+		}
+		if assignment.Scope == "group" {
+			if assignment.ScopeId == nil {
+				return api.UpdateUser400JSONResponse(ValidationErr("Group roles require a scope_id", nil).Create()), nil
+			}
+			if _, err := s.db.Queries().GetGroupByID(ctx, *assignment.ScopeId); err != nil {
+				return api.UpdateUser400JSONResponse(ValidationErr("scope_id must reference an existing group", nil).Create()), nil
+			}
+		}
+	}
+
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		return api.UpdateUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "DELETE FROM user_roles WHERE user_id = $1", request.UserId); err == nil {
+		for _, assignment := range request.Body.Roles {
+			_, err = tx.Exec(ctx, "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4)", request.UserId, string(assignment.RoleName), string(assignment.Scope), assignment.ScopeId)
+			if err != nil {
+				break
+			}
+		}
+	}
+	if err != nil {
+		logger.Error("Failed to replace member roles", "member_id", request.UserId, "error", err)
+		return api.UpdateUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+	if err = tx.Commit(ctx); err != nil {
+		logger.Error("Failed to commit member role update", "member_id", request.UserId, "error", err)
+		return api.UpdateUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+	roles, _ := s.db.Queries().GetUserRoles(ctx, &member.ID)
+	return api.UpdateUser200JSONResponse(api.User{Id: member.ID, Email: types.Email(member.Email), Role: GetUserRole(roles)}), nil
+}
+
+func isAssignableRole(role string) bool {
+	switch role {
+	case rbac.RoleGlobalAdmin, rbac.RoleApprover, rbac.RoleGroupAdmin, rbac.RoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s Server) DeleteUser(ctx context.Context, request api.DeleteUserRequestObject) (api.DeleteUserResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+	actor, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return api.DeleteUser401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+
+	allowed, err := s.authenticator.CheckPermission(ctx, actor.ID, rbac.ManageUsers, nil)
+	if err != nil {
+		logger.Error("Failed to authorize member deletion", "actor_id", actor.ID, "member_id", request.UserId, "error", err)
+		return api.DeleteUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return api.DeleteUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	if _, err := s.db.Queries().GetUserByID(ctx, request.UserId); err != nil {
+		return api.DeleteUser404JSONResponse(NotFound("User").Create()), nil
+	}
+
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		return api.DeleteUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+	// signup_codes.created_by intentionally does not cascade; remove codes created
+	// by this member so deleting the member cannot violate that foreign key.
+	if _, err = tx.Exec(ctx, "DELETE FROM signup_codes WHERE created_by = $1", request.UserId); err == nil {
+		_, err = tx.Exec(ctx, "DELETE FROM users WHERE id = $1", request.UserId)
+	}
+	if err != nil {
+		logger.Error("Failed to delete member", "member_id", request.UserId, "error", err)
+		return api.DeleteUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return api.DeleteUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	return api.DeleteUser204Response{}, nil
+}
+
+func (s Server) UpdateUserGroupMembership(ctx context.Context, request api.UpdateUserGroupMembershipRequestObject) (api.UpdateUserGroupMembershipResponseObject, error) {
+	actor, ok := auth.GetAuthenticatedUser(ctx)
+	if !ok {
+		return api.UpdateUserGroupMembership401JSONResponse(Unauthorized("Authentication required").Create()), nil
+	}
+	if request.Body == nil {
+		return api.UpdateUserGroupMembership400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+	allowed, err := s.authenticator.CheckPermission(ctx, actor.ID, rbac.ManageGroupUsers, &request.GroupId)
+	if err != nil {
+		return api.UpdateUserGroupMembership500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !allowed {
+		return api.UpdateUserGroupMembership403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	if _, err := s.db.Queries().GetUserByID(ctx, request.UserId); err != nil {
+		return api.UpdateUserGroupMembership404JSONResponse(NotFound("User").Create()), nil
+	}
+	if _, err := s.db.Queries().GetGroupByID(ctx, request.GroupId); err != nil {
+		return api.UpdateUserGroupMembership404JSONResponse(NotFound("Group").Create()), nil
+	}
+	if request.Body.IsMember {
+		_, err = s.db.Pool().Exec(ctx, "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, 'member', 'group', $2) ON CONFLICT DO NOTHING", request.UserId, request.GroupId)
+	} else {
+		_, err = s.db.Pool().Exec(ctx, "DELETE FROM user_roles WHERE user_id = $1 AND scope = 'group' AND scope_id = $2", request.UserId, request.GroupId)
+	}
+	if err != nil {
+		return api.UpdateUserGroupMembership500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+	return api.UpdateUserGroupMembership204Response{}, nil
 }
 
 func generateRandomCode(length int) (string, error) {
