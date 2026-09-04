@@ -352,6 +352,9 @@ func (s Server) UpdateUser(ctx context.Context, request api.UpdateUserRequestObj
 			}
 		}
 	}
+	if actor.ID == request.UserId && !retainsGlobalAdminRole(request.Body.Roles) {
+		return api.UpdateUser403JSONResponse(PermissionDenied("Administrators cannot remove their own global admin permission").Create()), nil
+	}
 
 	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
@@ -387,6 +390,15 @@ func isAssignableRole(role string) bool {
 	}
 }
 
+func retainsGlobalAdminRole(roles []api.UserRoleAssignment) bool {
+	for _, role := range roles {
+		if role.RoleName == rbac.RoleGlobalAdmin && role.Scope == "global" && role.ScopeId == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (s Server) DeleteUser(ctx context.Context, request api.DeleteUserRequestObject) (api.DeleteUserResponseObject, error) {
 	logger := middleware.GetLoggerFromContext(ctx)
 	actor, ok := auth.GetAuthenticatedUser(ctx)
@@ -401,6 +413,9 @@ func (s Server) DeleteUser(ctx context.Context, request api.DeleteUserRequestObj
 	}
 	if !allowed {
 		return api.DeleteUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	if actor.ID == request.UserId {
+		return api.DeleteUser403JSONResponse(PermissionDenied("Administrators cannot delete their own account").Create()), nil
 	}
 	if _, err := s.db.Queries().GetUserByID(ctx, request.UserId); err != nil {
 		return api.DeleteUser404JSONResponse(NotFound("User").Create()), nil
@@ -440,6 +455,9 @@ func (s Server) UpdateUserGroupMembership(ctx context.Context, request api.Updat
 	}
 	if !allowed {
 		return api.UpdateUserGroupMembership403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
+	}
+	if actor.ID == request.UserId && !request.Body.IsMember {
+		return api.UpdateUserGroupMembership403JSONResponse(PermissionDenied("Administrators cannot remove their own group membership").Create()), nil
 	}
 	if _, err := s.db.Queries().GetUserByID(ctx, request.UserId); err != nil {
 		return api.UpdateUserGroupMembership404JSONResponse(NotFound("User").Create()), nil
