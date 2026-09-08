@@ -3,12 +3,14 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"strings"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/auth"
 	"github.com/USSTM/cv-backend/internal/middleware"
+	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/rbac"
 	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime/types"
@@ -79,21 +81,19 @@ func (s Server) GetUsers(ctx context.Context, request api.GetUsersRequestObject)
 }
 
 func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObject) (api.InviteUserResponseObject, error) {
+	if request.Body == nil {
+		return api.InviteUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
 	user, ok := auth.GetAuthenticatedUser(ctx)
 	if !ok {
 		return api.InviteUser401JSONResponse(Unauthorized("Authentication required").Create()), nil
 	}
-	hasPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, request.Body.ScopeId)
-	if err != nil || !hasPermission {
-		return api.InviteUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
-	}
-
-	if request.Body == nil {
-		return api.InviteUser400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
-	}
 
 	req := request.Body
 	scopeStr := string(req.Scope)
+	if !isInvitableRole(req.RoleName) || (scopeStr != "global" && scopeStr != "group") {
+		return api.InviteUser400JSONResponse(ValidationErr("role_name and scope must be valid", nil).Create()), nil
+	}
 
 	var scopeID uuid.UUID
 	if req.ScopeId != nil {
@@ -113,6 +113,26 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 		_, err := s.db.Queries().GetGroupByID(ctx, scopeID)
 		if err != nil {
 			return api.InviteUser404JSONResponse(NotFound("Group").Create()), nil
+		}
+	}
+
+	// Only global administrators may invite elevated roles or create global
+	// invitations. Group admins are limited to adding regular members to a group
+	// they administer.
+	isGlobalAdmin, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageUsers, nil)
+	if err != nil {
+		return api.InviteUser500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	if !isGlobalAdmin {
+		if scopeStr != "group" || req.RoleName != rbac.RoleMember {
+			return api.InviteUser403JSONResponse(PermissionDenied("Only global administrators may invite this role or scope").Create()), nil
+		}
+		hasGroupPermission, err := s.authenticator.CheckPermission(ctx, user.ID, rbac.ManageGroupUsers, &scopeID)
+		if err != nil {
+			return api.InviteUser500JSONResponse(InternalError("Internal server error").Create()), nil
+		}
+		if !hasGroupPermission {
+			return api.InviteUser403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 		}
 	}
 
@@ -143,8 +163,27 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 	if err != nil {
 		return api.InviteUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
+	if _, err = s.queue.Enqueue(queue.TypeEmailDelivery, queue.EmailDeliveryPayload{
+		To:      string(req.Email),
+		Subject: "Your Campus Vault invitation",
+		Body: fmt.Sprintf(
+			"You have been invited to join Campus Vault.\n\nYour invitation code is: %s\n\nAccept it using the invitation acceptance page, then request a one-time login code using this email address. This invitation expires in 7 days.",
+			signupCode.Code,
+		),
+	}); err != nil {
+		return api.InviteUser500JSONResponse(InternalError("Failed to send invitation email").Create()), nil
+	}
 
 	return api.InviteUser201JSONResponse{Code: &signupCode.Code}, nil
+}
+
+func isInvitableRole(role string) bool {
+	switch role {
+	case rbac.RoleGlobalAdmin, rbac.RoleApprover, rbac.RoleGroupAdmin, rbac.RoleMember:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s Server) GetUsersByGroup(ctx context.Context, request api.GetUsersByGroupRequestObject) (api.GetUsersByGroupResponseObject, error) {

@@ -21,6 +21,7 @@ type Config struct {
 
 type AWSConfig struct {
 	Region            string
+	SESRegion         string
 	AccessKeyID       string
 	SecretAccessKey   string
 	EndpointURL       string
@@ -134,7 +135,11 @@ func Load() *Config {
 			MaxAge:           300,
 		},
 		AWS: AWSConfig{
-			Region:            getEnv("AWS_REGION", "us-east-1"),
+			Region: getEnv("AWS_REGION", "us-east-1"),
+			// SES identity/DKIM verification lives in a specific region and doesn't
+			// transfer automatically; this lets SES calls target a different region
+			// than S3 (e.g. bucket in ca-central-1, verified SES domain in us-east-1).
+			SESRegion:         getEnv("AWS_SES_REGION", getEnv("AWS_REGION", "us-east-1")),
 			AccessKeyID:       getEnv("AWS_ACCESS_KEY_ID", ""),
 			SecretAccessKey:   getEnv("AWS_SECRET_ACCESS_KEY", ""),
 			EndpointURL:       getEnv("AWS_ENDPOINT_URL", ""),
