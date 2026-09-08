@@ -21,10 +21,15 @@ func NewEmailService(cfg config.AWSConfig) (*EmailService, error) {
 		return nil, err
 	}
 
-	// create SES client, overriding endpoint if provided (for LocalStack)
+	// create SES client, overriding endpoint if provided (for LocalStack) and
+	// region if SES's verified identity lives in a different region than the
+	// rest of the app's AWS resources (e.g. S3 bucket)
 	client := ses.NewFromConfig(awsCfg, func(o *ses.Options) {
 		if cfg.EndpointURL != "" {
 			o.BaseEndpoint = aws.String(cfg.EndpointURL)
+		}
+		if cfg.SESRegion != "" {
+			o.Region = cfg.SESRegion
 		}
 	})
 

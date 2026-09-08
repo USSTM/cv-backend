@@ -77,6 +77,67 @@ func (q *Queries) GetAllRequests(ctx context.Context, arg GetAllRequestsParams) 
 	return items, nil
 }
 
+const getAllRequestsForApproval = `-- name: GetAllRequestsForApproval :many
+SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       i.name AS item_name, requester.email AS requester_email, g.name AS group_name
+FROM requests r
+JOIN items i ON r.item_id = i.id
+JOIN users requester ON r.user_id = requester.id
+JOIN groups g ON r.group_id = g.id
+ORDER BY r.requested_at DESC LIMIT $1 OFFSET $2
+`
+
+type GetAllRequestsForApprovalParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+type GetAllRequestsForApprovalRow struct {
+	ID             uuid.UUID         `json:"id"`
+	UserID         *uuid.UUID        `json:"user_id"`
+	GroupID        *uuid.UUID        `json:"group_id"`
+	ItemID         *uuid.UUID        `json:"item_id"`
+	Quantity       int32             `json:"quantity"`
+	Status         NullRequestStatus `json:"status"`
+	ReviewedBy     *uuid.UUID        `json:"reviewed_by"`
+	ReviewedAt     pgtype.Timestamp  `json:"reviewed_at"`
+	ItemName       string            `json:"item_name"`
+	RequesterEmail string            `json:"requester_email"`
+	GroupName      string            `json:"group_name"`
+}
+
+func (q *Queries) GetAllRequestsForApproval(ctx context.Context, arg GetAllRequestsForApprovalParams) ([]GetAllRequestsForApprovalRow, error) {
+	rows, err := q.db.Query(ctx, getAllRequestsForApproval, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAllRequestsForApprovalRow{}
+	for rows.Next() {
+		var i GetAllRequestsForApprovalRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.GroupID,
+			&i.ItemID,
+			&i.Quantity,
+			&i.Status,
+			&i.ReviewedBy,
+			&i.ReviewedAt,
+			&i.ItemName,
+			&i.RequesterEmail,
+			&i.GroupName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getApprovedRequestForUserAndItem = `-- name: GetApprovedRequestForUserAndItem :one
 SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
 WHERE user_id = $1
@@ -145,6 +206,68 @@ func (q *Queries) GetPendingRequests(ctx context.Context, arg GetPendingRequests
 			&i.FulfilledAt,
 			&i.BookingID,
 			&i.PreferredAvailabilityID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPendingRequestsForApproval = `-- name: GetPendingRequestsForApproval :many
+SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       i.name AS item_name, requester.email AS requester_email, g.name AS group_name
+FROM requests r
+JOIN items i ON r.item_id = i.id
+JOIN users requester ON r.user_id = requester.id
+JOIN groups g ON r.group_id = g.id
+WHERE r.status = 'pending'
+ORDER BY r.requested_at ASC LIMIT $1 OFFSET $2
+`
+
+type GetPendingRequestsForApprovalParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+type GetPendingRequestsForApprovalRow struct {
+	ID             uuid.UUID         `json:"id"`
+	UserID         *uuid.UUID        `json:"user_id"`
+	GroupID        *uuid.UUID        `json:"group_id"`
+	ItemID         *uuid.UUID        `json:"item_id"`
+	Quantity       int32             `json:"quantity"`
+	Status         NullRequestStatus `json:"status"`
+	ReviewedBy     *uuid.UUID        `json:"reviewed_by"`
+	ReviewedAt     pgtype.Timestamp  `json:"reviewed_at"`
+	ItemName       string            `json:"item_name"`
+	RequesterEmail string            `json:"requester_email"`
+	GroupName      string            `json:"group_name"`
+}
+
+func (q *Queries) GetPendingRequestsForApproval(ctx context.Context, arg GetPendingRequestsForApprovalParams) ([]GetPendingRequestsForApprovalRow, error) {
+	rows, err := q.db.Query(ctx, getPendingRequestsForApproval, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetPendingRequestsForApprovalRow{}
+	for rows.Next() {
+		var i GetPendingRequestsForApprovalRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.GroupID,
+			&i.ItemID,
+			&i.Quantity,
+			&i.Status,
+			&i.ReviewedBy,
+			&i.ReviewedAt,
+			&i.ItemName,
+			&i.RequesterEmail,
+			&i.GroupName,
 		); err != nil {
 			return nil, err
 		}

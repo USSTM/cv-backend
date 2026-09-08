@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -13,7 +14,25 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+const preCheckoutConditionImagePrefix = "pre-checkout-condition-images/"
+
+// conditionImageURL keeps legacy external URLs unchanged and turns managed
+// pre-checkout image keys into short-lived URLs the frontend can display.
+func (s Server) conditionImageURL(ctx context.Context, value string) string {
+	if !strings.HasPrefix(value, preCheckoutConditionImagePrefix) {
+		return value
+	}
+
+	url, err := s.s3Service.GeneratePresignedURL(ctx, "GET", value, time.Hour)
+	if err != nil {
+		logging.Warn("failed to generate condition image URL", "key", value, "error", err)
+		return value
+	}
+	return url
+}
 
 // Type conversion helpers
 
@@ -147,7 +166,7 @@ func (s Server) BorrowItem(ctx context.Context, request api.BorrowItemRequestObj
 		BorrowedAt:         resp.BorrowedAt.Time,
 		ReturnedAt:         nil, // set when item is returned
 		BeforeCondition:    string(resp.BeforeCondition),
-		BeforeConditionUrl: resp.BeforeConditionUrl,
+		BeforeConditionUrl: s.conditionImageURL(ctx, resp.BeforeConditionUrl),
 		AfterCondition:     nil,
 		AfterConditionUrl:  nil,
 	}, nil
@@ -235,7 +254,7 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 		BorrowedAt:         resp.BorrowedAt.Time,
 		ReturnedAt:         &resp.ReturnedAt.Time,
 		BeforeCondition:    string(resp.BeforeCondition),
-		BeforeConditionUrl: resp.BeforeConditionUrl,
+		BeforeConditionUrl: s.conditionImageURL(ctx, resp.BeforeConditionUrl),
 		AfterCondition:     afterCondition,
 		AfterConditionUrl:  afterConditionUrl,
 	}, nil
@@ -300,7 +319,7 @@ func (s Server) GetBorrowedItemHistoryByUserId(ctx context.Context, request api.
 		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	borrowedItemsByUserResponse, err := createBorrowedItemResponse(items, false)
+	borrowedItemsByUserResponse, err := s.createBorrowedItemResponse(ctx, items, false)
 	if err != nil {
 		return api.GetBorrowedItemHistoryByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -346,7 +365,7 @@ func (s Server) GetActiveBorrowedItemsByUserId(ctx context.Context, request api.
 		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	activeBorrowedItemsByUserResponse, err := createBorrowedItemResponse(items, true)
+	activeBorrowedItemsByUserResponse, err := s.createBorrowedItemResponse(ctx, items, true)
 	if err != nil {
 		return api.GetActiveBorrowedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -392,7 +411,7 @@ func (s Server) GetReturnedItemsByUserId(ctx context.Context, request api.GetRet
 		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	returnedItemsByUserResponse, err := createBorrowedItemResponse(items, false)
+	returnedItemsByUserResponse, err := s.createBorrowedItemResponse(ctx, items, false)
 	if err != nil {
 		return api.GetReturnedItemsByUserId500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -429,7 +448,7 @@ func (s Server) GetAllActiveBorrowedItems(ctx context.Context, request api.GetAl
 		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	activeBorrowedItemsResponse, err := createBorrowedItemResponse(items, true)
+	activeBorrowedItemsResponse, err := s.createBorrowedItemResponse(ctx, items, true)
 	if err != nil {
 		return api.GetAllActiveBorrowedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -466,7 +485,7 @@ func (s Server) GetAllReturnedItems(ctx context.Context, request api.GetAllRetur
 		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	returnedItemsResponse, err := createBorrowedItemResponse(items, false)
+	returnedItemsResponse, err := s.createBorrowedItemResponse(ctx, items, false)
 	if err != nil {
 		return api.GetAllReturnedItems500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -496,7 +515,7 @@ func (s Server) GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, re
 		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	borrowedItemsToBeReturnedByDateResponse, err := createBorrowedItemResponse(items, true)
+	borrowedItemsToBeReturnedByDateResponse, err := s.createBorrowedItemResponse(ctx, items, true)
 	if err != nil {
 		return api.GetActiveBorrowedItemsToBeReturnedByDate500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -504,7 +523,7 @@ func (s Server) GetActiveBorrowedItemsToBeReturnedByDate(ctx context.Context, re
 	return api.GetActiveBorrowedItemsToBeReturnedByDate200JSONResponse(borrowedItemsToBeReturnedByDateResponse), nil
 }
 
-func createBorrowedItemResponse(items []db.Borrowing, active bool) ([]api.BorrowingResponse, error) {
+func (s Server) createBorrowedItemResponse(ctx context.Context, items []db.Borrowing, active bool) ([]api.BorrowingResponse, error) {
 	var responseItems []api.BorrowingResponse
 
 	for _, item := range items {
@@ -538,7 +557,7 @@ func createBorrowedItemResponse(items []db.Borrowing, active bool) ([]api.Borrow
 			BorrowedAt:         item.BorrowedAt.Time,
 			ReturnedAt:         returnedAt,
 			BeforeCondition:    string(item.BeforeCondition),
-			BeforeConditionUrl: item.BeforeConditionUrl,
+			BeforeConditionUrl: s.conditionImageURL(ctx, item.BeforeConditionUrl),
 			AfterCondition:     afterCondition,
 			AfterConditionUrl:  afterConditionUrl,
 		}
@@ -802,7 +821,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
-	requests, err := s.db.Queries().GetAllRequests(ctx, db.GetAllRequestsParams{Limit: limit, Offset: offset})
+	requests, err := s.db.Queries().GetAllRequestsForApproval(ctx, db.GetAllRequestsForApprovalParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -812,7 +831,7 @@ func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRe
 		return api.GetAllRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	response := createRequestItemResponse(requests)
+	response := createApprovalRequestItemResponse(requests)
 	return api.GetAllRequests200JSONResponse{
 		Data: response,
 		Meta: buildPaginationMeta(total, limit, offset),
@@ -835,7 +854,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 
 	limit, offset := parsePagination(request.Params.Limit, request.Params.Offset)
 
-	requests, err := s.db.Queries().GetPendingRequests(ctx, db.GetPendingRequestsParams{Limit: limit, Offset: offset})
+	requests, err := s.db.Queries().GetPendingRequestsForApproval(ctx, db.GetPendingRequestsForApprovalParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
@@ -845,7 +864,7 @@ func (s Server) GetPendingRequests(ctx context.Context, request api.GetPendingRe
 		return api.GetPendingRequests500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
-	response := createRequestItemResponse(requests)
+	response := createPendingApprovalRequestItemResponse(requests)
 	return api.GetPendingRequests200JSONResponse{
 		Data: response,
 		Meta: buildPaginationMeta(total, limit, offset),
@@ -926,6 +945,36 @@ func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRe
 		ReviewedBy: req.ReviewedBy,
 		ReviewedAt: reviewedAt,
 	}, nil
+}
+
+// createApprovalRequestItemResponse adds the display context resolved by the
+// authorized list query. It deliberately does not call user or group APIs.
+func createApprovalRequestItemResponse(requests []db.GetAllRequestsForApprovalRow) []api.RequestItemResponse {
+	response := make([]api.RequestItemResponse, 0, len(requests))
+	for _, req := range requests {
+		var reviewedAt *time.Time
+		if req.ReviewedAt.Valid {
+			reviewedAt = &req.ReviewedAt.Time
+		}
+		itemName := req.ItemName
+		requesterEmail := openapi_types.Email(req.RequesterEmail)
+		groupName := req.GroupName
+		response = append(response, api.RequestItemResponse{
+			Id: req.ID, UserId: *req.UserID, GroupId: *req.GroupID, ItemId: *req.ItemID,
+			Quantity: int(req.Quantity), Status: api.RequestStatus(req.Status.RequestStatus),
+			ReviewedBy: req.ReviewedBy, ReviewedAt: reviewedAt,
+			ItemName: &itemName, RequesterEmail: &requesterEmail, GroupName: &groupName,
+		})
+	}
+	return response
+}
+
+func createPendingApprovalRequestItemResponse(requests []db.GetPendingRequestsForApprovalRow) []api.RequestItemResponse {
+	allRequests := make([]db.GetAllRequestsForApprovalRow, len(requests))
+	for i, request := range requests {
+		allRequests[i] = db.GetAllRequestsForApprovalRow(request)
+	}
+	return createApprovalRequestItemResponse(allRequests)
 }
 
 // Helper to convert db.Request to API response

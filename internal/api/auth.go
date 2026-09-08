@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -11,7 +12,45 @@ import (
 	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/rbac"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
+
+type verifyOTPCookieResponse struct {
+	api.VerifyOTP200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response verifyOTPCookieResponse) VisitVerifyOTPResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.VerifyOTP200JSONResponse.VisitVerifyOTPResponse(w)
+}
+
+type refreshTokenCookieResponse struct {
+	api.RefreshToken200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response refreshTokenCookieResponse) VisitRefreshTokenResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.RefreshToken200JSONResponse.VisitRefreshTokenResponse(w)
+}
+
+type logoutCookieResponse struct {
+	api.Logout200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response logoutCookieResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.Logout200JSONResponse.VisitLogoutResponse(w)
+}
+
+func setCookies(w http.ResponseWriter, cookies []http.Cookie) {
+	for _, cookie := range cookies {
+		http.SetCookie(w, &cookie)
+	}
+}
 
 func (s Server) RequestOTP(ctx context.Context, request api.RequestOTPRequestObject) (api.RequestOTPResponseObject, error) {
 	if request.Body == nil {
@@ -76,20 +115,74 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 	}
 
 	logger.Info("User authenticated via OTP", "email", email)
-	return api.VerifyOTP200JSONResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+	return verifyOTPCookieResponse{
+		VerifyOTP200JSONResponse: api.VerifyOTP200JSONResponse{
+			Message: "Authenticated successfully.",
+		},
+		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
 }
 
-func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
+func (s Server) AcceptInvitation(ctx context.Context, request api.AcceptInvitationRequestObject) (api.AcceptInvitationResponseObject, error) {
 	if request.Body == nil {
-		return api.RefreshToken400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+		return api.AcceptInvitation400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
 	}
 
-	logger := middleware.GetLoggerFromContext(ctx)
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	defer tx.Rollback(ctx)
 
-	accessToken, refreshToken, err := s.authService.Refresh(ctx, request.Body.RefreshToken)
+	var invitationID uuid.UUID
+	var email, roleName, scope string
+	var scopeID *uuid.UUID
+	err = tx.QueryRow(ctx, `
+		SELECT id, email, role_name, scope, scope_id
+		FROM signup_codes
+		WHERE code = $1
+		  AND used_at IS NULL
+		  AND (expires_at IS NULL OR expires_at > NOW())
+		FOR UPDATE`, request.Body.Code).Scan(&invitationID, &email, &roleName, &scope, &scopeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return api.AcceptInvitation400JSONResponse(ValidationErr("Invitation code is invalid, expired, or already used", nil).Create()), nil
+	}
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		INSERT INTO users (email) VALUES ($1)
+		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+		RETURNING id`, email).Scan(&userID)
+	if err == nil {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO user_roles (user_id, role_name, scope, scope_id)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT DO NOTHING`, userID, roleName, scope, scopeID)
+	}
+	if err == nil {
+		_, err = tx.Exec(ctx, "UPDATE signup_codes SET used_at = NOW() WHERE id = $1", invitationID)
+	}
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Failed to accept invitation").Create()), nil
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Failed to accept invitation").Create()), nil
+	}
+
+	return api.AcceptInvitation200JSONResponse{Message: "Invitation accepted. Request a one-time login code to sign in."}, nil
+}
+
+func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
+	logger := middleware.GetLoggerFromContext(ctx)
+	refreshToken := refreshTokenFromRequest(ctx, request)
+	if refreshToken == "" {
+		return api.RefreshToken400JSONResponse(ValidationErr("Refresh token is required", nil).Create()), nil
+	}
+
+	accessToken, refreshToken, err := s.authService.Refresh(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, internalauth.ErrRefreshInvalid) {
 			logger.Warn("Refresh token rejected: invalid or expired")
@@ -99,9 +192,11 @@ func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenReques
 		return api.RefreshToken500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	return api.RefreshToken200JSONResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+	return refreshTokenCookieResponse{
+		RefreshToken200JSONResponse: api.RefreshToken200JSONResponse{
+			Message: "Session refreshed successfully.",
+		},
+		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
 }
 
@@ -111,13 +206,67 @@ func (s Server) Logout(ctx context.Context, request api.LogoutRequestObject) (ap
 	}
 
 	logger := middleware.GetLoggerFromContext(ctx)
+	refreshToken := refreshTokenFromLogoutRequest(ctx, request)
+	if refreshToken == "" {
+		return api.Logout400JSONResponse(ValidationErr("Refresh token is required", nil).Create()), nil
+	}
 
-	if err := s.authService.Logout(ctx, request.Body.RefreshToken); err != nil {
+	if err := s.authService.Logout(ctx, refreshToken); err != nil {
 		logger.Error("Failed to logout", "error", err)
 		return api.Logout500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	return api.Logout200JSONResponse{Message: "Logged out successfully."}, nil
+	return logoutCookieResponse{
+		Logout200JSONResponse: api.Logout200JSONResponse{Message: "Logged out successfully."},
+		cookies:               s.expiredAuthCookies(),
+	}, nil
+}
+
+const (
+	accessTokenCookieName  = "access_token"
+	refreshTokenCookieName = "refresh_token"
+)
+
+func (s Server) authCookies(accessToken, refreshToken string) []http.Cookie {
+	return []http.Cookie{
+		s.authCookie(accessTokenCookieName, accessToken, s.cookies.AccessExpiry),
+		s.authCookie(refreshTokenCookieName, refreshToken, s.cookies.RefreshExpiry),
+	}
+}
+
+func (s Server) expiredAuthCookies() []http.Cookie {
+	return []http.Cookie{
+		s.authCookie(accessTokenCookieName, "", -time.Hour),
+		s.authCookie(refreshTokenCookieName, "", -time.Hour),
+	}
+}
+
+func (s Server) authCookie(name, value string, expiry time.Duration) http.Cookie {
+	now := time.Now()
+	return http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		Expires:  now.Add(expiry),
+		MaxAge:   int(expiry.Seconds()),
+		HttpOnly: true,
+		Secure:   s.cookies.Secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func refreshTokenFromRequest(ctx context.Context, request api.RefreshTokenRequestObject) string {
+	if request.Body != nil && request.Body.RefreshToken != "" {
+		return request.Body.RefreshToken
+	}
+	return middleware.GetRefreshTokenFromContext(ctx)
+}
+
+func refreshTokenFromLogoutRequest(ctx context.Context, request api.LogoutRequestObject) string {
+	if request.Body != nil && request.Body.RefreshToken != "" {
+		return request.Body.RefreshToken
+	}
+	return middleware.GetRefreshTokenFromContext(ctx)
 }
 
 func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequestObject) (api.PingProtectedResponseObject, error) {

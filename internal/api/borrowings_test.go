@@ -1669,10 +1669,10 @@ func TestServer_GetAllRequests(t *testing.T) {
 
 	server, testDB, mockAuth := newTestServer(t)
 
-	t.Run("admin views all requests", func(t *testing.T) {
-		adminUser := testDB.NewUser(t).
-			WithEmail("admin@allrequests.ca").
-			AsGlobalAdmin().
+	t.Run("approver views enriched all requests", func(t *testing.T) {
+		approverUser := testDB.NewUser(t).
+			WithEmail("approver@allrequests.ca").
+			AsApprover().
 			Create()
 
 		requestUser := testDB.NewUser(t).
@@ -1707,17 +1707,32 @@ func TestServer_GetAllRequests(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Admin views all requests
-		mockAuth.ExpectCheckPermission(adminUser.ID, rbac.ViewAllData, nil, true, nil)
-		adminCtx := testutil.ContextWithUser(context.Background(), adminUser, testDB.Queries())
+		// Approvers retain access to all requests through view_all_data.
+		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ViewAllData, nil, true, nil)
+		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
-		response, err := server.GetAllRequests(adminCtx, api.GetAllRequestsRequestObject{})
+		response, err := server.GetAllRequests(approverCtx, api.GetAllRequestsRequestObject{})
 
 		require.NoError(t, err)
 		require.IsType(t, api.GetAllRequests200JSONResponse{}, response)
 
 		requestsResp := response.(api.GetAllRequests200JSONResponse)
 		assert.GreaterOrEqual(t, len(requestsResp.Data), 1)
+
+		var requestResponse *api.RequestItemResponse
+		for i := range requestsResp.Data {
+			if requestsResp.Data[i].UserId == requestUser.ID && requestsResp.Data[i].ItemId == highItem.ID {
+				requestResponse = &requestsResp.Data[i]
+				break
+			}
+		}
+		require.NotNil(t, requestResponse)
+		require.NotNil(t, requestResponse.ItemName)
+		require.NotNil(t, requestResponse.RequesterEmail)
+		require.NotNil(t, requestResponse.GroupName)
+		assert.Equal(t, "MacBook Pro", *requestResponse.ItemName)
+		assert.Equal(t, "requester@allrequests.ca", string(*requestResponse.RequesterEmail))
+		assert.Equal(t, "All Requests Group", *requestResponse.GroupName)
 	})
 
 	t.Run("member cannot view all requests", func(t *testing.T) {
@@ -1800,6 +1815,21 @@ func TestServer_GetPendingRequests(t *testing.T) {
 		for _, req := range pendingResp.Data {
 			assert.Equal(t, api.Pending, req.Status)
 		}
+
+		var requestResponse *api.RequestItemResponse
+		for i := range pendingResp.Data {
+			if pendingResp.Data[i].UserId == requestUser.ID && pendingResp.Data[i].ItemId == highItem.ID {
+				requestResponse = &pendingResp.Data[i]
+				break
+			}
+		}
+		require.NotNil(t, requestResponse)
+		require.NotNil(t, requestResponse.ItemName)
+		require.NotNil(t, requestResponse.RequesterEmail)
+		require.NotNil(t, requestResponse.GroupName)
+		assert.Equal(t, "iPad Pro", *requestResponse.ItemName)
+		assert.Equal(t, "requester@pending.ca", string(*requestResponse.RequesterEmail))
+		assert.Equal(t, "Pending Group", *requestResponse.GroupName)
 	})
 
 	t.Run("member cannot view pending requests", func(t *testing.T) {
@@ -1818,6 +1848,27 @@ func TestServer_GetPendingRequests(t *testing.T) {
 
 		errorResp := response.(api.GetPendingRequests403JSONResponse)
 		assert.Equal(t, "PERMISSION_DENIED", string(errorResp.Error.Code))
+	})
+
+	t.Run("group admin cannot view approval request lists", func(t *testing.T) {
+		group := testDB.NewGroup(t).
+			WithName("Group Admin Scope").
+			Create()
+		groupAdmin := testDB.NewUser(t).
+			WithEmail("group-admin@nopending.ca").
+			AsGroupAdminOf(group).
+			Create()
+		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
+
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ApproveAllRequests, nil, false, nil)
+		pendingResponse, err := server.GetPendingRequests(ctx, api.GetPendingRequestsRequestObject{})
+		require.NoError(t, err)
+		require.IsType(t, api.GetPendingRequests403JSONResponse{}, pendingResponse)
+
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ViewAllData, nil, false, nil)
+		allResponse, err := server.GetAllRequests(ctx, api.GetAllRequestsRequestObject{})
+		require.NoError(t, err)
+		require.IsType(t, api.GetAllRequests403JSONResponse{}, allResponse)
 	})
 }
 
