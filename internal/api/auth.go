@@ -12,6 +12,8 @@ import (
 	"github.com/USSTM/cv-backend/internal/middleware"
 	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/rbac"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type verifyOTPCookieResponse struct {
@@ -119,6 +121,58 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 		},
 		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
+}
+
+func (s Server) AcceptInvitation(ctx context.Context, request api.AcceptInvitationRequestObject) (api.AcceptInvitationResponseObject, error) {
+	if request.Body == nil {
+		return api.AcceptInvitation400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	}
+
+	tx, err := s.db.Pool().Begin(ctx)
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+	defer tx.Rollback(ctx)
+
+	var invitationID uuid.UUID
+	var email, roleName, scope string
+	var scopeID *uuid.UUID
+	err = tx.QueryRow(ctx, `
+		SELECT id, email, role_name, scope, scope_id
+		FROM signup_codes
+		WHERE code = $1
+		  AND used_at IS NULL
+		  AND (expires_at IS NULL OR expires_at > NOW())
+		FOR UPDATE`, request.Body.Code).Scan(&invitationID, &email, &roleName, &scope, &scopeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return api.AcceptInvitation400JSONResponse(ValidationErr("Invitation code is invalid, expired, or already used", nil).Create()), nil
+	}
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Internal server error").Create()), nil
+	}
+
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		INSERT INTO users (email) VALUES ($1)
+		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+		RETURNING id`, email).Scan(&userID)
+	if err == nil {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO user_roles (user_id, role_name, scope, scope_id)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT DO NOTHING`, userID, roleName, scope, scopeID)
+	}
+	if err == nil {
+		_, err = tx.Exec(ctx, "UPDATE signup_codes SET used_at = NOW() WHERE id = $1", invitationID)
+	}
+	if err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Failed to accept invitation").Create()), nil
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return api.AcceptInvitation500JSONResponse(InternalError("Failed to accept invitation").Create()), nil
+	}
+
+	return api.AcceptInvitation200JSONResponse{Message: "Invitation accepted. Request a one-time login code to sign in."}, nil
 }
 
 func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
