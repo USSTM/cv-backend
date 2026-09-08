@@ -67,8 +67,7 @@ services:
             LOG_MAX_BACKUPS: 3
             LOG_MAX_AGE: 28
             LOG_COMPRESS: "true"
-            # CORS - TODO: update to https://inventory.usstm.ca once cv-frontend is deployed there
-            CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+            CORS_ALLOWED_ORIGINS: "https://inventory.usstm.ca"
             # AWS (real, via EC2 instance role - do not set static keys here)
             AWS_REGION: ca-central-1
             # usstm.ca's SES domain identity is verified in us-east-1, not ca-central-1
