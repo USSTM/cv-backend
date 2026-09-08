@@ -47,6 +47,12 @@ func main() {
 		logging.Error("Failed to load OpenAPI spec", "error", err)
 	}
 
+	// The request validator's router matches requests against spec.Servers,
+	// which is hardcoded to localhost for local dev. Clear it so routing is
+	// path/method-based only, regardless of the Host the request actually
+	// arrives with (e.g. behind a reverse proxy on a real domain).
+	spec.Servers = nil
+
 	corsHandler := appmiddleware.NewCORSHandler(&c.Config.CORS)
 	r.Use(corsHandler)
 
