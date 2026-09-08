@@ -20,12 +20,14 @@ type Config struct {
 }
 
 type AWSConfig struct {
-	Region          string
-	AccessKeyID     string
-	SecretAccessKey string
-	EndpointURL     string
-	Sender          string
-	Bucket          string
+	Region            string
+	SESRegion         string
+	AccessKeyID       string
+	SecretAccessKey   string
+	EndpointURL       string
+	PublicEndpointURL string
+	Sender            string
+	Bucket            string
 }
 
 type DatabaseConfig struct {
@@ -58,6 +60,7 @@ type AuthConfig struct {
 	OTPCooldown    time.Duration
 	OTPMaxAttempts int
 	RefreshExpiry  time.Duration
+	CookieSecure   bool
 }
 
 type LoggingConfig struct {
@@ -107,6 +110,9 @@ func Load() *Config {
 			OTPCooldown:    getEnvDuration("OTP_COOLDOWN", 60*time.Second),
 			OTPMaxAttempts: getEnvAs("OTP_MAX_ATTEMPTS", 3, strconv.Atoi),
 			RefreshExpiry:  getEnvDuration("REFRESH_TOKEN_EXPIRY", 168*time.Hour),
+			// Keep this enabled outside local HTTP development. Browsers reject
+			// Secure cookies over plain HTTP.
+			CookieSecure: getEnvAs("AUTH_COOKIE_SECURE", getEnvAs("COOKIE_SECURE", true, strconv.ParseBool), strconv.ParseBool),
 		},
 		Logging: LoggingConfig{
 			Level:      getEnv("LOG_LEVEL", "info"),
@@ -129,12 +135,17 @@ func Load() *Config {
 			MaxAge:           300,
 		},
 		AWS: AWSConfig{
-			Region:          getEnv("AWS_REGION", "us-east-1"),
-			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
-			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
-			EndpointURL:     getEnv("AWS_ENDPOINT_URL", ""),
-			Sender:          getEnv("AWS_EMAIL_SENDER", "test@example.com"),
-			Bucket:          getEnv("AWS_BUCKET", "cv-backend-test-bucket"),
+			Region: getEnv("AWS_REGION", "us-east-1"),
+			// SES identity/DKIM verification lives in a specific region and doesn't
+			// transfer automatically; this lets SES calls target a different region
+			// than S3 (e.g. bucket in ca-central-1, verified SES domain in us-east-1).
+			SESRegion:         getEnv("AWS_SES_REGION", getEnv("AWS_REGION", "us-east-1")),
+			AccessKeyID:       getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey:   getEnv("AWS_SECRET_ACCESS_KEY", ""),
+			EndpointURL:       getEnv("AWS_ENDPOINT_URL", ""),
+			PublicEndpointURL: getEnv("AWS_PUBLIC_ENDPOINT_URL", ""),
+			Sender:            getEnv("AWS_EMAIL_SENDER", "test@example.com"),
+			Bucket:            getEnv("AWS_BUCKET", "cv-backend-test-bucket"),
 		},
 	}
 }

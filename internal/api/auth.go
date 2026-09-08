@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
@@ -12,6 +13,42 @@ import (
 	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/rbac"
 )
+
+type verifyOTPCookieResponse struct {
+	api.VerifyOTP200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response verifyOTPCookieResponse) VisitVerifyOTPResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.VerifyOTP200JSONResponse.VisitVerifyOTPResponse(w)
+}
+
+type refreshTokenCookieResponse struct {
+	api.RefreshToken200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response refreshTokenCookieResponse) VisitRefreshTokenResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.RefreshToken200JSONResponse.VisitRefreshTokenResponse(w)
+}
+
+type logoutCookieResponse struct {
+	api.Logout200JSONResponse
+	cookies []http.Cookie
+}
+
+func (response logoutCookieResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+	setCookies(w, response.cookies)
+	return response.Logout200JSONResponse.VisitLogoutResponse(w)
+}
+
+func setCookies(w http.ResponseWriter, cookies []http.Cookie) {
+	for _, cookie := range cookies {
+		http.SetCookie(w, &cookie)
+	}
+}
 
 func (s Server) RequestOTP(ctx context.Context, request api.RequestOTPRequestObject) (api.RequestOTPResponseObject, error) {
 	if request.Body == nil {
@@ -76,20 +113,22 @@ func (s Server) VerifyOTP(ctx context.Context, request api.VerifyOTPRequestObjec
 	}
 
 	logger.Info("User authenticated via OTP", "email", email)
-	return api.VerifyOTP200JSONResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+	return verifyOTPCookieResponse{
+		VerifyOTP200JSONResponse: api.VerifyOTP200JSONResponse{
+			Message: "Authenticated successfully.",
+		},
+		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
 }
 
 func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenRequestObject) (api.RefreshTokenResponseObject, error) {
-	if request.Body == nil {
-		return api.RefreshToken400JSONResponse(ValidationErr("Request body is required", nil).Create()), nil
+	logger := middleware.GetLoggerFromContext(ctx)
+	refreshToken := refreshTokenFromRequest(ctx, request)
+	if refreshToken == "" {
+		return api.RefreshToken400JSONResponse(ValidationErr("Refresh token is required", nil).Create()), nil
 	}
 
-	logger := middleware.GetLoggerFromContext(ctx)
-
-	accessToken, refreshToken, err := s.authService.Refresh(ctx, request.Body.RefreshToken)
+	accessToken, refreshToken, err := s.authService.Refresh(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, internalauth.ErrRefreshInvalid) {
 			logger.Warn("Refresh token rejected: invalid or expired")
@@ -99,9 +138,11 @@ func (s Server) RefreshToken(ctx context.Context, request api.RefreshTokenReques
 		return api.RefreshToken500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	return api.RefreshToken200JSONResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+	return refreshTokenCookieResponse{
+		RefreshToken200JSONResponse: api.RefreshToken200JSONResponse{
+			Message: "Session refreshed successfully.",
+		},
+		cookies: s.authCookies(accessToken, refreshToken),
 	}, nil
 }
 
@@ -111,13 +152,67 @@ func (s Server) Logout(ctx context.Context, request api.LogoutRequestObject) (ap
 	}
 
 	logger := middleware.GetLoggerFromContext(ctx)
+	refreshToken := refreshTokenFromLogoutRequest(ctx, request)
+	if refreshToken == "" {
+		return api.Logout400JSONResponse(ValidationErr("Refresh token is required", nil).Create()), nil
+	}
 
-	if err := s.authService.Logout(ctx, request.Body.RefreshToken); err != nil {
+	if err := s.authService.Logout(ctx, refreshToken); err != nil {
 		logger.Error("Failed to logout", "error", err)
 		return api.Logout500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 
-	return api.Logout200JSONResponse{Message: "Logged out successfully."}, nil
+	return logoutCookieResponse{
+		Logout200JSONResponse: api.Logout200JSONResponse{Message: "Logged out successfully."},
+		cookies:               s.expiredAuthCookies(),
+	}, nil
+}
+
+const (
+	accessTokenCookieName  = "access_token"
+	refreshTokenCookieName = "refresh_token"
+)
+
+func (s Server) authCookies(accessToken, refreshToken string) []http.Cookie {
+	return []http.Cookie{
+		s.authCookie(accessTokenCookieName, accessToken, s.cookies.AccessExpiry),
+		s.authCookie(refreshTokenCookieName, refreshToken, s.cookies.RefreshExpiry),
+	}
+}
+
+func (s Server) expiredAuthCookies() []http.Cookie {
+	return []http.Cookie{
+		s.authCookie(accessTokenCookieName, "", -time.Hour),
+		s.authCookie(refreshTokenCookieName, "", -time.Hour),
+	}
+}
+
+func (s Server) authCookie(name, value string, expiry time.Duration) http.Cookie {
+	now := time.Now()
+	return http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		Expires:  now.Add(expiry),
+		MaxAge:   int(expiry.Seconds()),
+		HttpOnly: true,
+		Secure:   s.cookies.Secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func refreshTokenFromRequest(ctx context.Context, request api.RefreshTokenRequestObject) string {
+	if request.Body != nil && request.Body.RefreshToken != "" {
+		return request.Body.RefreshToken
+	}
+	return middleware.GetRefreshTokenFromContext(ctx)
+}
+
+func refreshTokenFromLogoutRequest(ctx context.Context, request api.LogoutRequestObject) string {
+	if request.Body != nil && request.Body.RefreshToken != "" {
+		return request.Body.RefreshToken
+	}
+	return middleware.GetRefreshTokenFromContext(ctx)
 }
 
 func (s Server) PingProtected(ctx context.Context, request api.PingProtectedRequestObject) (api.PingProtectedResponseObject, error) {

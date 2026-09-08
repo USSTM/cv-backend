@@ -29,6 +29,8 @@ users:
     password: password123
   - email: groupadmin@test.com
     password: password123
+  - email: multigroup@test.com
+    password: password123
 
 user_roles:
   - user_email: admin@test.com
@@ -43,5 +45,13 @@ user_roles:
     group_name: chemistry-club
   - user_email: member@test.com
     role_name: member
+    scope: group
+    group_name: physics-society
+  - user_email: multigroup@test.com
+    role_name: member
+    scope: group
+    group_name: chemistry-club
+  - user_email: multigroup@test.com
+    role_name: group_admin
     scope: group
     group_name: physics-society
