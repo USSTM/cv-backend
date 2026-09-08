@@ -22,7 +22,9 @@ api.inventory.usstm.ca {
 	# Deferred (>) so these are the last word on the response, not stacked
 	# on top of whatever the upstream already set.
 	header {
-		>Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		># /docs (Swagger UI) needs same-origin scripts/styles to render; the
+		># rest of the API is pure JSON and ignores CSP either way.
+		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'"
 		>Cross-Origin-Opener-Policy "same-origin"
 		>Permissions-Policy "camera=(), geolocation=(), microphone=()"
 		>Referrer-Policy "strict-origin-when-cross-origin"
