@@ -15,6 +15,8 @@ func ServeSwaggerJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	spec.Servers = nil
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*") // CORS off for docs
 	json.NewEncoder(w).Encode(spec)
