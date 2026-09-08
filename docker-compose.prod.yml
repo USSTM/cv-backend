@@ -1,0 +1,110 @@
+name: cv-backend-prod
+
+services:
+    db:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        mem_limit: 512m
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: campus_vault
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        mem_limit: 256m
+        volumes:
+            - redisdata:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        mem_limit: 768m
+        expose:
+            - "8080"
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            # Database (self-hosted, same Compose network)
+            POSTGRES_HOST: db
+            POSTGRES_PORT: 5432
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: campus_vault
+            POSTGRES_SSL_MODE: disable
+            # Goose
+            GOOSE_DRIVER: postgres
+            GOOSE_DBSTRING: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/campus_vault?sslmode=disable
+            # Server
+            SERVER_PORT: 8080
+            # JWT
+            JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+            JWT_ISSUER: campus-vault
+            JWT_EXPIRY: 24h
+            # Logging
+            LOG_LEVEL: info
+            LOG_FORMAT: json
+            LOG_FILENAME: /app/logs/app.log
+            LOG_MAX_SIZE: 100
+            LOG_MAX_BACKUPS: 3
+            LOG_MAX_AGE: 28
+            LOG_COMPRESS: "true"
+            # CORS - TODO: update to https://inventory.usstm.ca once cv-frontend is deployed there
+            CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+            # AWS (real, via EC2 instance role - do not set static keys here)
+            AWS_REGION: ca-central-1
+            # usstm.ca's SES domain identity is verified in us-east-1, not ca-central-1
+            AWS_SES_REGION: us-east-1
+            AWS_EMAIL_SENDER: noreply@usstm.ca
+            AWS_BUCKET: cv-backend-prod-bucket
+            # Redis
+            REDIS_ADDR: redis:6379
+            REDIS_PASSWORD: ""
+            REDIS_DB: 0
+            # OTP / Auth
+            OTP_EXPIRY: 5m
+            OTP_COOLDOWN: 60s
+            OTP_MAX_ATTEMPTS: 3
+            REFRESH_TOKEN_EXPIRY: 168h
+            # Never auto-seed production
+            SEED_ON_START: "false"
+        volumes:
+            - ./logs:/app/logs
+
+    caddy:
+        image: caddy:2-alpine
+        restart: unless-stopped
+        mem_limit: 128m
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
+        depends_on:
+            - app
+
+volumes:
+    pgdata:
+    redisdata:
+    caddy_data:
+    caddy_config:
