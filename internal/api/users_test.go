@@ -44,7 +44,7 @@ func TestServer_Users(t *testing.T) {
 			AsGlobalAdmin().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, nil, true, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
@@ -73,6 +73,7 @@ func TestServer_Users(t *testing.T) {
 			AsGroupAdminOf(group).
 			Create()
 
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, false, nil)
 		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, &group.ID, true, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
@@ -98,7 +99,7 @@ func TestServer_Users(t *testing.T) {
 			AsMember().
 			Create()
 
-		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageGroupUsers, nil, false, nil)
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageUsers, nil, false, nil)
 		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
 
 		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
@@ -114,7 +115,54 @@ func TestServer_Users(t *testing.T) {
 
 		inviteResp := response.(api.InviteUser403JSONResponse)
 		assert.Equal(t, "PERMISSION_DENIED", string(inviteResp.Error.Code))
-		assert.Equal(t, "Insufficient permissions", inviteResp.Error.Message)
+		assert.Equal(t, "Only global administrators may invite this role or scope", inviteResp.Error.Message)
+	})
+
+	t.Run("group admin cannot invite global admin", func(t *testing.T) {
+		group := testDB.NewGroup(t).WithName("Restricted Invite Group").Create()
+		groupAdmin := testDB.NewUser(t).
+			WithEmail("restricted-global@groupadmin.ca").
+			AsGroupAdminOf(group).
+			Create()
+
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ManageUsers, nil, false, nil)
+		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
+
+		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
+			Body: &api.InviteUserJSONRequestBody{
+				Email:    "forbidden-global@example.com",
+				RoleName: rbac.RoleGlobalAdmin,
+				Scope:    "global",
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.InviteUser403JSONResponse{}, response)
+	})
+
+	t.Run("group admin cannot invite member to another group", func(t *testing.T) {
+		managedGroup := testDB.NewGroup(t).WithName("Managed Invite Group").Create()
+		otherGroup := testDB.NewGroup(t).WithName("Other Invite Group").Create()
+		groupAdmin := testDB.NewUser(t).
+			WithEmail("cross-group@groupadmin.ca").
+			AsGroupAdminOf(managedGroup).
+			Create()
+
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ManageUsers, nil, false, nil)
+		mockAuth.ExpectCheckPermission(groupAdmin.ID, rbac.ManageGroupUsers, &otherGroup.ID, false, nil)
+		ctx := testutil.ContextWithUser(context.Background(), groupAdmin, testDB.Queries())
+
+		response, err := server.InviteUser(ctx, api.InviteUserRequestObject{
+			Body: &api.InviteUserJSONRequestBody{
+				Email:    "cross-group-member@example.com",
+				RoleName: rbac.RoleMember,
+				Scope:    "group",
+				ScopeId:  &otherGroup.ID,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.InviteUser403JSONResponse{}, response)
 	})
 
 	t.Run("trying to manage get users without right permissions", func(t *testing.T) {

@@ -28,6 +28,36 @@ components:
         - email
         - role
 
+    UserUpdate:
+      type: object
+      required: [current, replacement]
+      properties:
+        current:
+          $ref: "#/components/schemas/UserRoleAssignment"
+        replacement:
+          $ref: "#/components/schemas/UserRoleAssignment"
+
+    UserRoleAssignment:
+      type: object
+      required: [role_name, scope]
+      properties:
+        role_name:
+          type: string
+          description: One of global_admin, approver, group_admin, or member.
+        scope:
+          type: string
+          description: Either global or group.
+        scope_id:
+          $ref: "#/components/schemas/UUID"
+
+    GroupMembershipUpdate:
+      type: object
+      required: [is_member]
+      properties:
+        is_member:
+          type: boolean
+          description: Whether the member belongs to this group.
+
     MemberRole:
       type: object
       required: [name, scope]
@@ -356,6 +386,17 @@ components:
           example: "123456"
       required:
         - email
+        - code
+
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 32
+          maxLength: 32
+          description: The one-time invitation code supplied in the invitation link.
+      required:
         - code
 
     TokenResponse:
@@ -1314,6 +1355,40 @@ paths:
                 $ref: "#/components/schemas/SessionResponse"
         "400":
           description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/invitations/accept:
+    post:
+      tags:
+        - Authentication
+      security: []
+      summary: Accept an invitation
+      description: Consumes a valid invitation code, creates the invited user if needed, and assigns the invited role. Sign in with email OTP afterwards.
+      operationId: acceptInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invitation code is invalid, expired, or already used
           content:
             application/json:
               schema:
@@ -3059,6 +3134,56 @@ paths:
                 code: 500
                 message: "An unexpected error occurred."
 
+  /admin/users/{userId}/roles:
+    get:
+      tags:
+        - Admin
+      summary: Get a member's full role assignments
+      description: Retrieves every role assignment, including its global or group scope. Requires global-admin permissions.
+      operationId: getUserRoleAssignments
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: Member role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserRoleAssignment"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /users/me/preferences:
     get:
       tags:
@@ -3190,6 +3315,168 @@ paths:
               example:
                 code: 500
                 message: "Internal server error"
+
+    patch:
+      tags:
+        - Users
+      summary: Update one member role assignment
+      description: Global admins may update one member role assignment without changing the member's other roles or group memberships.
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - Users
+      summary: Delete a member
+      description: Global admins may delete any member account.
+      operationId: deleteUser
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Member deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{userId}/groups/{groupId}:
+    patch:
+      tags:
+        - Users
+      summary: Update a member's group membership
+      description: Global admins may update membership in any group. Group admins may only update membership in groups they administer.
+      operationId: updateUserGroupMembership
+      security:
+        - BearerAuth: []
+        - OAuth2: [manage_group_users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMembershipUpdate"
+      responses:
+        "204":
+          description: Membership updated
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User or group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /users/email/{email}:
     get:
