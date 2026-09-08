@@ -1,3 +1,42 @@
+{
+	admin localhost:2019
+	log {
+		output stdout
+		format json
+	}
+}
+
 api.inventory.usstm.ca {
-    reverse_proxy app:8080
+	log {
+		output stdout
+		format json
+	}
+
+	# A request that has already passed through this Caddy instance carries
+	# our own Via hop. Seeing it again means something upstream is looping
+	# a request back to us instead of returning a response to the client.
+	@loop header_regexp Via Caddy
+	respond @loop "Proxy loop detected" 508
+
+	header X-Request-ID {http.request.uuid}
+	# Deferred (>) so these are the last word on the response, not stacked
+	# on top of whatever the upstream already set.
+	header {
+		>Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		>Cross-Origin-Opener-Policy "same-origin"
+		>Permissions-Policy "camera=(), geolocation=(), microphone=()"
+		>Referrer-Policy "strict-origin-when-cross-origin"
+		>Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		>X-Content-Type-Options "nosniff"
+		>X-Frame-Options "DENY"
+	}
+	request_body {
+		max_size 1MB
+	}
+
+	reverse_proxy app:8080 {
+		header_up X-Request-ID {http.request.uuid}
+		header_up X-Forwarded-Host {http.request.host}
+		header_up X-Forwarded-Proto {http.request.scheme}
+	}
 }

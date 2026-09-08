@@ -88,23 +88,17 @@ services:
             SEED_ON_START: "false"
         volumes:
             - ./logs:/app/logs
+        networks:
+            default: {}
+            portal_shared:
+                aliases:
+                    - cv-backend-app
 
-    caddy:
-        image: caddy:2-alpine
-        restart: unless-stopped
-        mem_limit: 128m
-        ports:
-            - "80:80"
-            - "443:443"
-        volumes:
-            - ./Caddyfile:/etc/caddy/Caddyfile
-            - caddy_data:/data
-            - caddy_config:/config
-        depends_on:
-            - app
+networks:
+    portal_shared:
+        name: usstm-portal-production_application
+        external: true
 
 volumes:
     pgdata:
     redisdata:
-    caddy_data:
-    caddy_config:
