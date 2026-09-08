@@ -336,7 +336,7 @@ func (s Server) UpdateUser(ctx context.Context, request api.UpdateUserRequestObj
 		return api.UpdateUser404JSONResponse(NotFound("User").Create()), nil
 	}
 
-	for _, assignment := range request.Body.Roles {
+	for _, assignment := range []api.UserRoleAssignment{request.Body.Current, request.Body.Replacement} {
 		if !isAssignableRole(assignment.RoleName) || (assignment.Scope != "global" && assignment.Scope != "group") {
 			return api.UpdateUser400JSONResponse(ValidationErr("Each role must have a valid role_name and scope", nil).Create()), nil
 		}
@@ -352,7 +352,7 @@ func (s Server) UpdateUser(ctx context.Context, request api.UpdateUserRequestObj
 			}
 		}
 	}
-	if actor.ID == request.UserId && !retainsGlobalAdminRole(request.Body.Roles) {
+	if actor.ID == request.UserId && isGlobalAdminAssignment(request.Body.Current) && !isGlobalAdminAssignment(request.Body.Replacement) {
 		return api.UpdateUser403JSONResponse(PermissionDenied("Administrators cannot remove their own global admin permission").Create()), nil
 	}
 
@@ -361,16 +361,26 @@ func (s Server) UpdateUser(ctx context.Context, request api.UpdateUserRequestObj
 		return api.UpdateUser500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, "DELETE FROM user_roles WHERE user_id = $1", request.UserId); err == nil {
-		for _, assignment := range request.Body.Roles {
-			_, err = tx.Exec(ctx, "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4)", request.UserId, string(assignment.RoleName), string(assignment.Scope), assignment.ScopeId)
-			if err != nil {
-				break
-			}
-		}
-	}
+	deleteResult, err := tx.Exec(ctx, `
+		DELETE FROM user_roles
+		WHERE user_id = $1
+		  AND role_name = $2
+		  AND scope = $3
+		  AND scope_id IS NOT DISTINCT FROM $4`,
+		request.UserId,
+		request.Body.Current.RoleName,
+		request.Body.Current.Scope,
+		request.Body.Current.ScopeId,
+	)
 	if err != nil {
-		logger.Error("Failed to replace member roles", "member_id", request.UserId, "error", err)
+		logger.Error("Failed to update member role", "member_id", request.UserId, "error", err)
+		return api.UpdateUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
+	}
+	if deleteResult.RowsAffected() == 0 {
+		return api.UpdateUser404JSONResponse(NotFound("Role assignment").Create()), nil
+	}
+	if _, err = tx.Exec(ctx, "INSERT INTO user_roles (user_id, role_name, scope, scope_id) VALUES ($1, $2, $3, $4)", request.UserId, request.Body.Replacement.RoleName, request.Body.Replacement.Scope, request.Body.Replacement.ScopeId); err != nil {
+		logger.Error("Failed to create updated member role", "member_id", request.UserId, "error", err)
 		return api.UpdateUser500JSONResponse(InternalError("An unexpected error occurred.").Create()), nil
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -390,13 +400,8 @@ func isAssignableRole(role string) bool {
 	}
 }
 
-func retainsGlobalAdminRole(roles []api.UserRoleAssignment) bool {
-	for _, role := range roles {
-		if role.RoleName == rbac.RoleGlobalAdmin && role.Scope == "global" && role.ScopeId == nil {
-			return true
-		}
-	}
-	return false
+func isGlobalAdminAssignment(role api.UserRoleAssignment) bool {
+	return role.RoleName == rbac.RoleGlobalAdmin && role.Scope == "global" && role.ScopeId == nil
 }
 
 func (s Server) DeleteUser(ctx context.Context, request api.DeleteUserRequestObject) (api.DeleteUserResponseObject, error) {

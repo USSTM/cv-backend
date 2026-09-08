@@ -30,13 +30,12 @@ components:
 
     UserUpdate:
       type: object
-      required: [roles]
+      required: [current, replacement]
       properties:
-        roles:
-          type: array
-          description: Complete replacement of the member's role assignments.
-          items:
-            $ref: "#/components/schemas/UserRoleAssignment"
+        current:
+          $ref: "#/components/schemas/UserRoleAssignment"
+        replacement:
+          $ref: "#/components/schemas/UserRoleAssignment"
 
     UserRoleAssignment:
       type: object
@@ -3275,8 +3274,8 @@ paths:
     patch:
       tags:
         - Users
-      summary: Replace a member's roles
-      description: Global admins may replace any member's role assignments, including their scope and group membership.
+      summary: Update one member role assignment
+      description: Global admins may update one member role assignment without changing the member's other roles or group memberships.
       operationId: updateUser
       security:
         - BearerAuth: []
