@@ -167,7 +167,7 @@ func (s Server) InviteUser(ctx context.Context, request api.InviteUserRequestObj
 		To:      string(req.Email),
 		Subject: "Your Campus Vault invitation",
 		Body: fmt.Sprintf(
-			"You have been invited to join Campus Vault.\n\nYour invitation code is: %s\n\nAccept it using the invitation acceptance page, then request a one-time login code using this email address. This invitation expires in 7 days.",
+			"You have been invited to join Campus Vault.\n\nAccept your invite: https://inventory.usstm.ca/invite/%s\n\nAfter accepting, request a one-time login code using this email address. This invitation expires in 7 days.",
 			signupCode.Code,
 		),
 	}); err != nil {

@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
+	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime/types"
@@ -60,6 +62,14 @@ func TestServer_Users(t *testing.T) {
 
 		inviteResp := response.(api.InviteUser201JSONResponse)
 		assert.NotNil(t, inviteResp)
+
+		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
+		require.NoError(t, err)
+		require.Len(t, tasks, 1)
+
+		var email queue.EmailDeliveryPayload
+		require.NoError(t, json.Unmarshal(tasks[0].Payload, &email))
+		assert.Contains(t, email.Body, "Accept your invite: https://inventory.usstm.ca/invite/"+*inviteResp.Code)
 	})
 
 	t.Run("successful invite user as group admin", func(t *testing.T) {
