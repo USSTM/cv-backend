@@ -5,10 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/testutil"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -169,6 +172,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 				DueDate:            dueDate,
 				BeforeCondition:    beforeCondition,
 				BeforeConditionUrl: beforeConditionURL,
+				RequestedReturnAt:  &dueDate,
 			},
 		})
 
@@ -210,9 +214,9 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		highItem2 := testDB.NewItem(t).
-			WithName("Drone").
+			WithName("Drone (future request)").
 			WithType("high").
-			WithStock(2).
+			WithStock(0).
 			Create()
 
 		// Add items to cart
@@ -240,12 +244,30 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		approver := testDB.NewUser(t).
+			WithEmail("approver@checkout-high.ca").
+			AsApprover().
+			Create()
+		timeSlots, err := testDB.Queries().ListTimeSlots(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, timeSlots)
+		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver.ID,
+			TimeSlotID: &timeSlots[0].ID,
+			Date:       pgtype.Date{Time: time.Now().AddDate(0, 0, 7), Valid: true},
+		})
+		require.NoError(t, err)
+
 		// Checkout
 		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
+		requestedReturnAt := time.Now().AddDate(0, 0, 8)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
 			Body: &api.CheckoutCartJSONRequestBody{
-				GroupId: group.ID,
+				GroupId:                 group.ID,
+				PreferredAvailabilityId: &availability.ID,
+				RequestedReturnAt:       &requestedReturnAt,
 			},
 		})
 
@@ -258,6 +280,13 @@ func TestServer_CheckoutCart(t *testing.T) {
 		assert.Len(t, checkoutResp.HighItemsRequested, 2)
 		assert.Len(t, checkoutResp.Errors, 0)
 
+		for _, item := range checkoutResp.HighItemsRequested {
+			request, err := testDB.Queries().GetRequestById(ctx, *item.RequestId)
+			require.NoError(t, err)
+			require.NotNil(t, request.PreferredAvailabilityID)
+			assert.Equal(t, availability.ID, *request.PreferredAvailabilityID)
+		}
+
 		// Verify stock not decremented
 		item1, err := testDB.Queries().GetItemByID(ctx, highItem1.ID)
 		require.NoError(t, err)
@@ -265,7 +294,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 
 		item2, err := testDB.Queries().GetItemByID(ctx, highItem2.ID)
 		require.NoError(t, err)
-		assert.Equal(t, int32(2), item2.Stock)
+		assert.Equal(t, int32(0), item2.Stock)
 	})
 
 	t.Run("successful checkout with mixed item types", func(t *testing.T) {
@@ -346,6 +375,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 				DueDate:            dueDate,
 				BeforeCondition:    beforeCondition,
 				BeforeConditionUrl: beforeConditionURL,
+				RequestedReturnAt:  &dueDate,
 			},
 		})
 

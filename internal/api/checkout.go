@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
@@ -79,6 +80,18 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		Errors:              []api.CheckoutError{},
 	}
 
+	preferredAvailabilityID := request.Body.PreferredAvailabilityId
+	requestedReturnAt := request.Body.RequestedReturnAt
+	if hasHighItem(cartItems) && requestedReturnAt == nil {
+		return api.CheckoutCart400JSONResponse(ValidationErr("Choose when you will return Request Items", nil).Create()), nil
+	}
+	if preferredAvailabilityID != nil {
+		availability, err := qtx.GetAvailabilityByID(ctx, *request.Body.PreferredAvailabilityId)
+		if err != nil || !availability.Date.Valid || !availability.Date.Time.After(time.Now()) {
+			return api.CheckoutCart400JSONResponse(ValidationErr("Choose an upcoming collection window", nil).Create()), nil
+		}
+	}
+
 	// Process each cart item based on type
 	for _, cartItem := range cartItems {
 		switch cartItem.Type {
@@ -115,7 +128,7 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 			}
 
 		case db.ItemTypeHigh:
-			err := s.processHighItem(ctx, qtx, cartItem, request.Body.GroupId, user.ID, &result)
+			err := s.processHighItem(ctx, qtx, cartItem, request.Body.GroupId, user.ID, preferredAvailabilityID, requestedReturnAt, &result)
 			if err != nil {
 				logger.Warn("Failed to process HIGH item in checkout",
 					"item_id", cartItem.ItemID,
@@ -152,6 +165,15 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 		HighItemsRequested:  result.HighItemsRequested,
 		Errors:              result.Errors,
 	}, nil
+}
+
+func hasHighItem(items []db.GetCartItemsForCheckoutRow) bool {
+	for _, item := range items {
+		if item.Type == db.ItemTypeHigh {
+			return true
+		}
+	}
+	return false
 }
 
 // decrement stock + record taking for audit, no borrowing
@@ -241,14 +263,16 @@ func (s Server) processMediumItem(ctx context.Context, qtx *db.Queries, cartItem
 
 // approval request
 func (s Server) processHighItem(ctx context.Context, qtx *db.Queries, cartItem db.GetCartItemsForCheckoutRow,
-	groupID uuid.UUID, userID uuid.UUID, result *CheckoutResult) error {
+	groupID uuid.UUID, userID uuid.UUID, preferredAvailabilityID *uuid.UUID, requestedReturnAt *time.Time, result *CheckoutResult) error {
 
 	// Create request
 	request, err := qtx.RequestItem(ctx, db.RequestItemParams{
-		UserID:   &userID,
-		GroupID:  &groupID,
-		ID:       cartItem.ItemID,
-		Quantity: cartItem.Quantity,
+		UserID:                  &userID,
+		GroupID:                 &groupID,
+		ID:                      cartItem.ItemID,
+		Quantity:                cartItem.Quantity,
+		PreferredAvailabilityID: preferredAvailabilityID,
+		RequestedReturnAt:       pgtype.Timestamp{Time: valueOrZero(requestedReturnAt), Valid: requestedReturnAt != nil},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

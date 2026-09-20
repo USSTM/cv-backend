@@ -35,7 +35,7 @@ func (q *Queries) CountPendingRequests(ctx context.Context) (int64, error) {
 }
 
 const getAllRequests = `-- name: GetAllRequests :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 ORDER BY requested_at DESC LIMIT $1 OFFSET $2
 `
 
@@ -66,6 +66,7 @@ func (q *Queries) GetAllRequests(ctx context.Context, arg GetAllRequestsParams) 
 			&i.FulfilledAt,
 			&i.BookingID,
 			&i.PreferredAvailabilityID,
+			&i.RequestedReturnAt,
 		); err != nil {
 			return nil, err
 		}
@@ -79,6 +80,7 @@ func (q *Queries) GetAllRequests(ctx context.Context, arg GetAllRequestsParams) 
 
 const getAllRequestsForApproval = `-- name: GetAllRequestsForApproval :many
 SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       r.preferred_availability_id, r.requested_return_at,
        i.name AS item_name, requester.email AS requester_email, g.name AS group_name
 FROM requests r
 JOIN items i ON r.item_id = i.id
@@ -93,17 +95,19 @@ type GetAllRequestsForApprovalParams struct {
 }
 
 type GetAllRequestsForApprovalRow struct {
-	ID             uuid.UUID         `json:"id"`
-	UserID         *uuid.UUID        `json:"user_id"`
-	GroupID        *uuid.UUID        `json:"group_id"`
-	ItemID         *uuid.UUID        `json:"item_id"`
-	Quantity       int32             `json:"quantity"`
-	Status         NullRequestStatus `json:"status"`
-	ReviewedBy     *uuid.UUID        `json:"reviewed_by"`
-	ReviewedAt     pgtype.Timestamp  `json:"reviewed_at"`
-	ItemName       string            `json:"item_name"`
-	RequesterEmail string            `json:"requester_email"`
-	GroupName      string            `json:"group_name"`
+	ID                      uuid.UUID         `json:"id"`
+	UserID                  *uuid.UUID        `json:"user_id"`
+	GroupID                 *uuid.UUID        `json:"group_id"`
+	ItemID                  *uuid.UUID        `json:"item_id"`
+	Quantity                int32             `json:"quantity"`
+	Status                  NullRequestStatus `json:"status"`
+	ReviewedBy              *uuid.UUID        `json:"reviewed_by"`
+	ReviewedAt              pgtype.Timestamp  `json:"reviewed_at"`
+	PreferredAvailabilityID *uuid.UUID        `json:"preferred_availability_id"`
+	RequestedReturnAt       pgtype.Timestamp  `json:"requested_return_at"`
+	ItemName                string            `json:"item_name"`
+	RequesterEmail          string            `json:"requester_email"`
+	GroupName               string            `json:"group_name"`
 }
 
 func (q *Queries) GetAllRequestsForApproval(ctx context.Context, arg GetAllRequestsForApprovalParams) ([]GetAllRequestsForApprovalRow, error) {
@@ -124,6 +128,8 @@ func (q *Queries) GetAllRequestsForApproval(ctx context.Context, arg GetAllReque
 			&i.Status,
 			&i.ReviewedBy,
 			&i.ReviewedAt,
+			&i.PreferredAvailabilityID,
+			&i.RequestedReturnAt,
 			&i.ItemName,
 			&i.RequesterEmail,
 			&i.GroupName,
@@ -139,7 +145,7 @@ func (q *Queries) GetAllRequestsForApproval(ctx context.Context, arg GetAllReque
 }
 
 const getApprovedRequestForUserAndItem = `-- name: GetApprovedRequestForUserAndItem :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE user_id = $1
   AND item_id = $2
   AND status = 'approved'
@@ -169,12 +175,13 @@ func (q *Queries) GetApprovedRequestForUserAndItem(ctx context.Context, arg GetA
 		&i.FulfilledAt,
 		&i.BookingID,
 		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }
 
 const getPendingRequests = `-- name: GetPendingRequests :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE status = 'pending'
 ORDER BY requested_at ASC LIMIT $1 OFFSET $2
 `
@@ -206,6 +213,7 @@ func (q *Queries) GetPendingRequests(ctx context.Context, arg GetPendingRequests
 			&i.FulfilledAt,
 			&i.BookingID,
 			&i.PreferredAvailabilityID,
+			&i.RequestedReturnAt,
 		); err != nil {
 			return nil, err
 		}
@@ -219,6 +227,7 @@ func (q *Queries) GetPendingRequests(ctx context.Context, arg GetPendingRequests
 
 const getPendingRequestsForApproval = `-- name: GetPendingRequestsForApproval :many
 SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       r.preferred_availability_id, r.requested_return_at,
        i.name AS item_name, requester.email AS requester_email, g.name AS group_name
 FROM requests r
 JOIN items i ON r.item_id = i.id
@@ -234,17 +243,19 @@ type GetPendingRequestsForApprovalParams struct {
 }
 
 type GetPendingRequestsForApprovalRow struct {
-	ID             uuid.UUID         `json:"id"`
-	UserID         *uuid.UUID        `json:"user_id"`
-	GroupID        *uuid.UUID        `json:"group_id"`
-	ItemID         *uuid.UUID        `json:"item_id"`
-	Quantity       int32             `json:"quantity"`
-	Status         NullRequestStatus `json:"status"`
-	ReviewedBy     *uuid.UUID        `json:"reviewed_by"`
-	ReviewedAt     pgtype.Timestamp  `json:"reviewed_at"`
-	ItemName       string            `json:"item_name"`
-	RequesterEmail string            `json:"requester_email"`
-	GroupName      string            `json:"group_name"`
+	ID                      uuid.UUID         `json:"id"`
+	UserID                  *uuid.UUID        `json:"user_id"`
+	GroupID                 *uuid.UUID        `json:"group_id"`
+	ItemID                  *uuid.UUID        `json:"item_id"`
+	Quantity                int32             `json:"quantity"`
+	Status                  NullRequestStatus `json:"status"`
+	ReviewedBy              *uuid.UUID        `json:"reviewed_by"`
+	ReviewedAt              pgtype.Timestamp  `json:"reviewed_at"`
+	PreferredAvailabilityID *uuid.UUID        `json:"preferred_availability_id"`
+	RequestedReturnAt       pgtype.Timestamp  `json:"requested_return_at"`
+	ItemName                string            `json:"item_name"`
+	RequesterEmail          string            `json:"requester_email"`
+	GroupName               string            `json:"group_name"`
 }
 
 func (q *Queries) GetPendingRequestsForApproval(ctx context.Context, arg GetPendingRequestsForApprovalParams) ([]GetPendingRequestsForApprovalRow, error) {
@@ -265,6 +276,8 @@ func (q *Queries) GetPendingRequestsForApproval(ctx context.Context, arg GetPend
 			&i.Status,
 			&i.ReviewedBy,
 			&i.ReviewedAt,
+			&i.PreferredAvailabilityID,
+			&i.RequestedReturnAt,
 			&i.ItemName,
 			&i.RequesterEmail,
 			&i.GroupName,
@@ -280,7 +293,7 @@ func (q *Queries) GetPendingRequestsForApproval(ctx context.Context, arg GetPend
 }
 
 const getRequestByBookingID = `-- name: GetRequestByBookingID :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE booking_id = $1
 `
 
@@ -300,12 +313,13 @@ func (q *Queries) GetRequestByBookingID(ctx context.Context, bookingID *uuid.UUI
 		&i.FulfilledAt,
 		&i.BookingID,
 		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }
 
 const getRequestById = `-- name: GetRequestById :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE id = $1
 `
 
@@ -325,12 +339,13 @@ func (q *Queries) GetRequestById(ctx context.Context, id uuid.UUID) (Request, er
 		&i.FulfilledAt,
 		&i.BookingID,
 		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }
 
 const getRequestByIdForUpdate = `-- name: GetRequestByIdForUpdate :one
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE id = $1
 FOR UPDATE
 `
@@ -351,12 +366,13 @@ func (q *Queries) GetRequestByIdForUpdate(ctx context.Context, id uuid.UUID) (Re
 		&i.FulfilledAt,
 		&i.BookingID,
 		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }
 
 const getRequestsByUserId = `-- name: GetRequestsByUserId :many
-SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id FROM requests
+SELECT id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at FROM requests
 WHERE user_id = $1
 ORDER BY requested_at DESC
 `
@@ -383,6 +399,7 @@ func (q *Queries) GetRequestsByUserId(ctx context.Context, userID *uuid.UUID) ([
 			&i.FulfilledAt,
 			&i.BookingID,
 			&i.PreferredAvailabilityID,
+			&i.RequestedReturnAt,
 		); err != nil {
 			return nil, err
 		}
@@ -407,31 +424,36 @@ func (q *Queries) MarkRequestAsFulfilled(ctx context.Context, id uuid.UUID) erro
 
 const requestItem = `-- name: RequestItem :one
 INSERT INTO requests (
-    user_id, group_id, item_id, quantity, status
+    user_id, group_id, item_id, quantity, status, preferred_availability_id,
+    requested_return_at
 )
-SELECT $1, $2, i.id, $4, 'pending'
+SELECT $1, $2, i.id, $4, 'pending', $5, $6
 FROM items i
 WHERE i.id = $3 AND i.type = 'high'
 RETURNING id, user_id, group_id, item_id, quantity,
-    status, reviewed_at, reviewed_by
+    status, reviewed_at, reviewed_by, preferred_availability_id, requested_return_at
 `
 
 type RequestItemParams struct {
-	UserID   *uuid.UUID `json:"user_id"`
-	GroupID  *uuid.UUID `json:"group_id"`
-	ID       uuid.UUID  `json:"id"`
-	Quantity int32      `json:"quantity"`
+	UserID                  *uuid.UUID       `json:"user_id"`
+	GroupID                 *uuid.UUID       `json:"group_id"`
+	ID                      uuid.UUID        `json:"id"`
+	Quantity                int32            `json:"quantity"`
+	PreferredAvailabilityID *uuid.UUID       `json:"preferred_availability_id"`
+	RequestedReturnAt       pgtype.Timestamp `json:"requested_return_at"`
 }
 
 type RequestItemRow struct {
-	ID         uuid.UUID         `json:"id"`
-	UserID     *uuid.UUID        `json:"user_id"`
-	GroupID    *uuid.UUID        `json:"group_id"`
-	ItemID     *uuid.UUID        `json:"item_id"`
-	Quantity   int32             `json:"quantity"`
-	Status     NullRequestStatus `json:"status"`
-	ReviewedAt pgtype.Timestamp  `json:"reviewed_at"`
-	ReviewedBy *uuid.UUID        `json:"reviewed_by"`
+	ID                      uuid.UUID         `json:"id"`
+	UserID                  *uuid.UUID        `json:"user_id"`
+	GroupID                 *uuid.UUID        `json:"group_id"`
+	ItemID                  *uuid.UUID        `json:"item_id"`
+	Quantity                int32             `json:"quantity"`
+	Status                  NullRequestStatus `json:"status"`
+	ReviewedAt              pgtype.Timestamp  `json:"reviewed_at"`
+	ReviewedBy              *uuid.UUID        `json:"reviewed_by"`
+	PreferredAvailabilityID *uuid.UUID        `json:"preferred_availability_id"`
+	RequestedReturnAt       pgtype.Timestamp  `json:"requested_return_at"`
 }
 
 // this function creates a new request in the requests table for a user requesting an item
@@ -441,6 +463,8 @@ func (q *Queries) RequestItem(ctx context.Context, arg RequestItemParams) (Reque
 		arg.GroupID,
 		arg.ID,
 		arg.Quantity,
+		arg.PreferredAvailabilityID,
+		arg.RequestedReturnAt,
 	)
 	var i RequestItemRow
 	err := row.Scan(
@@ -452,6 +476,8 @@ func (q *Queries) RequestItem(ctx context.Context, arg RequestItemParams) (Reque
 		&i.Status,
 		&i.ReviewedAt,
 		&i.ReviewedBy,
+		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }
@@ -511,7 +537,7 @@ const updateRequestWithBooking = `-- name: UpdateRequestWithBooking :one
 UPDATE requests
 SET booking_id = $2
 WHERE id = $1
-RETURNING id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id
+RETURNING id, user_id, group_id, item_id, quantity, status, requested_at, reviewed_by, reviewed_at, fulfilled_at, booking_id, preferred_availability_id, requested_return_at
 `
 
 type UpdateRequestWithBookingParams struct {
@@ -535,6 +561,7 @@ func (q *Queries) UpdateRequestWithBooking(ctx context.Context, arg UpdateReques
 		&i.FulfilledAt,
 		&i.BookingID,
 		&i.PreferredAvailabilityID,
+		&i.RequestedReturnAt,
 	)
 	return i, err
 }

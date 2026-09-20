@@ -602,10 +602,12 @@ func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestO
 	}
 
 	params := db.RequestItemParams{
-		UserID:   &user.ID,
-		GroupID:  &request.Body.GroupId,
-		ID:       request.Body.ItemId,
-		Quantity: int32(request.Body.Quantity),
+		UserID:                  &user.ID,
+		GroupID:                 &request.Body.GroupId,
+		ID:                      request.Body.ItemId,
+		Quantity:                int32(request.Body.Quantity),
+		PreferredAvailabilityID: request.Body.PreferredAvailabilityId,
+		RequestedReturnAt:       pgtype.Timestamp{Time: valueOrZero(request.Body.RequestedReturnAt), Valid: request.Body.RequestedReturnAt != nil},
 	}
 
 	resp, err := s.db.Queries().RequestItem(ctx, params)
@@ -619,14 +621,16 @@ func (s Server) RequestItem(ctx context.Context, request api.RequestItemRequestO
 	}
 
 	return api.RequestItem201JSONResponse{
-		Id:         resp.ID,
-		UserId:     *resp.UserID,
-		GroupId:    *resp.GroupID,
-		ItemId:     *resp.ItemID,
-		Quantity:   int(resp.Quantity),
-		Status:     toAPIRequestStatus(resp.Status),
-		ReviewedBy: resp.ReviewedBy,
-		ReviewedAt: reviewedAt,
+		Id:                      resp.ID,
+		UserId:                  *resp.UserID,
+		GroupId:                 *resp.GroupID,
+		ItemId:                  *resp.ItemID,
+		Quantity:                int(resp.Quantity),
+		Status:                  toAPIRequestStatus(resp.Status),
+		ReviewedBy:              resp.ReviewedBy,
+		ReviewedAt:              reviewedAt,
+		PreferredAvailabilityId: resp.PreferredAvailabilityID,
+		RequestedReturnAt:       timestampPointer(resp.RequestedReturnAt),
 	}, nil
 }
 
@@ -693,8 +697,15 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 			pickupDate = pickupDate.Add(time.Duration(availability.StartTime.Microseconds) * time.Microsecond)
 		}
 
-		// Calculate return date: pickup + 7 days (default borrowing period)
+		// Use the member's requested return time when supplied. Older requests
+		// retain the existing seven-day default.
 		returnDate := pickupDate.Add(7 * 24 * time.Hour)
+		if req.RequestedReturnAt.Valid {
+			returnDate = req.RequestedReturnAt.Time
+			if !returnDate.After(pickupDate) {
+				return api.ReviewRequest400JSONResponse(ValidationErr("Requested return time must be after collection", nil).Create()), nil
+			}
+		}
 
 		// Create booking
 		newBookingID := uuid.New()
@@ -724,6 +735,10 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 		})
 		if err != nil {
 			return api.ReviewRequest500JSONResponse(InternalError("Failed to link request to booking").Create()), nil
+		}
+
+		if err := qtx.DecrementItemStock(ctx, db.DecrementItemStockParams{ID: item.ID, Stock: req.Quantity}); err != nil {
+			return api.ReviewRequest500JSONResponse(InternalError("Failed to reserve item stock").Create()), nil
 		}
 	}
 
@@ -803,6 +818,20 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 		ReviewedBy: resp.ReviewedBy,
 		ReviewedAt: &reviewedAt,
 	}, nil
+}
+
+func valueOrZero(value *time.Time) time.Time {
+	if value == nil {
+		return time.Time{}
+	}
+	return *value
+}
+
+func timestampPointer(value pgtype.Timestamp) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	return &value.Time
 }
 
 func (s Server) GetAllRequests(ctx context.Context, request api.GetAllRequestsRequestObject) (api.GetAllRequestsResponseObject, error) {
@@ -936,14 +965,16 @@ func (s Server) GetRequestById(ctx context.Context, request api.GetRequestByIdRe
 	}
 
 	return api.GetRequestById200JSONResponse{
-		Id:         req.ID,
-		UserId:     *req.UserID,
-		GroupId:    *req.GroupID,
-		ItemId:     *req.ItemID,
-		Quantity:   int(req.Quantity),
-		Status:     api.RequestStatus(string(req.Status.RequestStatus)),
-		ReviewedBy: req.ReviewedBy,
-		ReviewedAt: reviewedAt,
+		Id:                      req.ID,
+		UserId:                  *req.UserID,
+		GroupId:                 *req.GroupID,
+		ItemId:                  *req.ItemID,
+		Quantity:                int(req.Quantity),
+		Status:                  api.RequestStatus(string(req.Status.RequestStatus)),
+		ReviewedBy:              req.ReviewedBy,
+		ReviewedAt:              reviewedAt,
+		PreferredAvailabilityId: req.PreferredAvailabilityID,
+		RequestedReturnAt:       timestampPointer(req.RequestedReturnAt),
 	}, nil
 }
 
@@ -963,7 +994,9 @@ func createApprovalRequestItemResponse(requests []db.GetAllRequestsForApprovalRo
 			Id: req.ID, UserId: *req.UserID, GroupId: *req.GroupID, ItemId: *req.ItemID,
 			Quantity: int(req.Quantity), Status: api.RequestStatus(req.Status.RequestStatus),
 			ReviewedBy: req.ReviewedBy, ReviewedAt: reviewedAt,
-			ItemName: &itemName, RequesterEmail: &requesterEmail, GroupName: &groupName,
+			PreferredAvailabilityId: req.PreferredAvailabilityID,
+			RequestedReturnAt:       timestampPointer(req.RequestedReturnAt),
+			ItemName:                &itemName, RequesterEmail: &requesterEmail, GroupName: &groupName,
 		})
 	}
 	return response
@@ -988,14 +1021,16 @@ func createRequestItemResponse(requests []db.Request) []api.RequestItemResponse 
 		}
 
 		response = append(response, api.RequestItemResponse{
-			Id:         req.ID,
-			UserId:     *req.UserID,
-			GroupId:    *req.GroupID,
-			ItemId:     *req.ItemID,
-			Quantity:   int(req.Quantity),
-			Status:     toAPIRequestStatus(req.Status),
-			ReviewedBy: req.ReviewedBy,
-			ReviewedAt: reviewedAt,
+			Id:                      req.ID,
+			UserId:                  *req.UserID,
+			GroupId:                 *req.GroupID,
+			ItemId:                  *req.ItemID,
+			Quantity:                int(req.Quantity),
+			Status:                  toAPIRequestStatus(req.Status),
+			ReviewedBy:              req.ReviewedBy,
+			ReviewedAt:              reviewedAt,
+			PreferredAvailabilityId: req.PreferredAvailabilityID,
+			RequestedReturnAt:       timestampPointer(req.RequestedReturnAt),
 		})
 	}
 
