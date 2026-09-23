@@ -87,7 +87,17 @@ func (s Server) CheckoutCart(ctx context.Context, request api.CheckoutCartReques
 	}
 	if preferredAvailabilityID != nil {
 		availability, err := qtx.GetAvailabilityByID(ctx, *request.Body.PreferredAvailabilityId)
-		if err != nil || !availability.Date.Valid || !availability.Date.Time.After(time.Now()) {
+		if err != nil || !availability.Date.Valid {
+			return api.CheckoutCart400JSONResponse(ValidationErr("Choose an upcoming collection window", nil).Create()), nil
+		}
+		// availability.Date is midnight on the collection day; add the slot's
+		// start time so a same-day window isn't rejected just because the
+		// date itself is no longer in the future.
+		collectionTime := availability.Date.Time
+		if availability.StartTime.Valid {
+			collectionTime = collectionTime.Add(time.Duration(availability.StartTime.Microseconds) * time.Microsecond)
+		}
+		if !collectionTime.After(time.Now()) {
 			return api.CheckoutCart400JSONResponse(ValidationErr("Choose an upcoming collection window", nil).Create()), nil
 		}
 	}
