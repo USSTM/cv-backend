@@ -325,6 +325,7 @@ type Request struct {
 	FulfilledAt             pgtype.Timestamp  `json:"fulfilled_at"`
 	BookingID               *uuid.UUID        `json:"booking_id"`
 	PreferredAvailabilityID *uuid.UUID        `json:"preferred_availability_id"`
+	RequestedReturnAt       pgtype.Timestamp  `json:"requested_return_at"`
 }
 
 type Role struct {
