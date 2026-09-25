@@ -518,6 +518,13 @@ components:
         beforeConditionUrl:
           type: string
           description: Photo URL or storage key for MEDIUM items (ignored for LOW/HIGH). Use the beforeConditionUrl returned by UploadPreCheckoutConditionImage.
+        preferredAvailabilityId:
+          $ref: "#/components/schemas/UUID"
+          description: Member's preferred collection window for HIGH items.
+        requestedReturnAt:
+          type: string
+          format: date-time
+          description: Return-by date and time requested for HIGH items.
       required:
         - groupId
         - dueDate
@@ -797,6 +804,13 @@ components:
           type: integer
           minimum: 1
           description: Quantity of the item to request
+        preferred_availability_id:
+          $ref: "#/components/schemas/UUID"
+          description: Member's preferred collection window for this Request.
+        requested_return_at:
+          type: string
+          format: date-time
+          description: Return-by date and time requested for this Request.
       required:
         - user_id
         - group_id
@@ -825,16 +839,25 @@ components:
           type: string
           format: date-time
           nullable: true
+        preferred_availability_id:
+          $ref: "#/components/schemas/UUID"
+          nullable: true
+          description: The collection window requested by the Member.
+        requested_return_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Return-by date and time requested by the Member.
         item_name:
           type: string
-          description: Item name, included in approval request lists
+          description: Item name, included in approval request lists.
         requester_email:
           type: string
           format: email
-          description: Requester email, included in approval request lists
+          description: Requesting Member email, included in approval request lists.
         group_name:
           type: string
-          description: Group name, included in approval request lists
+          description: Group name, included in approval request lists.
       required:
         - id
         - user_id

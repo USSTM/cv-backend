@@ -1,13 +1,14 @@
 -- this function creates a new request in the requests table for a user requesting an item
 -- name: RequestItem :one
 INSERT INTO requests (
-    user_id, group_id, item_id, quantity, status
+    user_id, group_id, item_id, quantity, status, preferred_availability_id,
+    requested_return_at
 )
-SELECT $1, $2, i.id, $4, 'pending'
+SELECT $1, $2, i.id, $4, 'pending', $5, sqlc.narg('requested_return_at')
 FROM items i
 WHERE i.id = $3 AND i.type = 'high'
 RETURNING id, user_id, group_id, item_id, quantity,
-    status, reviewed_at, reviewed_by;
+    status, reviewed_at, reviewed_by, preferred_availability_id, requested_return_at;
 
 -- this function updates the status of a request (approve or deny) and records who reviewed it and when
 -- name: ReviewRequest :one
@@ -51,6 +52,7 @@ ORDER BY requested_at DESC LIMIT $1 OFFSET $2;
 
 -- name: GetPendingRequestsForApproval :many
 SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       r.preferred_availability_id, r.requested_return_at,
        i.name AS item_name, requester.email AS requester_email, g.name AS group_name
 FROM requests r
 JOIN items i ON r.item_id = i.id
@@ -61,6 +63,7 @@ ORDER BY r.requested_at ASC LIMIT $1 OFFSET $2;
 
 -- name: GetAllRequestsForApproval :many
 SELECT r.id, r.user_id, r.group_id, r.item_id, r.quantity, r.status, r.reviewed_by, r.reviewed_at,
+       r.preferred_availability_id, r.requested_return_at,
        i.name AS item_name, requester.email AS requester_email, g.name AS group_name
 FROM requests r
 JOIN items i ON r.item_id = i.id

@@ -5,10 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/USSTM/cv-backend/generated/db"
 	"github.com/USSTM/cv-backend/internal/rbac"
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/internal/testutil"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -169,6 +172,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 				DueDate:            dueDate,
 				BeforeCondition:    beforeCondition,
 				BeforeConditionUrl: beforeConditionURL,
+				RequestedReturnAt:  &dueDate,
 			},
 		})
 
@@ -210,9 +214,9 @@ func TestServer_CheckoutCart(t *testing.T) {
 			Create()
 
 		highItem2 := testDB.NewItem(t).
-			WithName("Drone").
+			WithName("Drone (future request)").
 			WithType("high").
-			WithStock(2).
+			WithStock(0).
 			Create()
 
 		// Add items to cart
@@ -240,12 +244,30 @@ func TestServer_CheckoutCart(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		approver := testDB.NewUser(t).
+			WithEmail("approver@checkout-high.ca").
+			AsApprover().
+			Create()
+		timeSlots, err := testDB.Queries().ListTimeSlots(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, timeSlots)
+		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver.ID,
+			TimeSlotID: &timeSlots[0].ID,
+			Date:       pgtype.Date{Time: time.Now().AddDate(0, 0, 7), Valid: true},
+		})
+		require.NoError(t, err)
+
 		// Checkout
 		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
+		requestedReturnAt := time.Now().AddDate(0, 0, 8)
 
 		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
 			Body: &api.CheckoutCartJSONRequestBody{
-				GroupId: group.ID,
+				GroupId:                 group.ID,
+				PreferredAvailabilityId: &availability.ID,
+				RequestedReturnAt:       &requestedReturnAt,
 			},
 		})
 
@@ -258,6 +280,13 @@ func TestServer_CheckoutCart(t *testing.T) {
 		assert.Len(t, checkoutResp.HighItemsRequested, 2)
 		assert.Len(t, checkoutResp.Errors, 0)
 
+		for _, item := range checkoutResp.HighItemsRequested {
+			request, err := testDB.Queries().GetRequestById(ctx, *item.RequestId)
+			require.NoError(t, err)
+			require.NotNil(t, request.PreferredAvailabilityID)
+			assert.Equal(t, availability.ID, *request.PreferredAvailabilityID)
+		}
+
 		// Verify stock not decremented
 		item1, err := testDB.Queries().GetItemByID(ctx, highItem1.ID)
 		require.NoError(t, err)
@@ -265,7 +294,97 @@ func TestServer_CheckoutCart(t *testing.T) {
 
 		item2, err := testDB.Queries().GetItemByID(ctx, highItem2.ID)
 		require.NoError(t, err)
-		assert.Equal(t, int32(2), item2.Stock)
+		assert.Equal(t, int32(0), item2.Stock)
+	})
+
+	t.Run("successful checkout with a same-day collection window still upcoming", func(t *testing.T) {
+		// Regression test: the availability check used to compare only the
+		// collection date (truncated to midnight) against time.Now(), so any
+		// same-day window was rejected even when its start time hadn't
+		// passed yet.
+		testUser := testDB.NewUser(t).
+			WithEmail("checkout@same-day.ca").
+			AsMember().
+			Create()
+
+		group := testDB.NewGroup(t).
+			WithName("Same Day Checkout Group").
+			Create()
+
+		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
+
+		highItem := testDB.NewItem(t).
+			WithName("Same Day High Item").
+			WithType(string(db.ItemTypeHigh)).
+			WithStock(5).
+			Create()
+
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ManageCart, &group.ID, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
+
+		_, err := server.AddToCart(ctx, api.AddToCartRequestObject{
+			GroupId: group.ID,
+			Body: &api.AddToCartJSONRequestBody{
+				GroupId:  group.ID,
+				ItemId:   highItem.ID,
+				Quantity: 1,
+			},
+		})
+		require.NoError(t, err)
+
+		approver := testDB.NewUser(t).
+			WithEmail("approver@checkout-same-day.ca").
+			AsApprover().
+			Create()
+
+		timeSlots, err := testDB.Queries().ListTimeSlots(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, timeSlots)
+
+		// Availability dates round-trip through Postgres as UTC midnight, so
+		// build "now" in UTC to compare on the same terms the handler does.
+		now := time.Now().UTC()
+		nowOfDay := time.Duration(now.Hour())*time.Hour +
+			time.Duration(now.Minute())*time.Minute +
+			time.Duration(now.Second())*time.Second
+
+		var laterToday *db.TimeSlot
+		for i := range timeSlots {
+			slotOfDay := time.Duration(timeSlots[i].StartTime.Microseconds) * time.Microsecond
+			if slotOfDay > nowOfDay+5*time.Minute {
+				laterToday = &timeSlots[i]
+				break
+			}
+		}
+		if laterToday == nil {
+			t.Skip("no remaining time slot today to exercise a same-day collection window")
+		}
+
+		availability, err := testDB.Queries().CreateAvailability(ctx, db.CreateAvailabilityParams{
+			ID:         uuid.New(),
+			UserID:     &approver.ID,
+			TimeSlotID: &laterToday.ID,
+			Date:       pgtype.Date{Time: now, Valid: true},
+		})
+		require.NoError(t, err)
+
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
+		requestedReturnAt := now.AddDate(0, 0, 1)
+
+		response, err := server.CheckoutCart(ctx, api.CheckoutCartRequestObject{
+			Body: &api.CheckoutCartJSONRequestBody{
+				GroupId:                 group.ID,
+				PreferredAvailabilityId: &availability.ID,
+				RequestedReturnAt:       &requestedReturnAt,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.CheckoutCart200JSONResponse{}, response)
+
+		checkoutResp := response.(api.CheckoutCart200JSONResponse)
+		assert.Len(t, checkoutResp.HighItemsRequested, 1)
+		assert.Len(t, checkoutResp.Errors, 0)
 	})
 
 	t.Run("successful checkout with mixed item types", func(t *testing.T) {
@@ -346,6 +465,7 @@ func TestServer_CheckoutCart(t *testing.T) {
 				DueDate:            dueDate,
 				BeforeCondition:    beforeCondition,
 				BeforeConditionUrl: beforeConditionURL,
+				RequestedReturnAt:  &dueDate,
 			},
 		})
 
