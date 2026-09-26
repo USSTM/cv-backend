@@ -454,6 +454,65 @@ func TestServer_ReturnItem(t *testing.T) {
 		assert.Equal(t, int32(5), itemAfterReturn.Stock, "Stock should be back to 5 after returning 1 item")
 	})
 
+	t.Run("return an item without an after condition photo", func(t *testing.T) {
+		testUser := testDB.NewUser(t).
+			WithEmail("return@nophoto.ca").
+			AsMember().
+			Create()
+
+		group := testDB.NewGroup(t).
+			WithName("Return No Photo Group").
+			Create()
+
+		testDB.AssignUserToGroup(t, testUser.ID, group.ID, "member")
+
+		item := testDB.NewItem(t).
+			WithName("Extension Cord").
+			WithType("medium").
+			WithStock(5).
+			Create()
+
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.RequestItems, &group.ID, true, nil)
+		ctx := testutil.ContextWithUser(context.Background(), testUser, testDB.Queries())
+
+		borrowResp, err := server.BorrowItem(ctx, api.BorrowItemRequestObject{
+			Body: &api.BorrowItemJSONRequestBody{
+				UserId:             testUser.ID,
+				GroupId:            group.ID,
+				ItemId:             item.ID,
+				Quantity:           1,
+				DueDate:            time.Now().Add(7 * 24 * time.Hour),
+				BeforeCondition:    "good",
+				BeforeConditionUrl: "http://example.com/before.jpg",
+			},
+		})
+		require.NoError(t, err)
+		require.IsType(t, api.BorrowItem201JSONResponse{}, borrowResp)
+
+		// after_condition_url is optional in the API; omitting it must not crash.
+		mockAuth.ExpectCheckPermission(testUser.ID, rbac.ViewOwnData, nil, true, nil)
+		afterCondition := "good"
+
+		response, err := server.ReturnItem(ctx, api.ReturnItemRequestObject{
+			ItemId: item.ID,
+			Body: &api.ReturnItemJSONRequestBody{
+				AfterCondition: afterCondition,
+			},
+		})
+
+		require.NoError(t, err)
+		require.IsType(t, api.ReturnItem200JSONResponse{}, response)
+
+		returnResp := response.(api.ReturnItem200JSONResponse)
+		assert.NotNil(t, returnResp.ReturnedAt)
+		assert.Equal(t, &afterCondition, returnResp.AfterCondition)
+		assert.Nil(t, returnResp.AfterConditionUrl)
+
+		itemAfterReturn, err := testDB.Queries().GetItemByID(ctx, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int32(5), itemAfterReturn.Stock, "Stock should be back to 5 after returning 1 item")
+	})
+
 	t.Run("attempt to return non-borrowed item", func(t *testing.T) {
 		testUser := testDB.NewUser(t).
 			WithEmail("return@notborrowed.ca").
