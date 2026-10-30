@@ -47,7 +47,7 @@ func (s *EmailService) SendEmail(ctx context.Context, to string, subject string,
 		},
 		Message: &types.Message{
 			Body: &types.Body{
-				Text: &types.Content{
+				Html: &types.Content{
 					Data: aws.String(body),
 				},
 			},

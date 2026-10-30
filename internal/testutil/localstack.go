@@ -130,7 +130,7 @@ func (ls *TestLocalStack) SendEmail(ctx context.Context, to, subject, body strin
 		},
 		Message: &types.Message{
 			Body: &types.Body{
-				Text: &types.Content{
+				Html: &types.Content{
 					Data: aws.String(body),
 				},
 			},
