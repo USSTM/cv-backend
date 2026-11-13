@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/USSTM/cv-backend/generated/api"
 	"github.com/USSTM/cv-backend/generated/db"
+	"github.com/USSTM/cv-backend/internal/queue"
 	"github.com/USSTM/cv-backend/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -1424,10 +1426,12 @@ func TestServer_ReviewRequest(t *testing.T) {
 		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
 		approverCtx := testutil.ContextWithUser(context.Background(), approverUser, testDB.Queries())
 
+		denialReason := "The camera is reserved for an upcoming event."
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
 			RequestId: createdRequest.Id,
 			Body: &api.ReviewRequestJSONRequestBody{
-				Status: api.Denied,
+				Status:       api.Denied,
+				DenialReason: &denialReason,
 			},
 		})
 
@@ -1451,6 +1455,10 @@ func TestServer_ReviewRequest(t *testing.T) {
 		tasks, err := sharedQueue.Inspector.ListPendingTasks("default")
 		require.NoError(t, err)
 		assert.Len(t, tasks, 1, "one email should be enqueued for requester")
+
+		var email queue.EmailDeliveryPayload
+		require.NoError(t, json.Unmarshal(tasks[0].Payload, &email))
+		assert.Contains(t, email.Body, denialReason)
 	})
 
 	t.Run("cannot approve request with insufficient stock", func(t *testing.T) {
@@ -1645,11 +1653,13 @@ func TestServer_ReviewRequest(t *testing.T) {
 
 		// Try to review again
 		mockAuth.ExpectCheckPermission(approverUser.ID, rbac.ApproveAllRequests, nil, true, nil)
+		denialReason := "The request was already reviewed."
 
 		response, err := server.ReviewRequest(approverCtx, api.ReviewRequestRequestObject{
 			RequestId: createdRequest.Id,
 			Body: &api.ReviewRequestJSONRequestBody{
-				Status: api.Denied,
+				Status:       api.Denied,
+				DenialReason: &denialReason,
 			},
 		})
 

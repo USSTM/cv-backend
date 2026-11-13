@@ -872,6 +872,9 @@ components:
         status:
           $ref: "#/components/schemas/RequestStatus"
           description: New status (approved or denied)
+        denial_reason:
+          type: string
+          description: Required when denying a Request; included in the Requester's denial email
         availability_id:
           $ref: "#/components/schemas/UUID"
           description: Required when approving HIGH items - specifies the time slot for pickup

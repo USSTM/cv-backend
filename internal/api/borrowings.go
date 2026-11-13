@@ -647,6 +647,9 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 	if !hasPermission {
 		return api.ReviewRequest403JSONResponse(PermissionDenied("Insufficient permissions").Create()), nil
 	}
+	if request.Body.Status == api.Denied && (request.Body.DenialReason == nil || strings.TrimSpace(*request.Body.DenialReason) == "") {
+		return api.ReviewRequest400JSONResponse(ValidationErr("A denial reason is required when denying a request", nil).Create()), nil
+	}
 
 	// transaction
 	tx, err := s.db.Pool().Begin(ctx)
@@ -798,6 +801,7 @@ func (s Server) ReviewRequest(ctx context.Context, request api.ReviewRequestRequ
 						"UserName":  requesterEmail,
 						"ItemName":  item.Name,
 						"RequestID": request.RequestId,
+						"Reason":    strings.TrimSpace(*request.Body.DenialReason),
 					},
 				},
 			}); notifyErr != nil {
