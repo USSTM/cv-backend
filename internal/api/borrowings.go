@@ -207,11 +207,17 @@ func (s Server) ReturnItem(ctx context.Context, request api.ReturnItemRequestObj
 		return api.ReturnItem500JSONResponse(InternalError("Internal server error").Create()), nil
 	}
 
+	// after_condition_url is optional; only dereference it when supplied.
+	var afterConditionURL pgtype.Text
+	if request.Body.AfterConditionUrl != nil {
+		afterConditionURL = pgtype.Text{String: *request.Body.AfterConditionUrl, Valid: true}
+	}
+
 	// Update with return information
 	params := db.ReturnItemParams{
 		ItemID:            &request.ItemId,
 		AfterCondition:    db.NullCondition{Condition: db.Condition(request.Body.AfterCondition), Valid: request.Body.AfterCondition != ""},
-		AfterConditionUrl: pgtype.Text{String: *request.Body.AfterConditionUrl, Valid: request.Body.AfterConditionUrl != nil},
+		AfterConditionUrl: afterConditionURL,
 	}
 
 	resp, err := qtx.ReturnItem(ctx, params)

@@ -89,13 +89,13 @@ services:
             - ./logs:/app/logs
         networks:
             default: {}
-            portal_shared:
+            edge:
                 aliases:
                     - cv-backend-app
 
 networks:
-    portal_shared:
-        name: usstm-portal-production_application
+    edge:
+        name: usstm-edge
         external: true
 
 volumes:
